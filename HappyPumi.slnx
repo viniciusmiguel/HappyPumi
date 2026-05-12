@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Generator/PulumiApiGenerator.csproj" />
+  <Project Path="HappyPumi.Api.Tests/HappyPumi.Api.Tests.csproj" />
+  <Project Path="HappyPumi.Api/HappyPumi.Api.csproj" />
+  <Project Path="HappyPumi.AppHost/HappyPumi.AppHost.csproj" />
+</Solution>

@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>PulumiApiGenerator</RootNamespace>
+    <AssemblyName>PulumiApiGenerator</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Microsoft's official OpenAPI .NET SDK. 1.6.x is stable and widely deployed. -->
+    <PackageReference Include="Microsoft.OpenApi" Version="1.6.21" />
+    <PackageReference Include="Microsoft.OpenApi.Readers" Version="1.6.21" />
+  </ItemGroup>
+
+</Project>
