@@ -32,7 +32,7 @@ public sealed class CreateUpdateForRefreshEndpoint(UpdateLifecycle lifecycle) : 
     public async override Task HandleAsync(CreateUpdateForRefreshRequest req, CancellationToken ct)
     {
         // Creates the refresh update record; the CLI starts it next. 404 if the stack is unknown.
-        var update = lifecycle.Create(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), "refresh");
+        var update = lifecycle.Create(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), "refresh", req.Body);
         if (update is null)
         {
             await Send.NotFoundAsync(ct);

@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Collections.Generic;
 using HappyPumi.Api.Contracts;
 
 namespace HappyPumi.Api.State;
@@ -27,6 +28,15 @@ public sealed class StoredUpdate
 
     /// <summary>The stack version this update will produce once completed.</summary>
     public long Version { get; set; }
+
+    /// <summary>Unix-seconds timestamp set when the update starts; recorded in the history entry.</summary>
+    public long StartedAt { get; set; }
+
+    /// <summary>Config snapshot from the create request; replayed via /updates/latest (GetLatestConfiguration).</summary>
+    public Dictionary<string, AppConfigValue>? Config { get; set; }
+
+    /// <summary>Human update message from the create request's metadata.</summary>
+    public string Message { get; set; } = string.Empty;
 
     /// <summary>Latest checkpoint PATCHed during the update; promoted to the stack on success.</summary>
     public AppUntypedDeployment? Checkpoint { get; set; }

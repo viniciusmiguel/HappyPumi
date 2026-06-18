@@ -6,15 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetStackUpdates
 /// </summary>
-public sealed class GetStackUpdatesEndpoint : Endpoint<GetStackUpdatesRequest, object>
+public sealed class GetStackUpdatesEndpoint(IStackStore stacks) : Endpoint<GetStackUpdatesRequest, object>
 {
     public override void Configure()
     {
@@ -28,11 +30,18 @@ public sealed class GetStackUpdatesEndpoint : Endpoint<GetStackUpdatesRequest, o
         );
     }
 
-    public override Task HandleAsync(GetStackUpdatesRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetStackUpdatesRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStackUpdates
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/updates
-        // Should produce: object
-        throw new NotImplementedException("Endpoint GetStackUpdates not implemented.");
+        var stack = stacks.Find(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName));
+        if (stack is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        // Shape matches the CLI's GetHistoryResponse { updates: []UpdateInfo }, most-recent first.
+        // AppUpdateInfo is exactly the lean history UpdateInfo the CLI deserializes.
+        var updates = stack.History.Select(e => e.Info).Reverse().ToList();
+        await Send.OkAsync(new { updates }, ct);
     }
 }

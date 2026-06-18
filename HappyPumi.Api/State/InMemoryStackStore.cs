@@ -1,6 +1,8 @@
 #nullable enable
 
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using HappyPumi.Api.Contracts;
 
 namespace HappyPumi.Api.State;
@@ -55,5 +57,66 @@ public sealed class InMemoryStackStore : IStackStore
         if (bumpVersion)
             stack.Version++;
         return stack;
+    }
+
+    public IReadOnlyCollection<StoredStack> All() => _stacks.Values.ToArray();
+
+    public bool RecordHistory(StackCoordinates coordinates, StoredHistoryEntry entry)
+    {
+        if (!_stacks.TryGetValue(coordinates, out var stack))
+            return false;
+        stack.History.Add(entry);
+        return true;
+    }
+
+    public StoredStack? SetTag(StackCoordinates coordinates, string name, string value)
+    {
+        if (!_stacks.TryGetValue(coordinates, out var stack))
+            return null;
+        stack.Tags[name] = value;
+        return stack;
+    }
+
+    public StoredStack? ReplaceTags(StackCoordinates coordinates, IReadOnlyDictionary<string, string> tags)
+    {
+        if (!_stacks.TryGetValue(coordinates, out var stack))
+            return null;
+        stack.Tags.Clear();
+        foreach (var (name, value) in tags)
+            stack.Tags[name] = value;
+        return stack;
+    }
+
+    public StoredStack? Rename(StackCoordinates from, StackCoordinates to, out bool collision)
+    {
+        collision = false;
+        if (!_stacks.TryGetValue(from, out var existing))
+            return null;
+        if (from == to)
+            return existing;
+        if (_stacks.ContainsKey(to))
+        {
+            collision = true;
+            return null;
+        }
+
+        // Re-key under the new coordinates, preserving state/config/history/tags.
+        var moved = new StoredStack
+        {
+            Coordinates = to,
+            Version = existing.Version,
+            Config = existing.Config,
+            Deployment = existing.Deployment,
+        };
+        foreach (var (k, v) in existing.Tags)
+            moved.Tags[k] = v;
+        moved.History.AddRange(existing.History);
+        if (!_stacks.TryAdd(to, moved))
+        {
+            collision = true;
+            return null;
+        }
+        _stacks.TryRemove(from, out _);
+        return moved;
     }
 }

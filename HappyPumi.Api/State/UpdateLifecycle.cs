@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using HappyPumi.Api.Contracts;
 
 namespace HappyPumi.Api.State;
@@ -15,12 +16,18 @@ public sealed class UpdateLifecycle(IUpdateStore updates, IStackStore stacks)
 {
     public const string PreviewKind = "preview";
 
-    /// <summary>Creates an update for an existing stack, or null when the stack does not exist.</summary>
-    public StoredUpdate? Create(StackCoordinates stack, string kind)
+    /// <summary>
+    /// Creates an update for an existing stack, capturing the program's config/message so the history
+    /// and /updates/latest can replay them. Returns null when the stack does not exist.
+    /// </summary>
+    public StoredUpdate? Create(StackCoordinates stack, string kind, AppUpdateProgramRequest? program = null)
     {
         if (stacks.Find(stack) is null)
             return null;
-        return updates.Create(stack, kind, dryRun: kind == PreviewKind);
+        var update = updates.Create(stack, kind, dryRun: kind == PreviewKind);
+        update.Config = program?.Config;
+        update.Message = program?.Metadata?.Message ?? string.Empty;
+        return update;
     }
 
     /// <summary>
@@ -36,6 +43,7 @@ public sealed class UpdateLifecycle(IUpdateStore updates, IStackStore stacks)
         update.Status = UpdateStatuses.Running;
         update.Token = $"lease-{Guid.NewGuid():N}";
         update.Version = stack.Version + 1;
+        update.StartedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         return update;
     }
 
@@ -61,8 +69,30 @@ public sealed class UpdateLifecycle(IUpdateStore updates, IStackStore stacks)
         update.Status = status;
         if (status == UpdateStatuses.Succeeded && !update.DryRun && update.Checkpoint is not null)
             stacks.SetDeployment(update.Coordinates, update.Checkpoint, bumpVersion: true);
+
+        // Record real updates (not dry-run previews) in the stack's history so `pulumi stack history`
+        // and /updates/latest can see them.
+        if (!update.DryRun)
+            stacks.RecordHistory(update.Coordinates, HistoryEntryFor(update, status));
         return update;
     }
+
+    private static StoredHistoryEntry HistoryEntryFor(StoredUpdate update, string status) => new()
+    {
+        UpdateId = update.UpdateId,
+        Info = new AppUpdateInfo
+        {
+            Kind = update.Kind,
+            // CompleteUpdate's status ("succeeded"/"failed") is already the apitype UpdateResult value.
+            Result = status,
+            Message = update.Message,
+            StartTime = update.StartedAt,
+            EndTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+            Version = update.Version,
+            Config = update.Config ?? new Dictionary<string, AppConfigValue>(),
+            Environment = new Dictionary<string, string>(),
+        },
+    };
 
     /// <summary>Marks the update failed (the CLI cancels, then completes). Returns null when unknown.</summary>
     public StoredUpdate? Cancel(string updateId)

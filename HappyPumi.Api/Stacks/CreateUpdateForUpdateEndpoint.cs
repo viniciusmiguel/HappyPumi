@@ -33,7 +33,7 @@ public sealed class CreateUpdateForUpdateEndpoint(UpdateLifecycle lifecycle) : E
     {
         // Creates the update record only; the CLI then starts it via StartUpdateForUpdate. The stack
         // must already exist (the CLI creates it first), so an unknown stack is 404.
-        var update = lifecycle.Create(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), "update");
+        var update = lifecycle.Create(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), "update", req.Body);
         if (update is null)
         {
             await Send.NotFoundAsync(ct);

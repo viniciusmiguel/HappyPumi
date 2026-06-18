@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetLatestStackUpdate
 /// </summary>
-public sealed class GetLatestStackUpdateEndpoint : Endpoint<GetLatestStackUpdateRequest, UpdateInfo>
+public sealed class GetLatestStackUpdateEndpoint(IStackStore stacks) : Endpoint<GetLatestStackUpdateRequest, UpdateInfo>
 {
     public override void Configure()
     {
@@ -30,9 +31,15 @@ public sealed class GetLatestStackUpdateEndpoint : Endpoint<GetLatestStackUpdate
 
     public async override Task HandleAsync(GetLatestStackUpdateRequest req, CancellationToken ct)
     {
-        // 404 = "the stack has never been updated", which the CLI reads as a fresh stack. No update
-        // history is persisted until the update lifecycle lands (ENDPOINTS.md 1c), so every stack is
-        // currently update-less; this starts returning the real latest update once that store exists.
-        await Send.NotFoundAsync(ct);
+        // The CLI's GetLatestConfiguration reads Info.Config from here, and treats 404 as "no previous
+        // deployment" (a fresh stack). So an unknown stack or empty history is 404.
+        var stack = stacks.Find(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName));
+        if (stack is null || stack.History.Count == 0)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(StackMapper.ToUpdateInfo(stack, stack.History[^1]), ct);
     }
 }

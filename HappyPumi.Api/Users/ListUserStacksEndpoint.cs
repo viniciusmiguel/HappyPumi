@@ -6,15 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Users;
 
 /// <summary>
 /// ListUserStacks
 /// </summary>
-public sealed class ListUserStacksEndpoint : Endpoint<ListUserStacksRequest, AppListStacksResponse>
+public sealed class ListUserStacksEndpoint(IStackStore stacks) : Endpoint<ListUserStacksRequest, AppListStacksResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,15 @@ public sealed class ListUserStacksEndpoint : Endpoint<ListUserStacksRequest, App
         );
     }
 
-    public override Task HandleAsync(ListUserStacksRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ListUserStacksRequest req, CancellationToken ct)
     {
-        // TODO: implement ListUserStacks
-        // HTTP: GET /api/user/stacks
-        // Should produce: AppListStacksResponse
-        throw new NotImplementedException("Endpoint ListUserStacks not implemented.");
+        // Optionally scope to one organization (the `organization` query param). Pagination is not yet
+        // implemented, so the continuation token is always null ("all stacks returned").
+        var summaries = stacks.All()
+            .Where(s => req.Organization is null || s.Coordinates.Org == req.Organization)
+            .Select(StackMapper.ToSummary)
+            .ToList();
+
+        await Send.OkAsync(new AppListStacksResponse { Stacks = summaries, ContinuationToken = null }, ct);
     }
 }

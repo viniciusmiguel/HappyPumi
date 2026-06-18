@@ -1,5 +1,6 @@
 #nullable enable
 
+using System.Collections.Generic;
 using HappyPumi.Api.Contracts;
 
 namespace HappyPumi.Api.State;
@@ -35,4 +36,22 @@ public interface IStackStore
     /// null when it does not exist.
     /// </summary>
     StoredStack? SetDeployment(StackCoordinates coordinates, AppUntypedDeployment deployment, bool bumpVersion);
+
+    /// <summary>All stored stacks (used by ListUserStacks). Order is unspecified.</summary>
+    IReadOnlyCollection<StoredStack> All();
+
+    /// <summary>Appends a completed update to the stack's history. Returns false when the stack is unknown.</summary>
+    bool RecordHistory(StackCoordinates coordinates, StoredHistoryEntry entry);
+
+    /// <summary>Sets (or overwrites) a single tag. Returns the updated stack, or null when it does not exist.</summary>
+    StoredStack? SetTag(StackCoordinates coordinates, string name, string value);
+
+    /// <summary>Replaces the stack's entire tag set. Returns the updated stack, or null when it does not exist.</summary>
+    StoredStack? ReplaceTags(StackCoordinates coordinates, IReadOnlyDictionary<string, string> tags);
+
+    /// <summary>
+    /// Moves a stack to new coordinates (project and/or stack name). Returns the moved stack, null when
+    /// the source is missing, or throws nothing — a name collision is reported by <paramref name="collision"/>.
+    /// </summary>
+    StoredStack? Rename(StackCoordinates from, StackCoordinates to, out bool collision);
 }

@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// RenameStack
 /// </summary>
-public sealed class RenameStackEndpoint : Endpoint<RenameStackRequest, AppImportStackResponse>
+public sealed class RenameStackEndpoint(IStackStore stacks) : Endpoint<RenameStackRequest, AppImportStackResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,34 @@ public sealed class RenameStackEndpoint : Endpoint<RenameStackRequest, AppImport
         );
     }
 
-    public override Task HandleAsync(RenameStackRequest req, CancellationToken ct)
+    public async override Task HandleAsync(RenameStackRequest req, CancellationToken ct)
     {
-        // TODO: implement RenameStack
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/rename
-        // Should produce: AppImportStackResponse
-        throw new NotImplementedException("Endpoint RenameStack not implemented.");
+        // The rename may change the stack name and/or the project; org stays put. An empty body that
+        // changes neither is a 400 (matches the service's "does not specify a rename").
+        var from = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        var to = new StackCoordinates(
+            req.OrgName,
+            string.IsNullOrWhiteSpace(req.Body?.NewProject) ? req.ProjectName : req.Body.NewProject,
+            string.IsNullOrWhiteSpace(req.Body?.NewName) ? req.StackName : req.Body!.NewName);
+        if (from == to)
+        {
+            AddError("Request does not specify a rename: 'newName'/'newProject' match the current stack.", "newName");
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+
+        var moved = stacks.Rename(from, to, out var collision);
+        if (collision)
+        {
+            await Send.ResponseAsync(new AppImportStackResponse(), 409, ct);
+            return;
+        }
+        if (moved is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(new AppImportStackResponse { UpdateId = Guid.NewGuid().ToString() }, ct);
     }
 }

@@ -27,4 +27,7 @@ public sealed class StoredStack
     /// deployed. Set by a completed update or a state import; read by ExportStack.
     /// </summary>
     public AppUntypedDeployment? Deployment { get; set; }
+
+    /// <summary>Completed updates in chronological order (oldest first); the history endpoints read this.</summary>
+    public List<StoredHistoryEntry> History { get; } = new();
 }
