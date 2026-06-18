@@ -28,11 +28,15 @@ public sealed class CapabilitiesEndpoint : EndpointWithoutRequest<AppCapabilitie
         );
     }
 
-    public override Task HandleAsync(CancellationToken ct)
+    public override async Task HandleAsync(CancellationToken ct)
     {
-        // TODO: implement Capabilities
-        // HTTP: GET /api/capabilities
-        // Should produce: AppCapabilitiesResponse
-        throw new NotImplementedException("Endpoint Capabilities not implemented.");
+        // Advertise no optional capabilities (yet). This MUST return 200 with an empty list rather
+        // than 404/500: the CLI probes this during login and only tolerates 404 as "legacy backend"
+        // — a 500 fails the login outright. See GetCapabilities in
+        // pulumi/pkg/backend/httpstate/client/client.go. Real capabilities get added per ENDPOINTS.md.
+        await Send.OkAsync(new AppCapabilitiesResponse
+        {
+            Capabilities = new List<AppApiCapabilityConfig>()
+        }, ct);
     }
 }

@@ -30,18 +30,24 @@ public sealed class GetCurrentUserEndpoint : EndpointWithoutRequest<User>
 
     public async override Task HandleAsync(CancellationToken ct)
     {
+        // GithubLogin MUST be non-empty: the Pulumi CLI rejects the login otherwise
+        // ("unexpected response from server") — see GetPulumiAccountDetails in
+        // pulumi/pkg/backend/httpstate/client/client.go. It is the canonical user handle
+        // the CLI keys off (per ADR-0009 we map the active VCS provider's handle onto it).
         await Send.OkAsync(new User()
-        { 
+        {
             Email = "test@contoso.com",
             Id = Guid.NewGuid().ToString(),
+            GithubLogin = "happypumi",
+            Name = "Vinicius",
+            AvatarUrl = "https://example.invalid/avatar.png",
             HasMfa = false,
             Identities = new List<string>(),
             Organizations = new List<OrganizationSummaryWithRole>(),
-            Name = "Vinicius",
             IsManagedByMultiOrg = false,
             SiteAdmin =  true,
             TokenInfo = new TokenInfo()
-            
+
         }, ct);
     }
 }
