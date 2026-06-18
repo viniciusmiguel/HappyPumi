@@ -23,20 +23,38 @@ public static class MockConsoleMiddleware
         {
             var path = ctx.Request.Path.Value ?? "";
 
-            // The package README is fetched as raw text/markdown (responseType:"text"), not JSON — serve it
-            // before the JSON chain so the markdown renderer gets a real document instead of "{}".
+            // Some endpoints are fetched as raw text, not JSON (README markdown, ESC environment YAML), so
+            // serve them before the JSON chain with the right content type.
             var readme = PackageReadmeMock(path);
             if (readme is not null && HttpMethods.IsGet(ctx.Request.Method))
             {
-                await WriteText(ctx, readme);
+                await WriteText(ctx, readme, "text/markdown; charset=utf-8");
                 return;
+            }
+            var yaml = EscEnvironmentYaml(path);
+            if (yaml is not null && HttpMethods.IsGet(ctx.Request.Method))
+            {
+                await WriteText(ctx, yaml, "application/x-yaml; charset=utf-8");
+                return;
+            }
+
+            // The ESC editor preview POSTs the YAML to .../yaml/check and renders the evaluated result; the
+            // real endpoint 400s, so intercept the POST and return a resolved environment.
+            if (HttpMethods.IsPost(ctx.Request.Method))
+            {
+                var checkResult = EscCheckYamlMock(path);
+                if (checkResult is not null)
+                {
+                    await Write(ctx, checkResult);
+                    return;
+                }
             }
 
             // Known internal console endpoints: short-circuit with a canned mock.
             var mock = ProjectMock(path) ?? StackMetadataMock(path) ?? StackUpdatesMock(path)
                        ?? OrgDeploymentsMock(path) ?? DeploymentVersionMock(path) ?? DeploymentLogsMock(path)
                        ?? DeploymentUpdatesMock(path) ?? ResourcesMock(path) ?? PackageVersionsMock(path)
-                       ?? PackageNavMock(path) ?? Match(path);
+                       ?? PackageNavMock(path) ?? OrgEnvironmentsMock(path) ?? EscEnvironmentMock(path) ?? Match(path);
             if (mock is not null && HttpMethods.IsGet(ctx.Request.Method))
             {
                 await Write(ctx, mock);
@@ -64,9 +82,9 @@ public static class MockConsoleMiddleware
         await ctx.Response.WriteAsync(json);
     }
 
-    private static async Task WriteText(HttpContext ctx, string text)
+    private static async Task WriteText(HttpContext ctx, string text, string contentType)
     {
-        ctx.Response.ContentType = "text/markdown; charset=utf-8";
+        ctx.Response.ContentType = contentType;
         await ctx.Response.WriteAsync(text);
     }
 
@@ -422,6 +440,158 @@ public static class MockConsoleMiddleware
         """;
     }
 
+    /// <summary>
+    /// GET /api/esc/environments/{org} — the ESC Environments list (listOrgEnvironments). Returns
+    /// {environments:[OrgEnvironment], nextToken}; the console builds each row name as "{project}/{name}" and
+    /// groups by project. Returns a realistic set across two projects so the grouped grid renders.
+    /// </summary>
+    private static string? OrgEnvironmentsMock(string path)
+    {
+        var p = path.Split('/', StringSplitOptions.RemoveEmptyEntries); // api, esc, environments, {org}
+        if (p.Length != 4 || p[0] != "api" || p[1] != "esc" || p[2] != "environments")
+            return null;
+        var org = p[3];
+        var now = DateTimeOffset.UtcNow;
+        string Iso(long days) => now.AddDays(-days).ToString("o");
+        var by = new { githubLogin = "happypumi", name = "HappyPumi", avatarUrl = "" };
+        object Env(string project, string name, long created, long modified) => new
+        {
+            id = $"{org}/{project}/{name}", organization = org, project, name,
+            created = Iso(created), modified = Iso(modified), deletedAt = (string?)null,
+            ownedBy = by, tags = new Dictionary<string, string>(),
+            settings = new { deletionProtected = false },
+        };
+        var body = new
+        {
+            environments = new[]
+            {
+                Env("webstore", "prod", 90, 1),
+                Env("webstore", "staging", 60, 2),
+                Env("webstore", "dev", 45, 0),
+                Env("platform", "shared-secrets", 120, 7),
+            },
+            nextToken = (string?)null,
+        };
+        return System.Text.Json.JsonSerializer.Serialize(body);
+    }
+
+    /// <summary>
+    /// GET /api/esc/environments/{org}/{project}/{name}[/versions/{version}] — ReadEnvironment returns the raw
+    /// environment definition as <c>application/x-yaml</c> (the editor loads it as text). Returns a realistic
+    /// ESC definition (imports, values, secrets, environmentVariables, pulumiConfig). Non-env paths return null.
+    /// </summary>
+    private static string? EscEnvironmentYaml(string path)
+    {
+        var p = path.Split('/', StringSplitOptions.RemoveEmptyEntries); // api,esc,environments,org,proj,name[,versions,ver]
+        var isBase = p.Length == 6 && p[0] == "api" && p[1] == "esc" && p[2] == "environments";
+        var isVersion = p.Length == 8 && p[0] == "api" && p[1] == "esc" && p[2] == "environments"
+                        && p[6] == "versions" && p[7] != "tags";
+        if (!isBase && !isVersion)
+            return null;
+        return """
+        values:
+          aws:
+            region: us-west-2
+          app:
+            name: webstore
+            replicas: 3
+          environmentVariables:
+            AWS_REGION: ${aws.region}
+            APP_NAME: ${app.name}
+            DATABASE_URL:
+              fn::secret:
+                ciphertext: ZXNjeAAAAAE... (encrypted)
+          pulumiConfig:
+            aws:region: ${aws.region}
+            webstore:replicas: ${app.replicas}
+        """;
+    }
+
+    /// <summary>
+    /// JSON sub-resources of the ESC environment detail page: metadata, settings, revisions (versions), and
+    /// revision tags. ListEnvironmentRevisions returns a BARE ARRAY (the console calls <c>.sort()</c> on it).
+    /// </summary>
+    private static string? EscEnvironmentMock(string path)
+    {
+        var p = path.Split('/', StringSplitOptions.RemoveEmptyEntries); // api,esc,environments,org,proj,name,<sub>...
+        if (p.Length < 7 || p[0] != "api" || p[1] != "esc" || p[2] != "environments")
+            return null;
+        var (org, project, name) = (p[3], p[4], p[5]);
+        var now = DateTimeOffset.UtcNow;
+        string Iso(long days) => now.AddDays(-days).ToString("o");
+        var by = new { githubLogin = "happypumi", name = "HappyPumi", avatarUrl = "", email = "admin@happypumi.dev" };
+
+        // .../versions/tags
+        if (p.Length == 8 && p[6] == "versions" && p[7] == "tags")
+            return System.Text.Json.JsonSerializer.Serialize(new
+            {
+                tags = new[]
+                {
+                    new { name = "latest", revision = 3, created = Iso(0), modified = Iso(0), editorLogin = "happypumi", editorName = "HappyPumi" },
+                    new { name = "stable", revision = 2, created = Iso(2), modified = Iso(2), editorLogin = "happypumi", editorName = "HappyPumi" },
+                },
+                nextToken = (string?)null,
+            });
+
+        if (p.Length != 7) return null;
+        switch (p[6])
+        {
+            case "versions": // ListEnvironmentRevisions — BARE ARRAY (console .sort()s it)
+                object Rev(int number, long days, string[] tags) => new
+                { number, created = Iso(days), creatorLogin = "happypumi", creatorName = "HappyPumi", tags };
+                return System.Text.Json.JsonSerializer.Serialize(new[]
+                { Rev(3, 0, ["latest"]), Rev(2, 2, ["stable"]), Rev(1, 30, []) });
+            case "metadata":
+                return System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    id = $"{org}/{project}/{name}", openRequestNeeded = false,
+                    gatedActions = Array.Empty<string>(), ownedBy = by, activeChangeRequest = (object?)null,
+                });
+            case "settings":
+                return System.Text.Json.JsonSerializer.Serialize(new { deletionProtected = false });
+            case "tags": // ListEnvironmentTags (environment-level tag map)
+                return System.Text.Json.JsonSerializer.Serialize(new { tags = new Dictionary<string, object>() });
+            case "schedules":
+                return System.Text.Json.JsonSerializer.Serialize(new { schedules = Array.Empty<object>(), nextToken = (string?)null });
+            case "referrers":
+                return System.Text.Json.JsonSerializer.Serialize(new { referrers = Array.Empty<object>(), nextToken = (string?)null });
+            default:
+                return null;
+        }
+    }
+
+    /// <summary>
+    /// POST /api/esc/environments/{org}/yaml/check — the ESC editor's live evaluator. The "Environment preview"
+    /// panel renders the response's <c>properties</c> (a tree of EscValue {value, secret?}) plus <c>schema</c>.
+    /// Returns the resolved value of the sample definition EscEnvironmentYaml produces. Non-check paths return null.
+    /// </summary>
+    private static string? EscCheckYamlMock(string path)
+    {
+        var p = path.Split('/', StringSplitOptions.RemoveEmptyEntries); // api,esc,environments,{org},yaml,check
+        if (p.Length != 6 || p[0] != "api" || p[1] != "esc" || p[2] != "environments" || p[4] != "yaml" || p[5] != "check")
+            return null;
+        object Val(object v) => new { value = v };
+        object Secret(object v) => new { value = v, secret = true };
+        var properties = new Dictionary<string, object>
+        {
+            ["aws"] = Val(new { region = Val("us-west-2") }),
+            ["app"] = Val(new { name = Val("webstore"), replicas = Val(3) }),
+            ["environmentVariables"] = Val(new
+            {
+                AWS_REGION = Val("us-west-2"), APP_NAME = Val("webstore"),
+                DATABASE_URL = Secret("postgres://webstore:****@db.internal:5432/webstore"),
+            }),
+            ["pulumiConfig"] = Val(new Dictionary<string, object>
+            {
+                ["aws:region"] = Val("us-west-2"), ["webstore:replicas"] = Val(3),
+            }),
+        };
+        return System.Text.Json.JsonSerializer.Serialize(new
+        {
+            properties, schema = new { type = "object" }, diagnostics = Array.Empty<object>(),
+        });
+    }
+
     /// <summary>Best-effort empty shape: list-looking endpoints get a wrapped empty list, else an empty object.</summary>
     private static string Default(string path)
     {
@@ -478,6 +648,9 @@ public static class MockConsoleMiddleware
           "webhooksEnabled":true,"teamsEnabled":true}}
         """),
 
+        // ESC dynamic-config provider/rotator catalogs (the env editor's "add provider" pickers).
+        ("/esc/providers", """{"providers":["aws-login","aws-secrets","gcp-login","gcp-secrets","azure-login","vault-login","1password","pulumi-stacks"]}"""),
+        ("/esc/rotators", """{"rotators":["aws-iam","aws-secrets-manager"]}"""),
         ("/console-settings/favorites", """{"favorites":[]}"""),
         ("/neo/token-budget", """{"remaining":1000000,"limit":1000000,"used":0}"""),
         ("/tags", "[]"),  // org tags collection the stacks page .map()s
