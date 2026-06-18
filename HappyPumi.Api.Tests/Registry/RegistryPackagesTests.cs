@@ -42,6 +42,25 @@ public sealed class RegistryPackagesTests(HappyPumiApp app)
         Assert.Contains(list!.Packages, p => p.Name == name);
     }
 
+    // The web console fetches readmeURL/schemaURL directly from the browser (cross-origin, not via its API
+    // proxy), so GetPackageVersion must advertise absolute URLs rooted at the request host — a root-relative
+    // path would resolve against the console origin and 404. Regression for the Private Components README.
+    [Fact]
+    public async Task GetVersionReturnsAbsoluteArtifactUrls()
+    {
+        using var client = app.CreateClient();
+        var name = $"pkg{Guid.NewGuid():N}";
+        await Post<StartPackagePublishResponse>(client, $"{Base(name)}/versions",
+            new StartPackagePublishRequest { Version = "1.0.0" });
+
+        var meta = await client.GetFromJsonAsync<PackageMetadata>($"{Base(name)}/versions/1.0.0");
+
+        Assert.StartsWith("http", meta!.ReadmeUrl);
+        Assert.EndsWith($"{Base(name)}/versions/1.0.0/readme", meta.ReadmeUrl);
+        Assert.StartsWith("http", meta.SchemaUrl);
+        Assert.EndsWith($"{Base(name)}/versions/1.0.0/schema", meta.SchemaUrl);
+    }
+
     [Fact]
     public async Task GetUnknownVersionReturns404()
     {
