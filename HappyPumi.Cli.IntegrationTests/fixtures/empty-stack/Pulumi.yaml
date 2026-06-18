@@ -1,0 +1,7 @@
+name: happypumi-empty-stack
+runtime: go
+description: >
+  A Pulumi program that declares NO real resources. Running `pulumi up` against it drives the full
+  backend update lifecycle (CreateUpdate -> StartUpdate -> checkpoints -> complete) on HappyPumi
+  WITHOUT provisioning any cloud infrastructure. The Go language host is built locally from the
+  Apache-2.0 monorepo (see tools/build-pulumi-cli.sh), so this also needs no network.
