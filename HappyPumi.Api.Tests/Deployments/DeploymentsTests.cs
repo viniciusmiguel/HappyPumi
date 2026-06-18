@@ -109,6 +109,71 @@ public sealed class DeploymentsTests(HappyPumiApp app)
         Assert.Single(list!);
     }
 
+    // ── Console read surfaces (org-wide list, version/id detail, logs) ──────────
+    [Fact]
+    public async Task OrgDeploymentsListIncludesCreatedDeployment()
+    {
+        using var client = app.CreateClient();
+        var stack = Stack();
+        var created = await Post<CreateDeploymentResponse>(client, $"{Base(stack)}/deployments",
+            new CreateDeploymentRequest { Operation = "update" });
+
+        var list = await client.GetFromJsonAsync<ListDeploymentResponseV2>($"/api/orgs/{Org}/deployments");
+
+        Assert.Contains(list!.Deployments, d => d.Id == created.Id && d.StackName == stack && d.PulumiOperation == "update");
+    }
+
+    [Fact]
+    public async Task GetDeploymentByVersionReturnsIt()
+    {
+        using var client = app.CreateClient();
+        var stack = Stack();
+        var created = await Post<CreateDeploymentResponse>(client, $"{Base(stack)}/deployments",
+            new CreateDeploymentRequest { Operation = "refresh" });
+
+        var got = await client.GetFromJsonAsync<GetDeploymentResponse>($"{Base(stack)}/deployments/version/{created.Version}");
+
+        Assert.Equal(created.Id, got!.Id);
+        Assert.Equal("refresh", got.PulumiOperation);
+    }
+
+    [Fact]
+    public async Task GetDeploymentByIdReturnsIt()
+    {
+        using var client = app.CreateClient();
+        var stack = Stack();
+        var created = await Post<CreateDeploymentResponse>(client, $"{Base(stack)}/deployments",
+            new CreateDeploymentRequest { Operation = "update" });
+
+        var got = await client.GetFromJsonAsync<GetDeploymentResponse>($"{Base(stack)}/deployments/{created.Id}");
+
+        Assert.Equal(created.Version, got!.Version);
+    }
+
+    [Fact]
+    public async Task GetDeploymentByUnknownVersionReturns404()
+    {
+        using var client = app.CreateClient();
+
+        using var res = await client.GetAsync($"{Base(Stack())}/deployments/version/999");
+
+        Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetDeploymentLogsReturnsEmptyForNewDeployment()
+    {
+        using var client = app.CreateClient();
+        var stack = Stack();
+        var created = await Post<CreateDeploymentResponse>(client, $"{Base(stack)}/deployments",
+            new CreateDeploymentRequest { Operation = "update" });
+
+        var logs = await client.GetFromJsonAsync<DeploymentLogs>($"{Base(stack)}/deployments/{created.Id}/logs");
+
+        Assert.NotNull(logs);
+        Assert.Empty(logs!.Lines ?? new List<DeploymentLogLine>());
+    }
+
     private static async Task<T> Post<T>(HttpClient client, string url, object body)
     {
         using var response = await client.PostAsJsonAsync(url, body);

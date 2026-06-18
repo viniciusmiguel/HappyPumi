@@ -4,17 +4,19 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Deployments;
 
 /// <summary>
 /// ListOrgDeployments
 /// </summary>
-public sealed class ListOrgDeploymentsEndpoint : Endpoint<ListOrgDeploymentsRequest, ListDeploymentResponseV2>
+public sealed class ListOrgDeploymentsEndpoint(IDeploymentStore deployments) : Endpoint<ListOrgDeploymentsRequest, ListDeploymentResponseV2>
 {
     public override void Configure()
     {
@@ -28,11 +30,16 @@ public sealed class ListOrgDeploymentsEndpoint : Endpoint<ListOrgDeploymentsRequ
         );
     }
 
-    public override Task HandleAsync(ListOrgDeploymentsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ListOrgDeploymentsRequest req, CancellationToken ct)
     {
-        // TODO: implement ListOrgDeployments
-        // HTTP: GET /api/orgs/{orgName}/deployments
-        // Should produce: ListDeploymentResponseV2
-        throw new NotImplementedException("Endpoint ListOrgDeployments not implemented.");
+        var all = deployments.ListByOrg(req.OrgName);
+        var pageSize = req.PageSize is > 0 and <= 100 ? (int)req.PageSize.Value : 10;
+        var page = req.Page is > 0 ? (int)req.Page.Value : 1;
+        var snapshots = all.Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(DeploymentMapper.ToSnapshot).ToList();
+        await Send.OkAsync(new ListDeploymentResponseV2
+        {
+            Deployments = snapshots, ItemsPerPage = pageSize, Total = all.Count,
+        }, ct);
     }
 }

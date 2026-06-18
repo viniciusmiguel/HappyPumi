@@ -114,6 +114,9 @@ public static class DatabaseSeeder
         });
     }
 
+    private static readonly string[] StepNames =
+        ["Provision", "Install dependencies", "Run pulumi update", "Collect outputs", "Finalize"];
+
     private static void SeedDeployments(HappyPumiDbContext db)
     {
         db.DeploymentSettings.Add(new DeploymentSettingsRow
@@ -121,11 +124,12 @@ public static class DatabaseSeeder
             Org = Org, Project = Project, Stack = "prod",
             Settings = new DeploymentSettings { Source = "git", Tag = "v1" },
         });
-        db.Deployments.Add(new DeploymentRow
-        {
-            Id = Guid.NewGuid().ToString(), Org = Org, Project = Project, Stack = "prod",
-            Version = 1, Operation = "update",
-        });
+
+        // Three deployments across the project's stacks (the org Deployments console page + detail/logs).
+        SeedDeployment(db, "prod", 11, "update", "succeeded", agoMinutes: 60);
+        SeedDeployment(db, "staging", 7, "preview", "succeeded", agoMinutes: 120);
+        SeedDeployment(db, "dev", 4, "update", "failed", agoMinutes: 1440);
+
         db.Webhooks.Add(new WebhookRow
         {
             Id = Guid.NewGuid().ToString(), Org = Org, Project = Project, Stack = "prod",
@@ -135,6 +139,50 @@ public static class DatabaseSeeder
                 OrganizationName = Org, Active = true,
             },
         });
+    }
+
+    private static void SeedDeployment(HappyPumiDbContext db, string stack, long version, string op, string status, int agoMinutes)
+    {
+        var id = Guid.NewGuid().ToString();
+        var started = DateTime.UtcNow.AddMinutes(-agoMinutes);
+        var finished = started.AddMinutes(2);
+        // A failed run fails on its last step; otherwise every step succeeds.
+        var steps = StepNames.Select((name, i) =>
+        {
+            var last = i == StepNames.Length - 1;
+            var stepStatus = status == "failed" && last ? "failed" : "succeeded";
+            return new StepRun
+            {
+                Name = name, Status = stepStatus,
+                Started = started.AddSeconds(i * 20), LastUpdated = started.AddSeconds(i * 20 + 18),
+            };
+        }).ToList();
+
+        db.Deployments.Add(new DeploymentRow
+        {
+            Id = id, Org = Org, Project = Project, Stack = stack, Version = version, Operation = op,
+            Status = status, Created = started, Modified = finished,
+            RequestedByLogin = "happypumi", RequestedByName = "HappyPumi",
+            Jobs = new List<DeploymentJob>
+            {
+                new() { Status = status, Started = started, LastUpdated = finished, Steps = steps },
+            },
+            Updates = new List<DeploymentNestedUpdate>(),
+        });
+
+        var logLines = new[]
+        {
+            "Provisioning deployment environment...", "Installing dependencies (go mod download)",
+            "Running `pulumi up --yes`", $"Updating ({Project}/{stack})",
+            status == "failed" ? "error: update failed" : "    + 12 created",
+            status == "failed" ? "Update failed." : "Resources: 12 unchanged",
+        };
+        for (var i = 0; i < logLines.Length; i++)
+            db.DeploymentLogs.Add(new DeploymentLogRow
+            {
+                DeploymentId = id, Step = 0, Header = "pulumi", Line = logLines[i],
+                Timestamp = started.AddSeconds(i * 15),
+            });
     }
 
     private static AppUntypedDeployment EmptyDeployment() => new()

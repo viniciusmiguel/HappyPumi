@@ -92,6 +92,8 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
             e.HasIndex(x => new { x.Org, x.Project, x.Stack });
             e.HasIndex(x => x.Status);       // poll claims the oldest not-started row
             e.HasIndex(x => x.JobId);         // runner callbacks look up by job id
+            e.Property(x => x.Jobs).AsJsonb();
+            e.Property(x => x.Updates).AsJsonb();
         });
 
         b.Entity<DeploymentLogRow>(e =>

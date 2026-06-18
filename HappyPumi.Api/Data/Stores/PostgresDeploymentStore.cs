@@ -54,7 +54,40 @@ public sealed class PostgresDeploymentStore(HappyPumiDbContext db) : IDeployment
     public IReadOnlyList<StoredDeployment> ListDeployments(StackCoordinates s)
         => db.Deployments.AsNoTracking().Where(d => d.Org == s.Org && d.Project == s.Project && d.Stack == s.Stack)
             .OrderBy(d => d.Version).ToList()
-            .Select(d => new StoredDeployment { Id = d.Id, Version = d.Version, Operation = d.Operation }).ToList();
+            .Select(Map).ToList();
+
+    public IReadOnlyList<StoredDeployment> ListByOrg(string org)
+        => db.Deployments.AsNoTracking().Where(d => d.Org == org)
+            .OrderByDescending(d => d.Created).ToList()
+            .Select(Map).ToList();
+
+    public StoredDeployment? GetByVersion(StackCoordinates s, long version)
+    {
+        var row = db.Deployments.AsNoTracking().FirstOrDefault(d =>
+            d.Org == s.Org && d.Project == s.Project && d.Stack == s.Stack && d.Version == version);
+        return row is null ? null : Map(row);
+    }
+
+    public StoredDeployment? GetById(StackCoordinates s, string deploymentId)
+    {
+        var row = db.Deployments.AsNoTracking().FirstOrDefault(d =>
+            d.Org == s.Org && d.Project == s.Project && d.Stack == s.Stack && d.Id == deploymentId);
+        return row is null ? null : Map(row);
+    }
+
+    public IReadOnlyList<DeploymentLogLine> GetLogs(string deploymentId)
+        => db.DeploymentLogs.AsNoTracking().Where(l => l.DeploymentId == deploymentId)
+            .OrderBy(l => l.Id).ToList()
+            .Select(l => new DeploymentLogLine { Header = l.Header, Line = l.Line, Timestamp = l.Timestamp }).ToList();
+
+    private static StoredDeployment Map(DeploymentRow d) => new()
+    {
+        Id = d.Id, Version = d.Version, Operation = d.Operation,
+        Org = d.Org, Project = d.Project, Stack = d.Stack, Status = d.Status,
+        Created = d.Created, Modified = d.Modified,
+        RequestedByLogin = d.RequestedByLogin, RequestedByName = d.RequestedByName,
+        Jobs = d.Jobs, Updates = d.Updates,
+    };
 
     public bool CancelDeployment(StackCoordinates s, string deploymentId)
     {

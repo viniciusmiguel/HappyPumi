@@ -35,6 +35,14 @@ public sealed class DeploymentRow
     /// <summary>Set when the agent claims the job; the runner authenticates callbacks with JobToken.</summary>
     public string? JobId { get; set; }
     public string? JobToken { get; set; }
+
+    // Console-facing detail. The user who requested the deployment (scalar for listing/sorting).
+    public string? RequestedByLogin { get; set; }
+    public string? RequestedByName { get; set; }
+    /// <summary>Job runs with their step timeline (jsonb — nested contract payload).</summary>
+    public List<DeploymentJob> Jobs { get; set; } = new();
+    /// <summary>Stack updates produced by this deployment (jsonb).</summary>
+    public List<DeploymentNestedUpdate> Updates { get; set; } = new();
 }
 
 /// <summary>One log line a runner appended for a deployment job step. Key: Id (sequence).</summary>
@@ -43,6 +51,8 @@ public sealed class DeploymentLogRow
     public long Id { get; set; }
     public string DeploymentId { get; set; } = default!;
     public int Step { get; set; }
+    /// <summary>Log source label shown by the console (e.g. "pulumi").</summary>
+    public string? Header { get; set; }
     public string Line { get; set; } = "";
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 }

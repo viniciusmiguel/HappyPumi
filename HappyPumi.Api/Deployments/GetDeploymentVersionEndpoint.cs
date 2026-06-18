@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Deployments;
 
 /// <summary>
 /// GetDeployment
 /// </summary>
-public sealed class GetDeploymentVersionEndpoint : Endpoint<GetDeploymentVersionRequest, GetDeploymentResponse>
+public sealed class GetDeploymentVersionEndpoint(IDeploymentStore deployments) : Endpoint<GetDeploymentVersionRequest, GetDeploymentResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,21 @@ public sealed class GetDeploymentVersionEndpoint : Endpoint<GetDeploymentVersion
         );
     }
 
-    public override Task HandleAsync(GetDeploymentVersionRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetDeploymentVersionRequest req, CancellationToken ct)
     {
-        // TODO: implement GetDeploymentVersion
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/deployments/version/{version}
-        // Should produce: GetDeploymentResponse
-        throw new NotImplementedException("Endpoint GetDeploymentVersion not implemented.");
+        if (!long.TryParse(req.Version, out var version))
+        {
+            AddError("'version' must be an integer.", "version");
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+        var stack = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        var dep = deployments.GetByVersion(stack, version);
+        if (dep is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        await Send.OkAsync(DeploymentMapper.ToResponse(dep), ct);
     }
 }
