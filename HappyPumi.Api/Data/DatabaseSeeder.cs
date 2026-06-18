@@ -30,7 +30,54 @@ public static class DatabaseSeeder
         SeedPolicy(db);
         SeedDeployments(db);
         SeedAgentPool(db);
+        SeedEnvironments(db);
         db.SaveChanges();
+    }
+
+    private const string DevEnvYaml =
+        "values:\n" +
+        "  aws:\n" +
+        "    region: us-west-2\n" +
+        "  app:\n" +
+        "    name: webstore\n" +
+        "    replicas: 3\n" +
+        "  environmentVariables:\n" +
+        "    AWS_REGION: ${aws.region}\n" +
+        "    APP_NAME: ${app.name}\n" +
+        "    DATABASE_URL:\n" +
+        "      fn::secret:\n" +
+        "        ciphertext: ZXNjeAAAAAE... (encrypted)\n" +
+        "  pulumiConfig:\n" +
+        "    aws:region: ${aws.region}\n" +
+        "    webstore:replicas: ${app.replicas}\n";
+
+    private static void SeedEnvironments(HappyPumiDbContext db)
+    {
+        var envs = new[]
+        {
+            (Project, "dev", DevEnvYaml, 0L),
+            (Project, "staging", "values:\n  aws:\n    region: us-east-1\n", 2L),
+            (Project, "prod", "values:\n  aws:\n    region: us-east-1\n", 1L),
+            ("platform", "shared-secrets", "values:\n  shared:\n    cluster: platform-prod\n", 7L),
+        };
+        foreach (var (project, name, yaml, agoDays) in envs)
+        {
+            var created = DateTime.UtcNow.AddDays(-agoDays - 30);
+            var modified = DateTime.UtcNow.AddDays(-agoDays);
+            db.Environments.Add(new EnvironmentRow
+            {
+                Org = Org, Project = project, Name = name, Created = created, Modified = modified,
+                OwnerLogin = "happypumi", OwnerName = "HappyPumi", Yaml = yaml, CurrentRevision = 3,
+            });
+            // A short revision history so the Versions tab renders (newest carries "latest").
+            for (long n = 1; n <= 3; n++)
+                db.EnvironmentRevisions.Add(new EnvironmentRevisionRow
+                {
+                    Id = Guid.NewGuid().ToString(), Org = Org, Project = project, Name = name, Number = n,
+                    Created = modified.AddDays(-(3 - n)), CreatorLogin = "happypumi", CreatorName = "HappyPumi",
+                    Yaml = yaml, Tags = n == 3 ? new List<string> { "latest" } : n == 2 ? new List<string> { "stable" } : new List<string>(),
+                });
+        }
     }
 
     /// <summary>

@@ -4,17 +4,19 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Environments;
 
 /// <summary>
 /// ListEnvironmentRevisions
 /// </summary>
-public sealed class ListEnvironmentRevisionsEscEnvironmentsEndpoint : Endpoint<ListEnvironmentRevisionsEscEnvironmentsRequest, List<EnvironmentRevision>>
+public sealed class ListEnvironmentRevisionsEscEnvironmentsEndpoint(IEnvironmentStore environments) : Endpoint<ListEnvironmentRevisionsEscEnvironmentsRequest, List<EnvironmentRevision>>
 {
     public override void Configure()
     {
@@ -28,11 +30,15 @@ public sealed class ListEnvironmentRevisionsEscEnvironmentsEndpoint : Endpoint<L
         );
     }
 
-    public override Task HandleAsync(ListEnvironmentRevisionsEscEnvironmentsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ListEnvironmentRevisionsEscEnvironmentsRequest req, CancellationToken ct)
     {
-        // TODO: implement ListEnvironmentRevisionsEscEnvironments
-        // HTTP: GET /api/esc/environments/{orgName}/{projectName}/{envName}/versions
-        // Should produce: List<EnvironmentRevision>
-        throw new NotImplementedException("Endpoint ListEnvironmentRevisionsEscEnvironments not implemented.");
+        var revisions = environments.ListRevisions(new EnvCoordinates(req.OrgName, req.ProjectName, req.EnvName))
+            .Select(r => new EnvironmentRevision
+            {
+                Number = r.Number, Created = r.Created, CreatorLogin = r.CreatorLogin,
+                CreatorName = r.CreatorName, Tags = r.Tags,
+            }).ToList();
+        // The console calls .sort() on this, so it must be a bare JSON array.
+        await Send.OkAsync(revisions, ct);
     }
 }

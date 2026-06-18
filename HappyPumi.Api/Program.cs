@@ -42,6 +42,7 @@ bld.Services.AddScoped<IPolicyStore, PostgresPolicyStore>();
 bld.Services.AddScoped<IDeploymentStore, PostgresDeploymentStore>();
 bld.Services.AddScoped<IDeploymentQueue, PostgresDeploymentQueue>(); // runner work queue (agent poll/dispatch)
 bld.Services.AddScoped<IAgentPoolStore, PostgresAgentPoolStore>();   // workflow-runner pools + token validation
+bld.Services.AddScoped<IEnvironmentStore, PostgresEnvironmentStore>(); // ESC environments + revisions
 bld.Services.AddScoped<UpdateLifecycle>();
 
 // Service-managed secrets crypter for the /encrypt and /decrypt endpoints. Singleton so its

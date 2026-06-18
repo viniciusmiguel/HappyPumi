@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Environments;
 
 /// <summary>
 /// ReadEnvironment
 /// </summary>
-public sealed class ReadEnvironmentEscEnvironmentsEndpoint : Endpoint<ReadEnvironmentEscEnvironmentsRequest, string>
+public sealed class ReadEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore environments) : Endpoint<ReadEnvironmentEscEnvironmentsRequest, string>
 {
     public override void Configure()
     {
@@ -28,11 +29,15 @@ public sealed class ReadEnvironmentEscEnvironmentsEndpoint : Endpoint<ReadEnviro
         );
     }
 
-    public override Task HandleAsync(ReadEnvironmentEscEnvironmentsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ReadEnvironmentEscEnvironmentsRequest req, CancellationToken ct)
     {
-        // TODO: implement ReadEnvironmentEscEnvironments
-        // HTTP: GET /api/esc/environments/{orgName}/{projectName}/{envName}
-        // Should produce: string
-        throw new NotImplementedException("Endpoint ReadEnvironmentEscEnvironments not implemented.");
+        var env = environments.Get(new EnvCoordinates(req.OrgName, req.ProjectName, req.EnvName));
+        if (env is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        // The definition is served as raw YAML (the editor loads it as text).
+        await Send.StringAsync(env.Yaml, contentType: "application/x-yaml; charset=utf-8", cancellation: ct);
     }
 }

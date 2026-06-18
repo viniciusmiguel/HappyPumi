@@ -4,6 +4,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
@@ -20,7 +21,9 @@ public sealed class CheckYamlEscEndpoint : Endpoint<CheckYamlEscRequest, Environ
     {
         Post("/api/esc/environments/{orgName}/yaml/check");
         AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        // The definition is posted as raw YAML; accept it (and read the body directly in the handler).
         Description(b => b
+            .Accepts<CheckYamlEscRequest>("application/x-yaml", "text/yaml", "text/plain", "application/json")
             .WithTags("Environments")
             .WithSummary("CheckYAML")
             .WithDescription("Checks a raw YAML environment definition for errors without creating or modifying any environment. The YAML definition is provided in the request body and validated for correctness, including imports, provider configurations, function invocations, and interpolation expressions. When the showSecrets query parameter is set to true, secret values are returned in plaintext in the response. This is useful for validating environment definitions before applying them.")
@@ -28,11 +31,17 @@ public sealed class CheckYamlEscEndpoint : Endpoint<CheckYamlEscRequest, Environ
         );
     }
 
-    public override Task HandleAsync(CheckYamlEscRequest req, CancellationToken ct)
+    public override async Task HandleAsync(CheckYamlEscRequest req, CancellationToken ct)
     {
-        // TODO: implement CheckYamlEsc
-        // HTTP: POST /api/esc/environments/{orgName}/yaml/check
-        // Should produce: EnvironmentResponse
-        throw new NotImplementedException("Endpoint CheckYamlEsc not implemented.");
+        // The definition YAML is the raw request body (no typed DTO field).
+        using var reader = new StreamReader(HttpContext.Request.Body);
+        var yaml = await reader.ReadToEndAsync(ct);
+
+        var response = new EnvironmentResponse
+        {
+            Properties = EnvironmentEvaluator.Evaluate(yaml),
+            Diagnostics = new List<EnvironmentDiagnostic>(),
+        };
+        await Send.OkAsync(response, ct);
     }
 }

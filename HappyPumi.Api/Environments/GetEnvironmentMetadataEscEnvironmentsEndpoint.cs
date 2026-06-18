@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Environments;
 
 /// <summary>
 /// GetEnvironmentMetadata
 /// </summary>
-public sealed class GetEnvironmentMetadataEscEnvironmentsEndpoint : Endpoint<GetEnvironmentMetadataEscEnvironmentsRequest, EnvironmentMetadata>
+public sealed class GetEnvironmentMetadataEscEnvironmentsEndpoint(IEnvironmentStore environments) : Endpoint<GetEnvironmentMetadataEscEnvironmentsRequest, EnvironmentMetadata>
 {
     public override void Configure()
     {
@@ -28,11 +29,19 @@ public sealed class GetEnvironmentMetadataEscEnvironmentsEndpoint : Endpoint<Get
         );
     }
 
-    public override Task HandleAsync(GetEnvironmentMetadataEscEnvironmentsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetEnvironmentMetadataEscEnvironmentsRequest req, CancellationToken ct)
     {
-        // TODO: implement GetEnvironmentMetadataEscEnvironments
-        // HTTP: GET /api/esc/environments/{orgName}/{projectName}/{envName}/metadata
-        // Should produce: EnvironmentMetadata
-        throw new NotImplementedException("Endpoint GetEnvironmentMetadataEscEnvironments not implemented.");
+        var env = environments.Get(new EnvCoordinates(req.OrgName, req.ProjectName, req.EnvName));
+        if (env is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        await Send.OkAsync(new EnvironmentMetadata
+        {
+            Id = $"{req.OrgName}/{req.ProjectName}/{req.EnvName}",
+            OwnedBy = EnvironmentMapper.Owner(env), OpenRequestNeeded = false,
+            GatedActions = new List<string>(), ActiveChangeRequest = null,
+        }, ct);
     }
 }

@@ -28,6 +28,8 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
     public DbSet<AgentPoolRow> AgentPools => Set<AgentPoolRow>();
     public DbSet<ScheduleRow> Schedules => Set<ScheduleRow>();
     public DbSet<WebhookRow> Webhooks => Set<WebhookRow>();
+    public DbSet<EnvironmentRow> Environments => Set<EnvironmentRow>();
+    public DbSet<EnvironmentRevisionRow> EnvironmentRevisions => Set<EnvironmentRevisionRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -126,6 +128,19 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.Org, x.Project, x.Stack });
             e.Property(x => x.Webhook).AsJsonb();
+        });
+
+        b.Entity<EnvironmentRow>(e =>
+        {
+            e.HasKey(x => new { x.Org, x.Project, x.Name });
+            e.Property(x => x.Tags).AsJsonb();
+        });
+
+        b.Entity<EnvironmentRevisionRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.Org, x.Project, x.Name });
+            e.Property(x => x.Tags).AsJsonb();
         });
     }
 }

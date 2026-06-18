@@ -4,17 +4,19 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Environments;
 
 /// <summary>
 /// ListRevisionTags
 /// </summary>
-public sealed class ListRevisionTagsEscEnvironmentsVersionsEndpoint : Endpoint<ListRevisionTagsEscEnvironmentsVersionsRequest, ListEnvironmentRevisionTagsResponse>
+public sealed class ListRevisionTagsEscEnvironmentsVersionsEndpoint(IEnvironmentStore environments) : Endpoint<ListRevisionTagsEscEnvironmentsVersionsRequest, ListEnvironmentRevisionTagsResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,17 @@ public sealed class ListRevisionTagsEscEnvironmentsVersionsEndpoint : Endpoint<L
         );
     }
 
-    public override Task HandleAsync(ListRevisionTagsEscEnvironmentsVersionsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ListRevisionTagsEscEnvironmentsVersionsRequest req, CancellationToken ct)
     {
-        // TODO: implement ListRevisionTagsEscEnvironmentsVersions
-        // HTTP: GET /api/esc/environments/{orgName}/{projectName}/{envName}/versions/tags
-        // Should produce: ListEnvironmentRevisionTagsResponse
-        throw new NotImplementedException("Endpoint ListRevisionTagsEscEnvironmentsVersions not implemented.");
+        var revisions = environments.ListRevisions(new EnvCoordinates(req.OrgName, req.ProjectName, req.EnvName));
+        // Flatten each revision's named tags into revision-tag references (name -> revision number).
+        var tags = revisions
+            .SelectMany(r => (r.Tags ?? new List<string>()).Select(name => new EnvironmentRevisionTag
+            {
+                Name = name, Revision = r.Number, Created = r.Created, Modified = r.Created,
+                EditorLogin = r.CreatorLogin, EditorName = r.CreatorName,
+            }))
+            .ToList();
+        await Send.OkAsync(new ListEnvironmentRevisionTagsResponse { Tags = tags, NextToken = "" }, ct);
     }
 }
