@@ -15,7 +15,7 @@ namespace HappyPumi.Api.Endpoints.Stacks;
 /// <summary>
 /// ImportStack
 /// </summary>
-public sealed class ImportStackEndpoint(IStackStore stacks) : Endpoint<ImportStackRequest, AppImportStackResponse>
+public sealed class ImportStackEndpoint(IStackStore stacks, IUpdateStore updates) : Endpoint<ImportStackRequest, AppImportStackResponse>
 {
     public override void Configure()
     {
@@ -39,14 +39,33 @@ public sealed class ImportStackEndpoint(IStackStore stacks) : Endpoint<ImportSta
             Deployment = req.Body.Deployment,
             Features = req.Body.Features,
         };
-        var imported = stacks.SetDeployment(
-            new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), deployment, bumpVersion: true);
+        var coords = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        var imported = stacks.SetDeployment(coords, deployment, bumpVersion: true);
         if (imported is null)
         {
             await Send.NotFoundAsync(ct);
             return;
         }
 
-        await Send.OkAsync(new AppImportStackResponse { UpdateId = Guid.NewGuid().ToString() }, ct);
+        // Register a completed update and a history entry: after import the CLI polls
+        // GET .../update/{updateID} until it reaches a terminal status, so the returned id must resolve.
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var update = updates.Create(coords, "import", dryRun: false);
+        update.Status = UpdateStatuses.Succeeded;
+        update.Version = imported.Version;
+        updates.Save(update);
+        stacks.RecordHistory(coords, new StoredHistoryEntry
+        {
+            UpdateId = update.UpdateId,
+            Info = new AppUpdateInfo
+            {
+                Kind = "import", Result = UpdateStatuses.Succeeded, Version = imported.Version,
+                StartTime = now, EndTime = now, Message = "Imported stack state",
+                Config = new Dictionary<string, AppConfigValue>(),
+                Environment = new Dictionary<string, string>(),
+            },
+        });
+
+        await Send.OkAsync(new AppImportStackResponse { UpdateId = update.UpdateId }, ct);
     }
 }

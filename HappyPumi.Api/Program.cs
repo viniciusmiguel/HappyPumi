@@ -53,9 +53,16 @@ bld.Services.AddAuthorizationBuilder()
 
 var app = bld.Build();
 
-// Apply the schema migration on startup so a fresh Postgres is ready to serve (dev + tests).
+// Apply the schema migration on startup so a fresh Postgres is ready to serve (dev + tests). When
+// Seed:Enabled is set (local dev via `make dev` and the CLI integration server), load demo data so the
+// CLI has real stacks/orgs/registry/policy to query.
 using (var scope = app.Services.CreateScope())
-    scope.ServiceProvider.GetRequiredService<HappyPumiDbContext>().Database.Migrate();
+{
+    var db = scope.ServiceProvider.GetRequiredService<HappyPumiDbContext>();
+    db.Database.Migrate();
+    if (app.Configuration.GetValue<bool>("Seed:Enabled"))
+        HappyPumi.Api.Data.DatabaseSeeder.Seed(db);
+}
 
 app.MapDefaultEndpoints(); // /health and /alive
 

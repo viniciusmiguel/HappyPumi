@@ -28,6 +28,7 @@ builder.AddProject<Projects.HappyPumi_Api>("api", launchProfileName: "https")
     .WaitFor(happyPumiDb)
     .WithEnvironment("Authentication__Oidc__Authority", dexIssuer)
     .WithEnvironment("Authentication__Oidc__ClientId", "happypumi")
+    .WithEnvironment("Seed__Enabled", "true") // load demo data so `make dev` has real stacks/orgs to browse
     .WithHttpHealthCheck("/health", endpointName: "http");
 
 builder.Build().Run();

@@ -46,6 +46,7 @@ public sealed class HappyPumiServer : IAsyncLifetime
         psi.Environment["ASPNETCORE_URLS"] = BaseUrl;
         psi.Environment["DOTNET_ENVIRONMENT"] = "Development";
         psi.Environment["ConnectionStrings__happypumidb"] = _db.GetConnectionString();
+        psi.Environment["Seed__Enabled"] = "true"; // demo data so the CLI has real stacks/orgs/registry to query
 
         _process = new Process { StartInfo = psi };
         _process.OutputDataReceived += (_, e) => { if (e.Data is not null) lock (_serverLog) _serverLog.AppendLine(e.Data); };
