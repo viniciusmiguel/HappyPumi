@@ -21,7 +21,7 @@ public sealed class StackResourcesEndpointTests(HappyPumiApp app)
     [Fact]
     public async Task FreshStackHasZeroResources()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var stack = await NewStack(client);
 
         var count = await client.GetFromJsonAsync<GetStackResourceCountResponse>(
@@ -36,7 +36,7 @@ public sealed class StackResourcesEndpointTests(HappyPumiApp app)
     [Fact]
     public async Task UnknownStackReturns404()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
 
         using var count = await client.GetAsync($"/api/stacks/{Org}/{Project}/missing-{Guid.NewGuid():N}/resources/count");
         using var latest = await client.GetAsync($"/api/stacks/{Org}/{Project}/missing-{Guid.NewGuid():N}/resources/latest");

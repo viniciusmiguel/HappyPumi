@@ -21,7 +21,7 @@ public sealed class ListEnvironmentTagsEscEnvironmentsEndpoint(IEnvironmentStore
     public override void Configure()
     {
         Get("/api/esc/environments/{orgName}/{projectName}/{envName}/tags");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("environment:read");
         Description(b => b
             .WithTags("Environments")
             .WithSummary("ListEnvironmentTags")

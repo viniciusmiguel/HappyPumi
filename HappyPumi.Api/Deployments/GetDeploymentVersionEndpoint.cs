@@ -20,7 +20,7 @@ public sealed class GetDeploymentVersionEndpoint(IDeploymentStore deployments) :
     public override void Configure()
     {
         Get("/api/stacks/{orgName}/{projectName}/{stackName}/deployments/version/{version}");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("deployments:read");
         Description(b => b
             .WithTags("Deployments")
             .WithSummary("GetDeployment")

@@ -20,7 +20,7 @@ public sealed class CreateEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore e
     public override void Configure()
     {
         Post("/api/esc/environments/{orgName}");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("environment:create");
         Description(b => b
             .WithTags("Environments")
             .WithSummary("CreateEnvironment")

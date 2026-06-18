@@ -21,7 +21,7 @@ public sealed class ListOrgDeploymentsEndpoint(IDeploymentStore deployments) : E
     public override void Configure()
     {
         Get("/api/orgs/{orgName}/deployments");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("deployments:read");
         Description(b => b
             .WithTags("Deployments")
             .WithSummary("ListOrgDeployments")

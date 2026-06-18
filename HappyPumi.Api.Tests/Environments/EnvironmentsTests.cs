@@ -24,7 +24,7 @@ public sealed class EnvironmentsTests(HappyPumiApp app)
     [Fact]
     public async Task CreateThenListReadMetadataSettingsRevisions()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var name = await NewEnv(client);
 
         var list = await client.GetFromJsonAsync<ListEnvironmentsResponse>($"/api/esc/environments/{Org}");
@@ -49,7 +49,7 @@ public sealed class EnvironmentsTests(HappyPumiApp app)
     [Fact]
     public async Task DuplicateCreateReturns409()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var name = await NewEnv(client);
 
         using var dup = await client.PostAsJsonAsync($"/api/esc/environments/{Org}",
@@ -61,7 +61,7 @@ public sealed class EnvironmentsTests(HappyPumiApp app)
     [Fact]
     public async Task CheckYamlEvaluatesInterpolationAndSecrets()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         const string yaml = "values:\n  aws:\n    region: us-west-2\n  env:\n    r: ${aws.region}\n  s:\n    fn::secret: hunter2\n";
         using var content = new StringContent(yaml, Encoding.UTF8);
         content.Headers.ContentType = new MediaTypeHeaderValue("application/x-yaml");
@@ -79,7 +79,7 @@ public sealed class EnvironmentsTests(HappyPumiApp app)
     [Fact]
     public async Task UnknownEnvironmentReturns404()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         using var res = await client.GetAsync($"/api/esc/environments/{Org}/{Project}/missing-{Guid.NewGuid():N}/metadata");
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
     }

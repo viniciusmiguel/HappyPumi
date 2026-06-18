@@ -28,7 +28,7 @@ public sealed class ListPackageVersionsEndpoint(IPackageRegistry registry) : End
     public override void Configure()
     {
         Get("/api/registry/packages/{source}/{publisher}/{name}/versions");
-        AllowAnonymous();
+        Permissions("stack:read");
         Description(b => b.WithTags("Registry").WithSummary("ListPackageVersions").WithName("ListPackageVersions"));
     }
 

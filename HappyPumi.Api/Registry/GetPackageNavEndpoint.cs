@@ -23,7 +23,7 @@ public sealed class GetPackageNavEndpoint(IPackageRegistry registry) : Endpoint<
         // Spec path + the console-internal path the web console actually calls for the API Docs tab.
         Get("/api/registry/packages/{source}/{publisher}/{name}/versions/{version}/nav",
             "/api/console/registry/packages/{source}/{publisher}/{name}/versions/{version}/nav");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("stack:read");
         Description(b => b
             .WithTags("Registry")
             .WithSummary("GetPackageNav")

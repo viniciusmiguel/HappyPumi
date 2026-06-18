@@ -19,7 +19,7 @@ public sealed class GetDeploymentUpdatesEndpoint : Endpoint<GetDeploymentUpdates
     public override void Configure()
     {
         Get("/api/stacks/{orgName}/{projectName}/{stackName}/deployments/{deploymentId}/updates");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("deployments:read");
         Description(b => b
             .WithTags("Deployments")
             .WithSummary("GetDeploymentUpdates")

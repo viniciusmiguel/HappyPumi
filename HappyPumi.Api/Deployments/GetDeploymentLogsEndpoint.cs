@@ -21,7 +21,7 @@ public sealed class GetDeploymentLogsEndpoint(IDeploymentStore deployments) : En
     public override void Configure()
     {
         Get("/api/stacks/{orgName}/{projectName}/{stackName}/deployments/{deploymentId}/logs");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("deployments:read");
         Description(b => b
             .WithTags("Deployments")
             .WithSummary("GetDeploymentLogs")

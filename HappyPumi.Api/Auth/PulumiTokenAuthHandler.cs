@@ -42,6 +42,10 @@ public sealed class PulumiTokenAuthHandler(
         identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, login));
         identity.AddClaim(new Claim(ClaimTypes.Name, login));
         identity.AddClaim(new Claim(ClaimTypes.Role, role));
+        // Attach the caller's RBAC permission grants so FastEndpoints' Permissions(...) gating can enforce
+        // resource:action checks (the console reads the same set via /permissions). ADR-0007.
+        foreach (var permission in RbacPermissions.ForRole(role))
+            identity.AddClaim(new Claim("permissions", permission));
         var ticket = new AuthenticationTicket(new ClaimsPrincipal(identity), SchemeName);
         return Task.FromResult(AuthenticateResult.Success(ticket));
     }

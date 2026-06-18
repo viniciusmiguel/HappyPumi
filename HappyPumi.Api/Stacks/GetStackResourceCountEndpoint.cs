@@ -20,7 +20,7 @@ public sealed class GetStackResourceCountEndpoint(IStackStore stacks) : Endpoint
     public override void Configure()
     {
         Get("/api/stacks/{orgName}/{projectName}/{stackName}/resources/count");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("stack:read");
         Description(b => b
             .WithTags("Stacks")
             .WithSummary("GetStackResourceCount")

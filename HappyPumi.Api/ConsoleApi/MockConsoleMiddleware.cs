@@ -24,7 +24,7 @@ public static class MockConsoleMiddleware
             var path = ctx.Request.Path.Value ?? "";
 
             // Known internal console endpoints: short-circuit with a canned mock.
-            var mock = ProjectMock(path) ?? StackMetadataMock(path) ?? StackUpdatesMock(path) ?? Match(path);
+            var mock = StackMetadataMock(path) ?? StackUpdatesMock(path) ?? Match(path);
             if (mock is not null && HttpMethods.IsGet(ctx.Request.Method))
             {
                 await Write(ctx, mock);
@@ -50,45 +50,6 @@ public static class MockConsoleMiddleware
     {
         ctx.Response.ContentType = "application/json";
         await ctx.Response.WriteAsync(json);
-    }
-
-    /// <summary>
-    /// GET /api/console/orgs/{org}/projects/{project} — the project-detail page (`getOrganizationProject`)
-    /// reads `resp.project.stacks`. Returns the project with COMPLETE stack objects (every field the stack
-    /// lists/cards read) so the page renders fully. Dynamic so any project name works.
-    /// </summary>
-    private static string? ProjectMock(string path)
-    {
-        var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries); // api, console, orgs, {org}, projects, {project}
-        if (parts.Length != 6 || parts[0] != "api" || parts[1] != "console" || parts[2] != "orgs" || parts[4] != "projects")
-            return null;
-        var org = parts[3];
-        var project = parts[5];
-        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        var requestedBy = new { githubLogin = "happypumi", name = "HappyPumi", avatarUrl = "" };
-        // lastUpdate is an OBJECT (the console reads .version/.result/.endTime/.requestedBy and writes .info).
-        object Stack(string name, int rc, long ago, int ver) => new
-        {
-            orgName = org, projectName = project, stackName = name, name,  // both: lists use .name and .stackName
-            resourceCount = rc, version = ver,
-            tags = new Dictionary<string, string> { ["pulumi:project"] = project },
-            deletedAt = (string?)null,
-            lastUpdate = new
-            {
-                version = ver, result = "succeeded", kind = "update",
-                startTime = now - ago - 30, endTime = now - ago, time = now - ago, requestedBy,
-            },
-        };
-        var body = new
-        {
-            project = new
-            {
-                orgName = org, name = project,
-                stacks = new[] { Stack("dev", 12, 3600, 4), Stack("staging", 18, 7200, 7), Stack("prod", 24, 86400, 11) },
-            },
-            continuationToken = (string?)null,
-        };
-        return System.Text.Json.JsonSerializer.Serialize(body);
     }
 
     /// <summary>
@@ -183,10 +144,12 @@ public static class MockConsoleMiddleware
         foreach (var (needle, json) in Mocks)
             if (path.Contains(needle, StringComparison.OrdinalIgnoreCase))
                 return json;
-        // Console catch-all for unimplemented bootstrap endpoints — but let real /api/console/registry/*
-        // endpoints (e.g. the package nav) handle their own paths instead of short-circuiting to {}.
+        // Console catch-all for unimplemented bootstrap endpoints — but let the real /api/console/* endpoints
+        // (package nav, org permissions, the project page) handle their own paths instead of returning {}.
         if (path.StartsWith("/api/console/", StringComparison.OrdinalIgnoreCase)
-            && !path.Contains("/registry/", StringComparison.OrdinalIgnoreCase))
+            && !path.Contains("/registry/", StringComparison.OrdinalIgnoreCase)
+            && !path.Contains("/permissions", StringComparison.OrdinalIgnoreCase)
+            && !path.Contains("/projects/", StringComparison.OrdinalIgnoreCase))
             return "{}";
         return null;
     }
@@ -194,24 +157,8 @@ public static class MockConsoleMiddleware
     // Ordered: more specific paths first.
     private static readonly List<(string needle, string json)> Mocks =
     [
-        // console/orgs/{org}/permissions (GetUserPermissionsForResource) — the console does `new Set(resp)`,
-        // so this MUST be a JSON array of permission strings. Return the full set so every UI surface unlocks.
-        ("/permissions", AllPermissions),
-
-        // deployments/metadata: in-flight counts (NOT org features — must precede the "/metadata" needle).
+        // deployments/metadata: in-flight counts. (Org metadata + permissions are now real endpoints.)
         ("/deployments/metadata", """{"running":0,"queued":0}"""),
-
-        // orgs/{org}/metadata — the console reads `r.features.<flag>` and `r.subscriptionStatus`. Enable
-        // every feature so all nav surfaces are reachable. (Field set mined from the bundle.)
-        ("/metadata", """
-        {"subscriptionStatus":"active","features":{
-          "aiAgentsEnabled":true,"aleEnabled":true,"crossGuardEnabled":true,"customRolesEnabled":true,
-          "dependencyCachingEnabled":true,"deployEnabled":true,"driftDetectionEnabled":true,
-          "environmentsEnabled":true,"gitHubEnterpriseIntegrationEnabled":true,"insightsMonetizationEnabled":true,
-          "neoPlanModeEnabled":true,"neoServerSideApprovalsEnabled":true,"neoTaskSharingEnabled":true,
-          "policyIssueManagementEnabled":true,"resourceSearchEnabled":true,"selfHostedDeploymentsEnabled":true,
-          "webhooksEnabled":true,"teamsEnabled":true}}
-        """),
 
         // ESC dynamic-config provider/rotator catalogs (the env editor's "add provider" pickers).
         ("/esc/providers", """{"providers":["aws-login","aws-secrets","gcp-login","gcp-secrets","azure-login","vault-login","1password","pulumi-stacks"]}"""),
@@ -230,40 +177,4 @@ public static class MockConsoleMiddleware
         ("/auditlogs/reader-kind", """{"readerKind":"standard"}"""),
         ("/auditlogs/export/config", """{"enabled":false}"""),
     ];
-
-    // Every "resource:action" permission the console gates UI on (mined from the bundle). Grants everything.
-    private const string AllPermissions = """
-    ["agent_pool:create","agent_pool:delete","agent_pool:read","agent_pool:update","ai_conversations:create",
-     "ai_conversations:list_all","ai_conversations:read","ai_conversations:update","audit_logs:export","audit_logs:read",
-     "auth_policies:read","auth_policies:update","change_gate:create","change_gate:delete","change_gate:update",
-     "deployments:read","deployments:read_usage","environment:create","environment:delete","environment:list",
-     "environment:list_deleted","environment:read","environment:write","environment_access:read","environment_access:update",
-     "environment_schedule:create","environment_schedule:delete","environment_schedule:read","environment_schedule:update",
-     "environment_settings:read","environment_settings:update","environment_tag:create","environment_tag:delete",
-     "environment_tag:read","environment_tag:update","environment_tags:list","environment_version:create",
-     "environment_version:delete","environment_version:read","environment_version:update","environment_webhook:create",
-     "environment_webhook:delete","environment_webhook:read","environment_webhook:update","github_team:create",
-     "insights_account:create","insights_account:delete","insights_account:list","insights_account:read",
-     "insights_account:update","insights_account_access:read","insights_account_access:update","insights_account_scan:read",
-     "insights_account_scan:update","insights_policy_evaluator:delete","insights_policy_evaluator:read",
-     "insights_policy_evaluator:update","insights_policy_queue:read","integrations:read","integrations:update",
-     "invites:create","invites:read","oidc_issuers:create","oidc_issuers:delete","oidc_issuers:read","oidc_issuers:update",
-     "org_integrations:read","org_integrations:update","org_member:delete","org_member:read","org_member:update",
-     "org_member_access:read","org_requests:read","org_requests:update","org_token:create","org_token:delete",
-     "org_token:read","organization:delete","organization:read_usage","organization:rename","organization:update",
-     "organization_annotations:read","organization_annotations:update","organization_webhook:create",
-     "organization_webhook:delete","organization_webhook:read","organization_webhook:update","policy_groups:create",
-     "policy_groups:delete","policy_groups:read","policy_groups:update","policy_pack:create","policy_pack:delete",
-     "policy_pack:read","policy_pack:update","policy_results:read","project_annotations:read","project_annotations:update",
-     "pullrequest:write","repository:admin","repository:write","role:create","role:delete","role:read","role:update",
-     "saml:read","saml:update","scim:delete","scim:read","scim:update","services:admin","services:create","services:read",
-     "services:write","stack:cancel_update","stack:create","stack:delete","stack:export","stack:import","stack:list",
-     "stack:list_deleted","stack:read","stack:rename","stack:transfer","stack:write","stack_access:read",
-     "stack_access:update","stack_annotations:read","stack_annotations:update","stack_deployment:create",
-     "stack_deployment:read","stack_deployment_cache:read","stack_deployment_settings:read","stack_deployment_settings:write",
-     "stack_schedule:create","stack_schedule:delete","stack_schedule:read","stack_schedule:update","stack_tags:update",
-     "stack_webhook:create","stack_webhook:delete","stack_webhook:read","stack_webhook:update","tags:read","team:create",
-     "team:create_token","team:delete","team:delete_token","team:list","team:list_tokens","team:read","team:update",
-     "templates:read","templates_source:create","templates_source:delete","templates_source:read","templates_source:update"]
-    """;
 }

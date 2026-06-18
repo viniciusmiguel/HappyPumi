@@ -17,7 +17,7 @@ public sealed class RegistryPackagesTests(HappyPumiApp app)
     [Fact]
     public async Task PublishHandshakeThenGetAndList()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var name = $"pkg{Guid.NewGuid():N}";
 
         // Phase 1: start publish -> operation id + upload URLs.
@@ -48,7 +48,7 @@ public sealed class RegistryPackagesTests(HappyPumiApp app)
     [Fact]
     public async Task GetVersionReturnsAbsoluteArtifactUrls()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var name = $"pkg{Guid.NewGuid():N}";
         await Post<StartPackagePublishResponse>(client, $"{Base(name)}/versions",
             new StartPackagePublishRequest { Version = "1.0.0" });
@@ -65,7 +65,7 @@ public sealed class RegistryPackagesTests(HappyPumiApp app)
     [Fact]
     public async Task ListVersionsReturnsAllNewestFirstWithLatestFlag()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var name = $"pkg{Guid.NewGuid():N}";
         await Publish(client, name, "1.0.0");
         await Publish(client, name, "2.0.0");
@@ -81,7 +81,7 @@ public sealed class RegistryPackagesTests(HappyPumiApp app)
     [Fact]
     public async Task ReadmeReturnsMarkdownText()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var name = $"pkg{Guid.NewGuid():N}";
         await Publish(client, name, "1.0.0");
 
@@ -96,7 +96,7 @@ public sealed class RegistryPackagesTests(HappyPumiApp app)
     [Fact]
     public async Task NavReturnsModulesEnvelope()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var name = $"pkg{Guid.NewGuid():N}";
         await Publish(client, name, "1.0.0");
 
@@ -109,7 +109,7 @@ public sealed class RegistryPackagesTests(HappyPumiApp app)
     [Fact]
     public async Task ReadmeAndNavReturn404ForUnknownPackage()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var name = $"pkg{Guid.NewGuid():N}";
 
         using var readme = await client.GetAsync($"{Base(name)}/versions/1.0.0/readme");
@@ -130,7 +130,7 @@ public sealed class RegistryPackagesTests(HappyPumiApp app)
     [Fact]
     public async Task GetUnknownVersionReturns404()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
 
         using var response = await client.GetAsync($"{Base($"pkg{Guid.NewGuid():N}")}/versions/1.0.0");
 
@@ -140,7 +140,7 @@ public sealed class RegistryPackagesTests(HappyPumiApp app)
     [Fact]
     public async Task PublishWithoutVersionReturns400()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
 
         using var response = await client.PostAsJsonAsync($"{Base($"pkg{Guid.NewGuid():N}")}/versions",
             new StartPackagePublishRequest { Version = "" });
@@ -151,7 +151,7 @@ public sealed class RegistryPackagesTests(HappyPumiApp app)
     [Fact]
     public async Task DeleteRemovesTheVersion()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var name = $"pkg{Guid.NewGuid():N}";
         await Post<StartPackagePublishResponse>(client, $"{Base(name)}/versions",
             new StartPackagePublishRequest { Version = "1.0.0" });

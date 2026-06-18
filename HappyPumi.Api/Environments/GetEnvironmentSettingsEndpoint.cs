@@ -20,7 +20,7 @@ public sealed class GetEnvironmentSettingsEndpoint(IEnvironmentStore environment
     public override void Configure()
     {
         Get("/api/esc/environments/{orgName}/{projectName}/{envName}/settings");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("environment:read");
         Description(b => b
             .WithTags("Environments")
             .WithSummary("GetEnvironmentSettings")

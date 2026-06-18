@@ -21,7 +21,7 @@ public sealed class ListOrgEnvironmentsEscEndpoint(IEnvironmentStore environment
     public override void Configure()
     {
         Get("/api/esc/environments/{orgName}");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("environment:list");
         Description(b => b
             .WithTags("Environments")
             .WithSummary("ListOrgEnvironments")

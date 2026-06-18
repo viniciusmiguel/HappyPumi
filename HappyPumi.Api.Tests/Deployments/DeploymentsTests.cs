@@ -18,7 +18,7 @@ public sealed class DeploymentsTests(HappyPumiApp app)
     [Fact]
     public async Task SettingsUpsertGetDelete()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var stack = Stack();
 
         using var before = await client.GetAsync($"{Base(stack)}/deployments/settings");
@@ -41,7 +41,7 @@ public sealed class DeploymentsTests(HappyPumiApp app)
     [Fact]
     public async Task EncryptSecretReturnsCiphertext()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
 
         using var response = await client.PostAsJsonAsync($"{Base(Stack())}/deployments/settings/encrypt",
             new SecretValue { Secret = "hunter2" });
@@ -55,7 +55,7 @@ public sealed class DeploymentsTests(HappyPumiApp app)
     [Fact]
     public async Task CreateListCancelDeployment()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var stack = Stack();
 
         var created = await Post<CreateDeploymentResponse>(client, $"{Base(stack)}/deployments",
@@ -75,7 +75,7 @@ public sealed class DeploymentsTests(HappyPumiApp app)
     [Fact]
     public async Task ScheduleCreateAndList()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var stack = Stack();
 
         var schedule = await Post<ScheduledAction>(client, $"{Base(stack)}/deployments/schedules", new { });
@@ -88,7 +88,7 @@ public sealed class DeploymentsTests(HappyPumiApp app)
     [Fact]
     public async Task DriftStatusReportsNoDrift()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
 
         var status = await client.GetFromJsonAsync<StackDriftStatus>($"{Base(Stack())}/drift/status");
 
@@ -98,7 +98,7 @@ public sealed class DeploymentsTests(HappyPumiApp app)
     [Fact]
     public async Task WebhookCreateAndList()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var stack = Stack();
 
         var created = await Post<WebhookResponse>(client, $"{Base(stack)}/hooks",
@@ -113,7 +113,7 @@ public sealed class DeploymentsTests(HappyPumiApp app)
     [Fact]
     public async Task OrgDeploymentsListIncludesCreatedDeployment()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var stack = Stack();
         var created = await Post<CreateDeploymentResponse>(client, $"{Base(stack)}/deployments",
             new CreateDeploymentRequest { Operation = "update" });
@@ -126,7 +126,7 @@ public sealed class DeploymentsTests(HappyPumiApp app)
     [Fact]
     public async Task GetDeploymentByVersionReturnsIt()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var stack = Stack();
         var created = await Post<CreateDeploymentResponse>(client, $"{Base(stack)}/deployments",
             new CreateDeploymentRequest { Operation = "refresh" });
@@ -140,7 +140,7 @@ public sealed class DeploymentsTests(HappyPumiApp app)
     [Fact]
     public async Task GetDeploymentByIdReturnsIt()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var stack = Stack();
         var created = await Post<CreateDeploymentResponse>(client, $"{Base(stack)}/deployments",
             new CreateDeploymentRequest { Operation = "update" });
@@ -153,7 +153,7 @@ public sealed class DeploymentsTests(HappyPumiApp app)
     [Fact]
     public async Task GetDeploymentByUnknownVersionReturns404()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
 
         using var res = await client.GetAsync($"{Base(Stack())}/deployments/version/999");
 
@@ -163,7 +163,7 @@ public sealed class DeploymentsTests(HappyPumiApp app)
     [Fact]
     public async Task GetDeploymentLogsReturnsEmptyForNewDeployment()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var stack = Stack();
         var created = await Post<CreateDeploymentResponse>(client, $"{Base(stack)}/deployments",
             new CreateDeploymentRequest { Operation = "update" });

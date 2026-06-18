@@ -20,7 +20,7 @@ public sealed class CheckYamlEscEndpoint : Endpoint<CheckYamlEscRequest, Environ
     public override void Configure()
     {
         Post("/api/esc/environments/{orgName}/yaml/check");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("environment:read");
         // The definition is posted as raw YAML; accept it (and read the body directly in the handler).
         Description(b => b
             .Accepts<CheckYamlEscRequest>("application/x-yaml", "text/yaml", "text/plain", "application/json")

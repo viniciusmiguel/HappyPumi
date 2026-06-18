@@ -4,22 +4,25 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// GetOrganizationMetadata
 /// </summary>
-public sealed class GetOrganizationMetadataEndpoint : Endpoint<GetOrganizationMetadataRequest, OrganizationMetadata>
+public sealed class GetOrganizationMetadataEndpoint(IStackStore stacks)
+    : Endpoint<GetOrganizationMetadataRequest, OrganizationMetadata>
 {
     public override void Configure()
     {
         Get("/api/orgs/{orgName}/metadata");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("organization:read_usage");
         Description(b => b
             .WithTags("Organizations")
             .WithSummary("GetOrganizationMetadata")
@@ -28,11 +31,32 @@ public sealed class GetOrganizationMetadataEndpoint : Endpoint<GetOrganizationMe
         );
     }
 
-    public override Task HandleAsync(GetOrganizationMetadataRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetOrganizationMetadataRequest req, CancellationToken ct)
     {
-        // TODO: implement GetOrganizationMetadata
-        // HTTP: GET /api/orgs/{orgName}/metadata
-        // Should produce: OrganizationMetadata
-        throw new NotImplementedException("Endpoint GetOrganizationMetadata not implemented.");
+        var stackCount = stacks.All().Count(s => s.Coordinates.Org == req.OrgName);
+        await Send.OkAsync(new OrganizationMetadata
+        {
+            Id = req.OrgName, Kind = "organization", UserRole = "admin",
+            SubscriptionStatus = "active", AiEnablement = "enabled",
+            Created = System.DateTime.UtcNow.AddYears(-1),
+            StackCount = stackCount, MemberCount = 0, AccountCount = 0, EnvironmentCount = 0,
+            MembersCanCreateStacks = true, MembersCanCreateTeams = true, MembersCanCreateAccounts = true,
+            MembersCanDeleteStacks = true, MembersCanTransferStacks = true,
+            AuditLogsEnabled = true, WebhooksEnabled = true, NeoEnabled = true,
+            DefaultEnvironmentPermission = "admin", PreferredVcs = "github",
+            NeoApprovalMode = "none", NeoTaskSharingMode = "org",
+            Features = AllFeaturesEnabled(),
+        }, ct);
+    }
+
+    // The dev/demo org has every gated capability turned on. Set all boolean feature flags true via
+    // reflection so new flags added to the contract are enabled automatically.
+    private static OrganizationFeatures AllFeaturesEnabled()
+    {
+        var features = new OrganizationFeatures();
+        foreach (var prop in typeof(OrganizationFeatures).GetProperties())
+            if (prop.PropertyType == typeof(bool) && prop.CanWrite)
+                prop.SetValue(features, true);
+        return features;
     }
 }
