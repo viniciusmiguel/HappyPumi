@@ -28,10 +28,12 @@ public sealed class PatchUpdateCheckpointDeltaUpdateEndpoint : Endpoint<PatchUpd
         );
     }
 
-    public override Task HandleAsync(PatchUpdateCheckpointDeltaUpdateRequest req, CancellationToken ct)
+    public async override Task HandleAsync(PatchUpdateCheckpointDeltaUpdateRequest req, CancellationToken ct)
     {
-        // TODO: implement PatchUpdateCheckpointDeltaUpdate
-        // HTTP: PATCH /api/stacks/{orgName}/{projectName}/{stackName}/update/{updateID}/checkpointdelta
-        throw new NotImplementedException("Endpoint PatchUpdateCheckpointDeltaUpdate not implemented.");
+        // The diff-based checkpoint protocol is only used when the backend advertises the delta
+        // capability, which we do not (see CapabilitiesEndpoint) — the CLI sends full checkpoints
+        // instead. Acknowledge without applying, since reconstructing state from a delta needs the
+        // capability handshake this backend hasn't opted into yet.
+        await Send.NoContentAsync(ct);
     }
 }

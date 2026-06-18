@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// CompleteUpdate
 /// </summary>
-public sealed class CompleteUpdateUpdateEndpoint : Endpoint<CompleteUpdateUpdateRequest>
+public sealed class CompleteUpdateUpdateEndpoint(UpdateLifecycle lifecycle) : Endpoint<CompleteUpdateUpdateRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,23 @@ public sealed class CompleteUpdateUpdateEndpoint : Endpoint<CompleteUpdateUpdate
         );
     }
 
-    public override Task HandleAsync(CompleteUpdateUpdateRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CompleteUpdateUpdateRequest req, CancellationToken ct)
     {
-        // TODO: implement CompleteUpdateUpdate
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/update/{updateID}/complete
-        throw new NotImplementedException("Endpoint CompleteUpdateUpdate not implemented.");
+        var status = req.Body?.Status;
+        if (status != UpdateStatuses.Succeeded && status != UpdateStatuses.Failed)
+        {
+            AddError($"'status' must be '{UpdateStatuses.Succeeded}' or '{UpdateStatuses.Failed}'.", "status");
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+
+        // On success this promotes the last checkpoint to the stack and bumps its version.
+        if (lifecycle.Complete(req.UpdateId, status) is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

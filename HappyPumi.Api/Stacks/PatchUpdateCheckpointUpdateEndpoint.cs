@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// PatchUpdateCheckpoint
 /// </summary>
-public sealed class PatchUpdateCheckpointUpdateEndpoint : Endpoint<PatchUpdateCheckpointUpdateRequest>
+public sealed class PatchUpdateCheckpointUpdateEndpoint(UpdateLifecycle lifecycle) : Endpoint<PatchUpdateCheckpointUpdateRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,22 @@ public sealed class PatchUpdateCheckpointUpdateEndpoint : Endpoint<PatchUpdateCh
         );
     }
 
-    public override Task HandleAsync(PatchUpdateCheckpointUpdateRequest req, CancellationToken ct)
+    public async override Task HandleAsync(PatchUpdateCheckpointUpdateRequest req, CancellationToken ct)
     {
-        // TODO: implement PatchUpdateCheckpointUpdate
-        // HTTP: PATCH /api/stacks/{orgName}/{projectName}/{stackName}/update/{updateID}/checkpoint
-        throw new NotImplementedException("Endpoint PatchUpdateCheckpointUpdate not implemented.");
+        // The CLI PATCHes the full deployment as resources are registered; we keep the latest, and
+        // CompleteUpdate promotes it to the stack. 404 if the update is unknown.
+        var deployment = new AppUntypedDeployment
+        {
+            Version = req.Body.Version,
+            Features = req.Body.Features,
+            Deployment = req.Body.Deployment,
+        };
+        if (lifecycle.SaveCheckpoint(req.UpdateId, deployment) is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

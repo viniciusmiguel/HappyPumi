@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// StartUpdateForUpdate
 /// </summary>
-public sealed class StartUpdateForUpdateEndpoint : Endpoint<StartUpdateForUpdateRequest, AppStartUpdateResponse>
+public sealed class StartUpdateForUpdateEndpoint(UpdateLifecycle lifecycle) : Endpoint<StartUpdateForUpdateRequest, AppStartUpdateResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,22 @@ public sealed class StartUpdateForUpdateEndpoint : Endpoint<StartUpdateForUpdate
         );
     }
 
-    public override Task HandleAsync(StartUpdateForUpdateRequest req, CancellationToken ct)
+    public async override Task HandleAsync(StartUpdateForUpdateRequest req, CancellationToken ct)
     {
-        // TODO: implement StartUpdateForUpdate
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/update/{updateID}
-        // Should produce: AppStartUpdateResponse
-        throw new NotImplementedException("Endpoint StartUpdateForUpdate not implemented.");
+        var update = lifecycle.Start(req.UpdateId);
+        if (update is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        // JournalVersion 0 tells the CLI journaling is disabled, so it persists state through the
+        // simpler full-checkpoint PATCH path (PatchUpdateCheckpoint) — see backend.go:2068.
+        await Send.OkAsync(new AppStartUpdateResponse
+        {
+            Version = update.Version,
+            Token = update.Token,
+            JournalVersion = 0,
+        }, ct);
     }
 }

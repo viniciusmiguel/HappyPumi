@@ -28,10 +28,10 @@ public sealed class CreateJournalEntriesUpdateEndpoint : Endpoint<CreateJournalE
         );
     }
 
-    public override Task HandleAsync(CreateJournalEntriesUpdateRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CreateJournalEntriesUpdateRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateJournalEntriesUpdate
-        // HTTP: PATCH /api/stacks/{orgName}/{projectName}/{stackName}/update/{updateID}/journalentries
-        throw new NotImplementedException("Endpoint CreateJournalEntriesUpdate not implemented.");
+        // Journaling is disabled (StartUpdate returns journalVersion 0), so the CLI persists state via
+        // full checkpoints instead and never calls this in practice. Acknowledge if it ever does.
+        await Send.NoContentAsync(ct);
     }
 }

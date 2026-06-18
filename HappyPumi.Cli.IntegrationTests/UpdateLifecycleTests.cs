@@ -5,22 +5,17 @@ namespace HappyPumi.Cli.IntegrationTests;
 /// resourceless Go program in fixtures/empty-stack still drives the full backend lifecycle
 /// (CreateUpdate -> StartUpdate -> checkpoints -> complete) — it just provisions nothing.
 ///
-/// Skipped until those endpoints exist in HappyPumi (see ENDPOINTS.md Tier 1). The CLI and the Go
-/// language host are already built locally by tools/build-pulumi-cli.sh, so enabling these is purely
-/// a matter of implementing the server side.
+/// Enabled once the Tier 1 stack/config + update-lifecycle endpoints landed (see ENDPOINTS.md). The CLI
+/// and the Go language host are built locally by tools/build-pulumi-cli.sh; this drives the real binary.
 /// </summary>
 [Collection(HappyPumiServerCollection.Name)]
 public sealed class UpdateLifecycleTests(HappyPumiServer server)
 {
-    private const string PendingTier1 =
-        "Pending HappyPumi Tier 1 stack/config + update-lifecycle endpoints (see ENDPOINTS.md). " +
-        "Harness (CLI + Go language host + resourceless program) is ready; only the server side is missing.";
-
     private static PulumiCli NewCli() =>
         new(RepoPaths.PulumiBinary ?? throw new InvalidOperationException(
             "pulumi binary not found. Build it with `make pulumi` or set PULUMI_BIN."));
 
-    [Fact(Skip = PendingTier1)]
+    [Fact]
     public async Task UpOnResourcelessProgramCompletesAnUpdate()
     {
         using var cli = NewCli();
