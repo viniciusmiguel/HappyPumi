@@ -6,6 +6,7 @@ using HappyPumi.Api.Data;
 using HappyPumi.Api.Data.Stores;
 using HappyPumi.Api.Secrets;
 using HappyPumi.Api.State;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 
 var bld = WebApplication.CreateBuilder(args);
@@ -49,13 +50,33 @@ bld.Services.AddScoped<UpdateLifecycle>();
 // process-static key is stable across requests (ADR-0007 secrets follow-up: persist a per-stack key).
 bld.Services.AddSingleton<IValueCrypter, AesValueCrypter>();
 
-// Authentication + RBAC (ADR-0007). The CLI authenticates with its `token` scheme (PulumiTokenAuthHandler).
-// Endpoints opt in to enforcement by dropping AllowAnonymous() and (for org management) requiring the admin
-// role. Interactive/console OIDC JWT Bearer against Dex is the follow-up half of this seam.
-bld.Services
-    .AddAuthentication(PulumiTokenAuthHandler.SchemeName)
-    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, PulumiTokenAuthHandler>(
-        PulumiTokenAuthHandler.SchemeName, null);
+// Authentication + RBAC (ADR-0007). Two credential types are accepted:
+//   - the CLI/legacy `token` scheme (PulumiTokenAuthHandler), and
+//   - OIDC JWT Bearer id-tokens from Dex for the interactive console (groups → role → permissions).
+// A policy scheme dispatches by the Authorization header so endpoints stay scheme-agnostic.
+const string smartScheme = "Smart";
+var oidcAuthority = bld.Configuration["Authentication:Oidc:Authority"];
+var authBuilder = bld.Services.AddAuthentication(smartScheme);
+authBuilder.AddPolicyScheme(smartScheme, smartScheme, o =>
+    o.ForwardDefaultSelector = ctx =>
+    {
+        var header = ctx.Request.Headers.Authorization.ToString();
+        return header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+            ? JwtBearerDefaults.AuthenticationScheme
+            : PulumiTokenAuthHandler.SchemeName;
+    });
+authBuilder.AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, PulumiTokenAuthHandler>(
+    PulumiTokenAuthHandler.SchemeName, null);
+if (!string.IsNullOrWhiteSpace(oidcAuthority))
+    authBuilder.AddJwtBearer(o =>
+    {
+        o.Authority = oidcAuthority;
+        o.RequireHttpsMetadata = false; // Dex dev issuer is http://localhost:5556/dex
+        o.TokenValidationParameters.ValidateAudience = true;
+        // The id-token audience is the client that requested it (console SPA or the confidential client).
+        o.TokenValidationParameters.ValidAudiences = ["happypumi-console", "happypumi"];
+        o.Events = new JwtBearerEvents { OnTokenValidated = OidcClaimsEnricher.OnTokenValidated };
+    });
 
 bld.Services.AddAuthorizationBuilder()
     .AddPolicy(AuthPolicies.OrgAdmin, p => p.RequireRole("admin"));

@@ -1,5 +1,8 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { isAuthenticated } from "./lib/auth";
 import Layout from "./components/Layout";
+import Login from "./pages/Login";
+import Callback from "./pages/Callback";
 import Dashboard from "./pages/Dashboard";
 import Stacks from "./pages/Stacks";
 import StackDetail from "./pages/StackDetail";
@@ -17,10 +20,20 @@ import Policies from "./pages/Policies";
 import Integrations from "./pages/Integrations";
 import * as Empty from "./pages/empties";
 
+/** Redirects to /login (remembering where you were) when there's no stored token. */
+function RequireAuth({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  if (!isAuthenticated())
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <Routes>
-      <Route element={<Layout />}>
+      <Route path="/login" element={<Login />} />
+      <Route path="/callback" element={<Callback />} />
+      <Route element={<RequireAuth><Layout /></RequireAuth>}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
 

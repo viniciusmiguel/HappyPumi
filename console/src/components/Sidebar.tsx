@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { homeItems, sections, sectionForPath, type NavItem, type SectionId } from "../lib/nav";
 import { type CurrentUser } from "../lib/api";
+import { clearToken } from "../lib/auth";
 import { Dropdown } from "./ui";
 
 function NavRow({ item, onClick }: { item: NavItem; onClick?: () => void }) {
@@ -127,14 +128,15 @@ export default function Sidebar({ user, onCollapse }: { user: CurrentUser | null
       <div className="relative border-t border-line p-3">
         {menuOpen && (
           <div className="absolute bottom-14 left-3 right-3 overflow-hidden rounded-lg border border-line bg-panel py-1 shadow-xl">
-            {[
-              { label: "Account settings", icon: SettingsIcon },
-              { label: "Invite members", icon: UserPlus },
-              { label: "Billing & usage", icon: CreditCard },
-              { label: "Docs", icon: BookOpen },
-              { label: "Sign out", icon: LogOut },
-            ].map((m) => (
-              <button key={m.label} className="flex w-full items-center gap-2.5 px-3 py-1.5 text-sm text-ink-dim hover:bg-hover hover:text-ink">
+            {([
+              { label: "Account settings", icon: SettingsIcon, onClick: () => navigate("/settings/members") },
+              { label: "Invite members", icon: UserPlus, onClick: () => navigate("/settings/members?new=1") },
+              { label: "Billing & usage", icon: CreditCard, onClick: () => navigate("/settings/billing") },
+              { label: "Docs", icon: BookOpen, onClick: () => window.open("https://www.pulumi.com/docs/", "_blank") },
+              { label: "Sign out", icon: LogOut, onClick: () => { clearToken(); navigate("/login", { replace: true }); } },
+            ] as const).map((m) => (
+              <button key={m.label} onClick={() => { setMenuOpen(false); m.onClick(); }}
+                className="flex w-full items-center gap-2.5 px-3 py-1.5 text-sm text-ink-dim hover:bg-hover hover:text-ink">
                 <m.icon size={15} /> {m.label}
               </button>
             ))}

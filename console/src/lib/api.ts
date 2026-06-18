@@ -5,12 +5,18 @@
 // The endpoints mirror what the real Pulumi console calls (served by HappyPumi's dev MockConsole layer),
 // so this React console renders the same data the real console did during reverse-engineering.
 
-const TOKEN = () => localStorage.getItem("happypumi.token") || "dev";
+import { getToken } from "./auth";
+
+// OIDC id-tokens (JWTs) go out as Bearer (validated against Dex); legacy/dev tokens use the `token` scheme.
+const authHeader = (): string => {
+  const t = getToken() ?? "";
+  return t.split(".").length === 3 ? `Bearer ${t}` : `token ${t}`;
+};
 
 async function get<T>(path: string, fallback: T): Promise<T> {
   try {
     const res = await fetch(`/api${path}`, {
-      headers: { Authorization: `token ${TOKEN()}`, Accept: "application/json" },
+      headers: { Authorization: authHeader(), Accept: "application/json" },
     });
     if (!res.ok) return fallback;
     return (await res.json()) as T;
@@ -21,7 +27,7 @@ async function get<T>(path: string, fallback: T): Promise<T> {
 
 async function getText(path: string, fallback = ""): Promise<string> {
   try {
-    const res = await fetch(`/api${path}`, { headers: { Authorization: `token ${TOKEN()}` } });
+    const res = await fetch(`/api${path}`, { headers: { Authorization: authHeader() } });
     if (!res.ok) return fallback;
     return await res.text();
   } catch {
@@ -33,7 +39,7 @@ async function post<T>(path: string, body: string, fallback: T): Promise<T> {
   try {
     const res = await fetch(`/api${path}`, {
       method: "POST",
-      headers: { Authorization: `token ${TOKEN()}`, "Content-Type": "application/x-yaml" },
+      headers: { Authorization: authHeader(), "Content-Type": "application/x-yaml" },
       body,
     });
     if (!res.ok) return fallback;
