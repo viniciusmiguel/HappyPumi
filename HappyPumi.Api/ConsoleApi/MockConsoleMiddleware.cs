@@ -25,7 +25,8 @@ public static class MockConsoleMiddleware
 
             // Known internal console endpoints: short-circuit with a canned mock.
             var mock = ProjectMock(path) ?? StackMetadataMock(path) ?? StackUpdatesMock(path)
-                       ?? OrgDeploymentsMock(path) ?? Match(path);
+                       ?? OrgDeploymentsMock(path) ?? DeploymentVersionMock(path) ?? DeploymentLogsMock(path)
+                       ?? DeploymentUpdatesMock(path) ?? Match(path);
             if (mock is not null && HttpMethods.IsGet(ctx.Request.Method))
             {
                 await Write(ctx, mock);
@@ -188,6 +189,68 @@ public static class MockConsoleMiddleware
             continuationToken = (string?)null,
         };
         return System.Text.Json.JsonSerializer.Serialize(body);
+    }
+
+    private static readonly string[] StepNames =
+        ["Provision", "Install dependencies", "Run pulumi update", "Collect outputs", "Finalize"];
+
+    /// <summary>
+    /// GET /api/stacks/{org}/{project}/{stack}/deployments/version/{v} — the per-deployment detail. Returns a
+    /// complete deployment with a job and steps (StepRun) so the detail header + step timeline populate.
+    /// </summary>
+    private static string? DeploymentVersionMock(string path)
+    {
+        var p = path.Split('/', StringSplitOptions.RemoveEmptyEntries); // api,stacks,org,project,stack,deployments,version,{v}
+        if (p.Length != 8 || p[0] != "api" || p[1] != "stacks" || p[5] != "deployments" || p[6] != "version")
+            return null;
+        var (org, project, stack, ver) = (p[2], p[3], p[4], int.TryParse(p[7], out var v) ? v : 1);
+        var now = DateTimeOffset.UtcNow;
+        string Iso(long s) => now.AddSeconds(-s).ToString("o");
+        var by = new { githubLogin = "happypumi", name = "HappyPumi", avatarUrl = "" };
+        var steps = StepNames.Select((n, i) => new
+        { name = n, status = "succeeded", started = Iso(120 - i * 20), lastUpdated = Iso(100 - i * 20), isComplete = true });
+        var body = new
+        {
+            id = $"dep-{stack}-{ver}", version = ver, latestVersion = ver,
+            created = Iso(3600), modified = Iso(3480), status = "succeeded", pulumiOperation = "update",
+            initiator = "happypumi", requestedBy = by,
+            jobs = new[] { new { status = "succeeded", started = Iso(3600), lastUpdated = Iso(3480), steps } },
+            updates = Array.Empty<object>(),
+        };
+        return System.Text.Json.JsonSerializer.Serialize(body);
+    }
+
+    /// <summary>
+    /// GET /api/stacks/{org}/{project}/{stack}/deployments/{id}/logs — the deployment log panel. Returns
+    /// DeploymentLogs { __type, lines:[{header,line,timestamp}], nextToken }.
+    /// </summary>
+    private static string? DeploymentLogsMock(string path)
+    {
+        var p = path.Split('/', StringSplitOptions.RemoveEmptyEntries); // api,stacks,org,project,stack,deployments,{id},logs
+        if (p.Length != 8 || p[0] != "api" || p[1] != "stacks" || p[5] != "deployments" || p[7] != "logs")
+            return null;
+        var now = DateTimeOffset.UtcNow;
+        string Iso(int s) => now.AddSeconds(-s).ToString("o");
+        var lines = new[]
+        {
+            new { header = "pulumi", line = "Provisioning deployment environment...", timestamp = Iso(120) },
+            new { header = "pulumi", line = "Installing dependencies (go mod download)", timestamp = Iso(100) },
+            new { header = "pulumi", line = "Running `pulumi up --yes`", timestamp = Iso(80) },
+            new { header = "pulumi", line = "Updating (webstore/prod)", timestamp = Iso(70) },
+            new { header = "pulumi", line = "    + 12 created", timestamp = Iso(40) },
+            new { header = "pulumi", line = "Resources: 12 unchanged", timestamp = Iso(20) },
+            new { header = "pulumi", line = "Update succeeded.", timestamp = Iso(10) },
+        };
+        return System.Text.Json.JsonSerializer.Serialize(new { __type = "deploymentLogs", lines, nextToken = (string?)null });
+    }
+
+    /// <summary>GET /api/stacks/{org}/{project}/{stack}/deployments/{id}/updates — the console spreads this as
+    /// an array (the per-deployment stack-update results), so return a bare JSON array.</summary>
+    private static string? DeploymentUpdatesMock(string path)
+    {
+        var p = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        return p.Length == 8 && p[0] == "api" && p[1] == "stacks" && p[5] == "deployments" && p[7] == "updates"
+            ? "[]" : null;
     }
 
     /// <summary>Best-effort empty shape: list-looking endpoints get a wrapped empty list, else an empty object.</summary>
