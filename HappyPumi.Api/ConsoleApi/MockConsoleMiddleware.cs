@@ -24,7 +24,7 @@ public static class MockConsoleMiddleware
             var path = ctx.Request.Path.Value ?? "";
 
             // Known internal console endpoints: short-circuit with a canned mock.
-            var mock = Match(path);
+            var mock = ProjectMock(path) ?? Match(path);
             if (mock is not null && HttpMethods.IsGet(ctx.Request.Method))
             {
                 await Write(ctx, mock);
@@ -50,6 +50,45 @@ public static class MockConsoleMiddleware
     {
         ctx.Response.ContentType = "application/json";
         await ctx.Response.WriteAsync(json);
+    }
+
+    /// <summary>
+    /// GET /api/console/orgs/{org}/projects/{project} — the project-detail page (`getOrganizationProject`)
+    /// reads `resp.project.stacks`. Returns the project with COMPLETE stack objects (every field the stack
+    /// lists/cards read) so the page renders fully. Dynamic so any project name works.
+    /// </summary>
+    private static string? ProjectMock(string path)
+    {
+        var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries); // api, console, orgs, {org}, projects, {project}
+        if (parts.Length != 6 || parts[0] != "api" || parts[1] != "console" || parts[2] != "orgs" || parts[4] != "projects")
+            return null;
+        var org = parts[3];
+        var project = parts[5];
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var requestedBy = new { githubLogin = "happypumi", name = "HappyPumi", avatarUrl = "" };
+        // lastUpdate is an OBJECT (the console reads .version/.result/.endTime/.requestedBy and writes .info).
+        object Stack(string name, int rc, long ago, int ver) => new
+        {
+            orgName = org, projectName = project, stackName = name,
+            resourceCount = rc, version = ver,
+            tags = new Dictionary<string, string> { ["pulumi:project"] = project },
+            deletedAt = (string?)null,
+            lastUpdate = new
+            {
+                version = ver, result = "succeeded", kind = "update",
+                startTime = now - ago - 30, endTime = now - ago, time = now - ago, requestedBy,
+            },
+        };
+        var body = new
+        {
+            project = new
+            {
+                orgName = org, name = project,
+                stacks = new[] { Stack("dev", 12, 3600, 4), Stack("staging", 18, 7200, 7), Stack("prod", 24, 86400, 11) },
+            },
+            continuationToken = (string?)null,
+        };
+        return System.Text.Json.JsonSerializer.Serialize(body);
     }
 
     /// <summary>Best-effort empty shape: list-looking endpoints get a wrapped empty list, else an empty object.</summary>
@@ -109,7 +148,6 @@ public static class MockConsoleMiddleware
         ("/neo/token-budget", """{"remaining":1000000,"limit":1000000,"used":0}"""),
         ("/tags", "[]"),  // org tags collection the stacks page .map()s
         ("/invites", "[]"),                                   // access-management invites list
-        ("/projects/services", """{"services":[],"continuationToken":null}"""),  // listServices: pipe maps e.services
         ("/repos", """{"repositories":[],"continuationToken":null}"""),          // getOrganizationRepositories
         ("/auditlogs/v2", """{"auditLogEvents":[],"continuationToken":null}"""),
         ("/auditlogs/reader-kind", """{"readerKind":"standard"}"""),
