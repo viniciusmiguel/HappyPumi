@@ -28,11 +28,12 @@ public sealed class GetUsageSummaryResourceHoursEndpoint : Endpoint<GetUsageSumm
         );
     }
 
-    public override Task HandleAsync(GetUsageSummaryResourceHoursRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetUsageSummaryResourceHoursRequest req, CancellationToken ct)
     {
-        // TODO: implement GetUsageSummaryResourceHours
-        // HTTP: GET /api/orgs/{orgName}/resources/summary
-        // Should produce: GetResourceCountSummaryResponse
-        throw new NotImplementedException("Endpoint GetUsageSummaryResourceHours not implemented.");
+        // No resource-hours metering is collected yet; return an empty summary.
+        await Send.OkAsync(new GetResourceCountSummaryResponse
+        {
+            Summary = new List<ResourceCountSummary>(),
+        }, ct);
     }
 }

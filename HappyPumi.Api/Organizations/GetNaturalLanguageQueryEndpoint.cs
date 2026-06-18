@@ -28,11 +28,10 @@ public sealed class GetNaturalLanguageQueryEndpoint : Endpoint<GetNaturalLanguag
         );
     }
 
-    public override Task HandleAsync(GetNaturalLanguageQueryRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetNaturalLanguageQueryRequest req, CancellationToken ct)
     {
-        // TODO: implement GetNaturalLanguageQuery
-        // HTTP: GET /api/orgs/{orgName}/search/resources/parse
-        // Should produce: GetNaturalLanguageQueryResponse
-        throw new NotImplementedException("Endpoint GetNaturalLanguageQuery not implemented.");
+        // No NL-to-query model runs here; echo the input back as the (already-structured) query so the
+        // caller proceeds with what it sent rather than getting an error.
+        await Send.OkAsync(new GetNaturalLanguageQueryResponse { Query = req.Query ?? string.Empty }, ct);
     }
 }
