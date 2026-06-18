@@ -29,8 +29,9 @@ public sealed class AddOrganizationMemberRequest
     public string UserLogin { get; set; } = default!;
 
     /// <summary>
-    /// Request body.
+    /// Request body. The generator emitted a self-referential type here; the real body is the membership
+    /// payload <c>{ "role": "admin" }</c>, so we bind it as a string map and read <c>role</c>.
     /// </summary>
     [FromBody]
-    public AddOrganizationMemberRequest Body { get; set; } = default!;
+    public Dictionary<string, string> Body { get; set; } = default!;
 }

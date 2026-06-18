@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// UpdateRole
 /// </summary>
-public sealed class UpdateRoleEndpoint : Endpoint<UpdateRoleRequest, PermissionDescriptorRecord>
+public sealed class UpdateRoleEndpoint(IIdentityStore identity) : Endpoint<UpdateRoleRequest, PermissionDescriptorRecord>
 {
     public override void Configure()
     {
@@ -28,11 +29,15 @@ public sealed class UpdateRoleEndpoint : Endpoint<UpdateRoleRequest, PermissionD
         );
     }
 
-    public override Task HandleAsync(UpdateRoleRequest req, CancellationToken ct)
+    public async override Task HandleAsync(UpdateRoleRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateRole
-        // HTTP: PATCH /api/orgs/{orgName}/roles/{roleID}
-        // Should produce: PermissionDescriptorRecord
-        throw new NotImplementedException("Endpoint UpdateRole not implemented.");
+        var role = identity.UpdateRole(req.OrgName, req.RoleId, req.Body ?? new PermissionDescriptorBase());
+        if (role is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(IdentityMapper.ToRecord(role), ct);
     }
 }

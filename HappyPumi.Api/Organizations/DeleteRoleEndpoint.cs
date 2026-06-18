@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// DeleteRole
 /// </summary>
-public sealed class DeleteRoleEndpoint : Endpoint<DeleteRoleRequest>
+public sealed class DeleteRoleEndpoint(IIdentityStore identity) : Endpoint<DeleteRoleRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,15 @@ public sealed class DeleteRoleEndpoint : Endpoint<DeleteRoleRequest>
         );
     }
 
-    public override Task HandleAsync(DeleteRoleRequest req, CancellationToken ct)
+    public async override Task HandleAsync(DeleteRoleRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteRole
-        // HTTP: DELETE /api/orgs/{orgName}/roles/{roleID}
-        throw new NotImplementedException("Endpoint DeleteRole not implemented.");
+        // Deleting a role also drops any team grants of it (handled in the store).
+        if (!identity.DeleteRole(req.OrgName, req.RoleId))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

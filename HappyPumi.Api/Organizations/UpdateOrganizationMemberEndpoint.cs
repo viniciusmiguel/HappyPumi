@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// UpdateOrganizationMember
 /// </summary>
-public sealed class UpdateOrganizationMemberEndpoint : Endpoint<UpdateOrganizationMemberRequest>
+public sealed class UpdateOrganizationMemberEndpoint(IIdentityStore identity) : Endpoint<UpdateOrganizationMemberRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,21 @@ public sealed class UpdateOrganizationMemberEndpoint : Endpoint<UpdateOrganizati
         );
     }
 
-    public override Task HandleAsync(UpdateOrganizationMemberRequest req, CancellationToken ct)
+    public async override Task HandleAsync(UpdateOrganizationMemberRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateOrganizationMember
-        // HTTP: PATCH /api/orgs/{orgName}/members/{userLogin}
-        throw new NotImplementedException("Endpoint UpdateOrganizationMember not implemented.");
+        if (req.Body is null || !req.Body.TryGetValue("role", out var role) || string.IsNullOrWhiteSpace(role))
+        {
+            AddError("'role' is required.", "role");
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+
+        if (identity.UpdateMemberRole(req.OrgName, req.UserLogin, role) is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

@@ -27,6 +27,10 @@ bld.Services.AddSingleton<IValueCrypter, AesValueCrypter>();
 bld.Services.AddSingleton<IUpdateStore, InMemoryUpdateStore>();
 bld.Services.AddScoped<UpdateLifecycle>();
 
+// Per-org IDP model: members, roles, team-role assignments (ADR-0007). In-memory default; endpoints
+// stay anonymous for now — JWT/RBAC enforcement is a follow-up (the model lands first).
+bld.Services.AddSingleton<IIdentityStore, InMemoryIdentityStore>();
+
 var app = bld.Build();
 app.MapDefaultEndpoints(); // /health and /alive
 

@@ -28,11 +28,14 @@ public sealed class ListAuditLogEventsHandlerV1Endpoint : Endpoint<ListAuditLogE
         );
     }
 
-    public override Task HandleAsync(ListAuditLogEventsHandlerV1Request req, CancellationToken ct)
+    public async override Task HandleAsync(ListAuditLogEventsHandlerV1Request req, CancellationToken ct)
     {
-        // TODO: implement ListAuditLogEventsHandlerV1
-        // HTTP: GET /api/orgs/{orgName}/auditlogs
-        // Should produce: ResponseAuditLogs
-        throw new NotImplementedException("Endpoint ListAuditLogEventsHandlerV1 not implemented.");
+        // No audit events are persisted yet — the audit log store is a separate concern (ADR-0010).
+        // Return an empty, well-formed page so the console/CLI render cleanly until that lands.
+        await Send.OkAsync(new ResponseAuditLogs
+        {
+            AuditLogEvents = new List<AuditLogEvent>(),
+            ContinuationToken = null,
+        }, ct);
     }
 }

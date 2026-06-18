@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// DeleteOrganizationMember
 /// </summary>
-public sealed class DeleteOrganizationMemberEndpoint : Endpoint<DeleteOrganizationMemberRequest>
+public sealed class DeleteOrganizationMemberEndpoint(IIdentityStore identity) : Endpoint<DeleteOrganizationMemberRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,14 @@ public sealed class DeleteOrganizationMemberEndpoint : Endpoint<DeleteOrganizati
         );
     }
 
-    public override Task HandleAsync(DeleteOrganizationMemberRequest req, CancellationToken ct)
+    public async override Task HandleAsync(DeleteOrganizationMemberRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteOrganizationMember
-        // HTTP: DELETE /api/orgs/{orgName}/members/{userLogin}
-        throw new NotImplementedException("Endpoint DeleteOrganizationMember not implemented.");
+        if (!identity.RemoveMember(req.OrgName, req.UserLogin))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

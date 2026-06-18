@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// AddOrganizationMember
 /// </summary>
-public sealed class AddOrganizationMemberEndpoint : Endpoint<AddOrganizationMemberRequest, OrganizationMember>
+public sealed class AddOrganizationMemberEndpoint(IIdentityStore identity) : Endpoint<AddOrganizationMemberRequest, OrganizationMember>
 {
     public override void Configure()
     {
@@ -28,11 +29,13 @@ public sealed class AddOrganizationMemberEndpoint : Endpoint<AddOrganizationMemb
         );
     }
 
-    public override Task HandleAsync(AddOrganizationMemberRequest req, CancellationToken ct)
+    public async override Task HandleAsync(AddOrganizationMemberRequest req, CancellationToken ct)
     {
-        // TODO: implement AddOrganizationMember
-        // HTTP: POST /api/orgs/{orgName}/members/{userLogin}
-        // Should produce: OrganizationMember
-        throw new NotImplementedException("Endpoint AddOrganizationMember not implemented.");
+        // The body carries the built-in role; default to "member" when omitted.
+        var role = req.Body is not null && req.Body.TryGetValue("role", out var r) && !string.IsNullOrWhiteSpace(r)
+            ? r
+            : "member";
+        var member = identity.AddMember(req.OrgName, req.UserLogin, role);
+        await Send.OkAsync(IdentityMapper.ToMember(member), ct);
     }
 }

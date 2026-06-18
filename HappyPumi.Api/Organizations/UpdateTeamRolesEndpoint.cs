@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// UpdateTeamRoles
 /// </summary>
-public sealed class UpdateTeamRolesEndpoint : Endpoint<UpdateTeamRolesRequest>
+public sealed class UpdateTeamRolesEndpoint(IIdentityStore identity) : Endpoint<UpdateTeamRolesRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,15 @@ public sealed class UpdateTeamRolesEndpoint : Endpoint<UpdateTeamRolesRequest>
         );
     }
 
-    public override Task HandleAsync(UpdateTeamRolesRequest req, CancellationToken ct)
+    public async override Task HandleAsync(UpdateTeamRolesRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateTeamRoles
-        // HTTP: POST /api/orgs/{orgName}/teams/{teamName}/roles/{roleID}
-        throw new NotImplementedException("Endpoint UpdateTeamRoles not implemented.");
+        // Grant the role to the team; 404 when the role does not exist in the org.
+        if (!identity.AssignTeamRole(req.OrgName, req.TeamName, req.RoleId))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }
