@@ -61,6 +61,72 @@ public sealed class RegistryPackagesTests(HappyPumiApp app)
         Assert.EndsWith($"{Base(name)}/versions/1.0.0/schema", meta.SchemaUrl);
     }
 
+    // ── Console component surfaces (versions list, readme, nav) ─────────────────
+    [Fact]
+    public async Task ListVersionsReturnsAllNewestFirstWithLatestFlag()
+    {
+        using var client = app.CreateClient();
+        var name = $"pkg{Guid.NewGuid():N}";
+        await Publish(client, name, "1.0.0");
+        await Publish(client, name, "2.0.0");
+
+        var list = await client.GetFromJsonAsync<ListPackagesResponse>($"{Base(name)}/versions");
+
+        Assert.Equal(2, list!.Packages.Count);
+        Assert.Equal("2.0.0", list.Packages[0].Version); // newest first
+        Assert.True(list.Packages[0].IsLatest);
+        Assert.False(list.Packages[1].IsLatest);
+    }
+
+    [Fact]
+    public async Task ReadmeReturnsMarkdownText()
+    {
+        using var client = app.CreateClient();
+        var name = $"pkg{Guid.NewGuid():N}";
+        await Publish(client, name, "1.0.0");
+
+        using var res = await client.GetAsync($"{Base(name)}/versions/1.0.0/readme");
+
+        res.EnsureSuccessStatusCode();
+        Assert.Contains("text/markdown", res.Content.Headers.ContentType!.ToString());
+        var body = await res.Content.ReadAsStringAsync();
+        Assert.StartsWith("#", body.TrimStart());
+    }
+
+    [Fact]
+    public async Task NavReturnsModulesEnvelope()
+    {
+        using var client = app.CreateClient();
+        var name = $"pkg{Guid.NewGuid():N}";
+        await Publish(client, name, "1.0.0");
+
+        var nav = await client.GetFromJsonAsync<GetPackageNavResponse>($"{Base(name)}/versions/latest/nav");
+
+        Assert.Equal(name, nav!.Name);
+        Assert.NotNull(nav.Modules);
+    }
+
+    [Fact]
+    public async Task ReadmeAndNavReturn404ForUnknownPackage()
+    {
+        using var client = app.CreateClient();
+        var name = $"pkg{Guid.NewGuid():N}";
+
+        using var readme = await client.GetAsync($"{Base(name)}/versions/1.0.0/readme");
+        using var nav = await client.GetAsync($"{Base(name)}/versions/1.0.0/nav");
+
+        Assert.Equal(HttpStatusCode.NotFound, readme.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, nav.StatusCode);
+    }
+
+    private static async Task Publish(HttpClient client, string name, string version)
+    {
+        await Post<StartPackagePublishResponse>(client, $"{Base(name)}/versions",
+            new StartPackagePublishRequest { Version = version });
+        using var complete = await client.PostAsJsonAsync($"{Base(name)}/versions/{version}/complete", new { });
+        complete.EnsureSuccessStatusCode();
+    }
+
     [Fact]
     public async Task GetUnknownVersionReturns404()
     {

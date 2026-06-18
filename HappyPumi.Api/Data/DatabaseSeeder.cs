@@ -92,6 +92,7 @@ public static class DatabaseSeeder
             {
                 Source = "private", Publisher = Org, Name = name, Version = ver,
                 CreatedAt = DateTime.UtcNow, PublishedAt = DateTime.UtcNow, Published = true,
+                Readme = PackageReadme(name, ver), Nav = PackageNav(name),
             });
 
         db.Templates.Add(new TemplateVersionRow
@@ -99,6 +100,67 @@ public static class DatabaseSeeder
             Source = "private", Publisher = Org, Name = "webstore-starter", Version = "1.0.0",
             UpdatedAt = DateTime.UtcNow, Language = "go", Description = "Webstore starter template", Published = true,
         });
+    }
+
+    private static string PackageReadme(string name, string version) => $$"""
+        # {{name}}
+
+        A reusable Pulumi component published to the **{{Org}}** private registry (version `{{version}}`).
+
+        Components bundle best practices and sensible defaults so teams can compose infrastructure from
+        higher-level building blocks instead of wiring primitives by hand.
+
+        ## Installation
+
+        ```bash
+        pulumi package add {{Org}}/{{name}}@{{version}}
+        ```
+
+        ## Example
+
+        ```typescript
+        import * as {{name}} from "@{{Org}}/{{name}}";
+
+        const widget = new {{name}}.Widget("my-widget", {
+            size: "large",
+        });
+
+        export const widgetId = widget.id;
+        ```
+
+        ## Inputs
+
+        | Name | Type | Description |
+        | ---- | ---- | ----------- |
+        | `size` | `string` | The widget size. Defaults to `medium`. |
+
+        ## Outputs
+
+        | Name | Type | Description |
+        | ---- | ---- | ----------- |
+        | `id` | `string` | The provisioned widget identifier. |
+        """;
+
+    private static List<GetPackageNavModule> PackageNav(string name)
+    {
+        Dictionary<string, string> Lang(string go) => new()
+            { ["go"] = go, ["nodejs"] = go, ["python"] = go, ["dotnet"] = go };
+        return new List<GetPackageNavModule>
+        {
+            new()
+            {
+                Name = Lang("index"),
+                Resources = new List<GetPackageNavItem>
+                {
+                    new() { Name = Lang("Widget"), TypeToken = $"{name}:index:Widget" },
+                },
+                Functions = new List<GetPackageNavItem>
+                {
+                    new() { Name = Lang("getWidget"), TypeToken = $"{name}:index:getWidget" },
+                },
+                ResourcesTotal = 1, FunctionsTotal = 1,
+            },
+        };
     }
 
     private static void SeedPolicy(HappyPumiDbContext db)

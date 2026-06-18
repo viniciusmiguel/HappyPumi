@@ -64,7 +64,11 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
 
         b.Entity<TeamRoleRow>(e => e.HasKey(x => new { x.Org, x.TeamName, x.RoleId }));
 
-        b.Entity<PackageVersionRow>(e => e.HasKey(x => new { x.Source, x.Publisher, x.Name, x.Version }));
+        b.Entity<PackageVersionRow>(e =>
+        {
+            e.HasKey(x => new { x.Source, x.Publisher, x.Name, x.Version });
+            e.Property(x => x.Nav).AsJsonb();
+        });
         b.Entity<TemplateVersionRow>(e => e.HasKey(x => new { x.Source, x.Publisher, x.Name, x.Version }));
 
         b.Entity<PolicyGroupRow>(e =>

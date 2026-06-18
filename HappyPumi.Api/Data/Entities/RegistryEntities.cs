@@ -1,6 +1,8 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
+using HappyPumi.Api.Contracts;
 
 namespace HappyPumi.Api.Data.Entities;
 
@@ -14,6 +16,10 @@ public sealed class PackageVersionRow
     public DateTime CreatedAt { get; set; }
     public DateTime? PublishedAt { get; set; }
     public bool Published { get; set; }
+    /// <summary>README markdown (served as text to the console's Overview tab).</summary>
+    public string? Readme { get; set; }
+    /// <summary>API-docs navigation tree (modules → resources/functions); jsonb.</summary>
+    public List<GetPackageNavModule>? Nav { get; set; }
 }
 
 /// <summary>A template version. Key: (Source, Publisher, Name, Version).</summary>

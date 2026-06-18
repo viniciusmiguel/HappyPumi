@@ -13,6 +13,8 @@ public interface IPackageRegistry
 {
     /// <summary>The latest version of each package, optionally filtered by name (substring, case-insensitive).</summary>
     IReadOnlyCollection<StoredPackageVersion> ListLatest(string? nameFilter);
+    /// <summary>All versions of a package, newest first (the Versions tab + version selector).</summary>
+    IReadOnlyCollection<StoredPackageVersion> ListVersions(PackageCoordinates coordinates);
 
     /// <summary>Gets a specific version, or the most recent when <paramref name="version"/> is "latest".</summary>
     StoredPackageVersion? Get(PackageCoordinates coordinates, string version);

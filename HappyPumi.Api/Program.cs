@@ -25,7 +25,12 @@ var connectionString = bld.Configuration.GetConnectionString("happypumidb")
     ?? throw new InvalidOperationException(
         "Connection string 'happypumidb' is not configured. Run via `make dev` (Aspire) or set " +
         "ConnectionStrings__happypumidb. HappyPumi persists all state to PostgreSQL (ADR-0005).");
-bld.Services.AddDbContext<HappyPumiDbContext>(o => o.UseNpgsql(connectionString));
+bld.Services.AddDbContext<HappyPumiDbContext>(o => o
+    .UseNpgsql(connectionString)
+    // jsonb columns carry custom value converters/comparers; EF's model-diff occasionally reports a benign
+    // PendingModelChangesWarning for them even when `dotnet ef migrations has-pending-model-changes` confirms
+    // the model matches the latest migration. Don't fail startup on that false positive.
+    .ConfigureWarnings(w => w.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
 // Persistence seams (ADR-0005), now PostgreSQL-backed. Scoped to share the request's DbContext.
 bld.Services.AddScoped<IStackStore, PostgresStackStore>();

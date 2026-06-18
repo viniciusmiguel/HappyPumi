@@ -69,6 +69,11 @@ public sealed class PostgresPackageRegistry(HappyPumiDbContext db) : IPackageReg
         return true;
     }
 
+    public IReadOnlyCollection<StoredPackageVersion> ListVersions(PackageCoordinates c)
+        => db.Packages.AsNoTracking()
+            .Where(p => p.Source == c.Source && p.Publisher == c.Publisher && p.Name == c.Name)
+            .ToList().OrderByDescending(p => p.CreatedAt).Select(ToStored).ToList();
+
     private PackageVersionRow? Row(PackageCoordinates c, string version)
         => db.Packages.FirstOrDefault(p =>
             p.Source == c.Source && p.Publisher == c.Publisher && p.Name == c.Name && p.Version == version);
@@ -77,5 +82,6 @@ public sealed class PostgresPackageRegistry(HappyPumiDbContext db) : IPackageReg
     {
         Coordinates = new PackageCoordinates(r.Source, r.Publisher, r.Name),
         Version = r.Version, CreatedAt = r.CreatedAt, PublishedAt = r.PublishedAt, Published = r.Published,
+        Readme = r.Readme, Nav = r.Nav,
     };
 }

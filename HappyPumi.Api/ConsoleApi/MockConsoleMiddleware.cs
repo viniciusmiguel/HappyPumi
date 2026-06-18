@@ -23,14 +23,8 @@ public static class MockConsoleMiddleware
         {
             var path = ctx.Request.Path.Value ?? "";
 
-            // Some endpoints are fetched as raw text, not JSON (README markdown, ESC environment YAML), so
-            // serve them before the JSON chain with the right content type.
-            var readme = PackageReadmeMock(path);
-            if (readme is not null && HttpMethods.IsGet(ctx.Request.Method))
-            {
-                await WriteText(ctx, readme, "text/markdown; charset=utf-8");
-                return;
-            }
+            // Some endpoints are fetched as raw text, not JSON (ESC environment YAML), so serve them before
+            // the JSON chain with the right content type.
             var yaml = EscEnvironmentYaml(path);
             if (yaml is not null && HttpMethods.IsGet(ctx.Request.Method))
             {
@@ -52,8 +46,7 @@ public static class MockConsoleMiddleware
 
             // Known internal console endpoints: short-circuit with a canned mock.
             var mock = ProjectMock(path) ?? StackMetadataMock(path) ?? StackUpdatesMock(path)
-                       ?? PackageVersionsMock(path)
-                       ?? PackageNavMock(path) ?? OrgEnvironmentsMock(path) ?? EscEnvironmentMock(path) ?? Match(path);
+                       ?? OrgEnvironmentsMock(path) ?? EscEnvironmentMock(path) ?? Match(path);
             if (mock is not null && HttpMethods.IsGet(ctx.Request.Method))
             {
                 await Write(ctx, mock);
@@ -187,120 +180,6 @@ public static class MockConsoleMiddleware
             };
         }
         return System.Text.Json.JsonSerializer.Serialize(new { updates = new[] { Update(3, 7200), Update(2, 86400), Update(1, 172800) } });
-    }
-
-    /// <summary>
-    /// GET /api/registry/packages/{source}/{publisher}/{name}/versions — the Private Components "Versions" tab
-    /// and the version selector (ListPackageVersions). Not in the public spec (console-only). The console reads
-    /// <c>resp.packages</c> as the version list and each item's <c>.version</c>/<c>.isLatest</c>. Returns a
-    /// couple of versions with the newest flagged latest so the selector + table render.
-    /// </summary>
-    private static string? PackageVersionsMock(string path)
-    {
-        var p = path.Split('/', StringSplitOptions.RemoveEmptyEntries); // api,registry,packages,source,publisher,name,versions
-        if (p.Length != 7 || p[0] != "api" || p[1] != "registry" || p[2] != "packages" || p[6] != "versions")
-            return null;
-        var (source, publisher, name) = (p[3], p[4], p[5]);
-        var now = DateTimeOffset.UtcNow;
-        object Ver(string version, bool isLatest, long agoSecs) => new
-        {
-            source, publisher, name, version, isLatest,
-            createdAt = now.AddSeconds(-agoSecs).ToString("o"),
-            description = $"The {name} component.", packageStatus = "published", isFeatured = false,
-            readmeURL = $"/api/registry/packages/{source}/{publisher}/{name}/versions/{version}/readme",
-            schemaURL = $"/api/registry/packages/{source}/{publisher}/{name}/versions/{version}/schema",
-            repoUrl = (string?)null, logoUrl = (string?)null, pluginDownloadURL = (string?)null,
-        };
-        var body = new
-        {
-            packages = new[] { Ver("1.0.0", true, 3600), Ver("0.9.0", false, 604800) },
-            continuationToken = (string?)null,
-        };
-        return System.Text.Json.JsonSerializer.Serialize(body);
-    }
-
-    /// <summary>
-    /// GET /api/console/registry/packages/{source}/{publisher}/{name}/versions/{version}/nav — the component
-    /// "API Docs" tab. The console's <c>constructTree</c> iterates <c>resp.modules</c> and reads each module/
-    /// resource/function's <c>name["go"]</c> (a per-language name MAP, not a string) plus <c>typeToken</c>.
-    /// Returns one module ("index") with a resource and a function so the docs navigation tree renders.
-    /// </summary>
-    private static string? PackageNavMock(string path)
-    {
-        var p = path.Split('/', StringSplitOptions.RemoveEmptyEntries); // api,console,registry,packages,src,pub,name,versions,{ver},nav
-        if (p.Length != 10 || p[0] != "api" || p[1] != "console" || p[2] != "registry" || p[3] != "packages"
-            || p[7] != "versions" || p[9] != "nav")
-            return null;
-        var (source, publisher, name, version) = (p[4], p[5], p[6], p[8]);
-        // name is a language-keyed map (the console reads .["go"]); typeToken is "{pkg}:{module}:{Type}".
-        object LangName(string go) => new { go, nodejs = go, python = go, dotnet = go };
-        var module = new
-        {
-            name = LangName("index"),
-            resources = new[] { new { name = LangName("Widget"), typeToken = $"{name}:index:Widget" } },
-            functions = new[] { new { name = LangName("getWidget"), typeToken = $"{name}:index:getWidget" } },
-            resourcesTotal = 1, functionsTotal = 1,
-        };
-        var basePath = $"/api/registry/packages/{source}/{publisher}/{name}/versions/{version}";
-        var body = new
-        {
-            source, publisher, name, version, title = name, description = $"The {name} component.",
-            language = "go", modules = new[] { module }, modulesTotal = 1,
-            packageVersionUrl = basePath, readmeUrl = $"{basePath}/readme",
-            docsUrlTemplate = $"{basePath}/docs/{{token}}",
-        };
-        return System.Text.Json.JsonSerializer.Serialize(body);
-    }
-
-    /// <summary>
-    /// GET /api/registry/packages/{source}/{publisher}/{name}/versions/{version}/readme — the component
-    /// Overview README. The console fetches this with <c>responseType:"text"</c> and feeds it to a markdown
-    /// renderer, so return raw markdown (not JSON). Returns null for non-readme paths.
-    /// </summary>
-    private static string? PackageReadmeMock(string path)
-    {
-        var p = path.Split('/', StringSplitOptions.RemoveEmptyEntries); // api,registry,packages,source,pub,name,versions,{ver},readme
-        if (p.Length != 9 || p[0] != "api" || p[1] != "registry" || p[2] != "packages" || p[6] != "versions" || p[8] != "readme")
-            return null;
-        var (publisher, name, version) = (p[4], p[5], p[7]);
-        return $$"""
-        # {{name}}
-
-        A reusable Pulumi component published to the **{{publisher}}** private registry (version `{{version}}`).
-
-        Components bundle best practices and sensible defaults so teams can compose infrastructure from
-        higher-level building blocks instead of wiring primitives by hand.
-
-        ## Installation
-
-        ```bash
-        pulumi package add {{publisher}}/{{name}}@{{version}}
-        ```
-
-        ## Example
-
-        ```typescript
-        import * as {{name}} from "@{{publisher}}/{{name}}";
-
-        const widget = new {{name}}.Widget("my-widget", {
-            size: "large",
-        });
-
-        export const widgetId = widget.id;
-        ```
-
-        ## Inputs
-
-        | Name | Type | Description |
-        | ---- | ---- | ----------- |
-        | `size` | `string` | The widget size. Defaults to `medium`. |
-
-        ## Outputs
-
-        | Name | Type | Description |
-        | ---- | ---- | ----------- |
-        | `id` | `string` | The provisioned widget identifier. |
-        """;
     }
 
     /// <summary>
@@ -484,7 +363,10 @@ public static class MockConsoleMiddleware
         foreach (var (needle, json) in Mocks)
             if (path.Contains(needle, StringComparison.OrdinalIgnoreCase))
                 return json;
-        if (path.StartsWith("/api/console/", StringComparison.OrdinalIgnoreCase))
+        // Console catch-all for unimplemented bootstrap endpoints — but let real /api/console/registry/*
+        // endpoints (e.g. the package nav) handle their own paths instead of short-circuiting to {}.
+        if (path.StartsWith("/api/console/", StringComparison.OrdinalIgnoreCase)
+            && !path.Contains("/registry/", StringComparison.OrdinalIgnoreCase))
             return "{}";
         return null;
     }

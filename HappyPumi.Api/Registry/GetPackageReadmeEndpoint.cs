@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Registry;
 
 /// <summary>
 /// GetPackageReadme
 /// </summary>
-public sealed class GetPackageReadmeEndpoint : Endpoint<GetPackageReadmeRequest, GetPackageReadmeResponse>
+public sealed class GetPackageReadmeEndpoint(IPackageRegistry registry) : Endpoint<GetPackageReadmeRequest, GetPackageReadmeResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,17 @@ public sealed class GetPackageReadmeEndpoint : Endpoint<GetPackageReadmeRequest,
         );
     }
 
-    public override Task HandleAsync(GetPackageReadmeRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetPackageReadmeRequest req, CancellationToken ct)
     {
-        // TODO: implement GetPackageReadme
-        // HTTP: GET /api/registry/packages/{source}/{publisher}/{name}/versions/{version}/readme
-        // Should produce: GetPackageReadmeResponse
-        throw new NotImplementedException("Endpoint GetPackageReadme not implemented.");
+        var pkg = registry.Get(new PackageCoordinates(req.Source, req.Publisher, req.Name), req.Version);
+        if (pkg is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        // The console fetches the readme URL as raw text and feeds it to a markdown renderer, so serve the
+        // markdown directly rather than the JSON content-node envelope.
+        await Send.StringAsync(pkg.Readme ?? $"# {req.Name}\n\nNo README provided for this package.",
+            contentType: "text/markdown; charset=utf-8", cancellation: ct);
     }
 }
