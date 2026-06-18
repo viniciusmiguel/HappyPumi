@@ -39,10 +39,13 @@ public sealed class PostPublishTemplateVersionEndpoint(HappyPumi.Api.State.ITemp
 
         var coords = new HappyPumi.Api.State.TemplateCoordinates(req.Source, req.Publisher, req.Name);
         registry.StartPublish(coords, req.Body.Version);
+        var uploads = HappyPumi.Api.State.RegistryMapper.TemplateUploadUrls(coords, req.Body.Version);
+        // The CLI PUTs the archive directly to this URL, so it must be absolute (rooted at this host).
+        uploads.Archive = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}" + uploads.Archive;
         await Send.OkAsync(new StartTemplatePublishResponse
         {
             OperationId = System.Guid.NewGuid().ToString(),
-            UploadUrLs = HappyPumi.Api.State.RegistryMapper.TemplateUploadUrls(coords, req.Body.Version),
+            UploadUrLs = uploads,
         }, ct);
     }
 }

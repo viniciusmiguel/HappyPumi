@@ -38,6 +38,28 @@ public sealed class RegistryTemplatesTests(HappyPumiApp app)
     }
 
     [Fact]
+    public async Task PublishUploadsAndServesTemplateArchive()
+    {
+        using var client = app.CreateAuthedClient();
+        var name = $"tmpl{Guid.NewGuid():N}";
+
+        var start = await Post<StartTemplatePublishResponse>(client, $"{Base(name)}/versions",
+            new StartTemplatePublishRequest { Version = "1.0.0" });
+        Assert.StartsWith("http", start.UploadUrLs.Archive); // absolute so the CLI can PUT to it
+
+        var archive = new byte[] { 0x1f, 0x8b, 0x08, 0x00, 1, 2, 3, 4 }; // gzip-ish bytes
+        using var put = await client.PutAsync($"{Base(name)}/versions/1.0.0/upload/archive",
+            new ByteArrayContent(archive) { Headers = { ContentType = new("application/gzip") } });
+        Assert.Equal(HttpStatusCode.OK, put.StatusCode); // template CLI rejects 204; we return 200
+
+        using var complete = await client.PostAsJsonAsync($"{Base(name)}/versions/1.0.0/complete", new { });
+        Assert.Equal(HttpStatusCode.OK, complete.StatusCode);
+
+        var served = await client.GetByteArrayAsync($"{Base(name)}/versions/1.0.0/archive");
+        Assert.Equal(archive, served);
+    }
+
+    [Fact]
     public async Task GetUnknownTemplateVersionReturns404()
     {
         using var client = app.CreateClient();
