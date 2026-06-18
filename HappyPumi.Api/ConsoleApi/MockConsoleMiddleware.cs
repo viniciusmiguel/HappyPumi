@@ -127,15 +127,30 @@ public static class MockConsoleMiddleware
         if (parts.Length != 6 || parts[0] != "api" || parts[1] != "stacks" || parts[5] != "updates")
             return null;
         var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        object Update(int ver, long ago) => new
+        object Update(int ver, long ago)
         {
-            version = ver, message = $"Update {ver}", result = "succeeded", kind = "update",
-            updateKind = new { kind = "update" },
-            startTime = now - ago - 60, endTime = now - ago, time = now - ago,
-            requestedBy = new { githubLogin = "happypumi", name = "HappyPumi", avatarUrl = "" },
-            resourceChanges = new { create = 0, update = 0, delete = 0, same = 12 },
-            resourceCount = 12, environment = new { }, config = new { },
-        };
+            var by = new { githubLogin = "happypumi", name = "HappyPumi", avatarUrl = "" };
+            var changes = new { create = 0, update = 0, delete = 0, same = 12 };
+            // The console reads most fields off update.info (incl. info.environment, which feeds the VCS info
+            // component) — keep it comprehensive. Environment is a tag map (e.g. git.headName, github.pr.number).
+            var info = new
+            {
+                version = ver, kind = "update", message = $"Update {ver}", result = "succeeded",
+                startTime = now - ago - 60, endTime = now - ago, requestedBy = by,
+                resourceChanges = changes, environment = new Dictionary<string, string>(),
+                policyPacks = Array.Empty<object>(), githubCommitInfo = (object?)null,
+            };
+            return new
+            {
+                version = ver, updateID = $"u-{ver}", latestVersion = ver, message = $"Update {ver}",
+                result = "succeeded", kind = "update", updateKind = new { kind = "update" }, info,
+                startTime = now - ago - 60, endTime = now - ago, time = now - ago,
+                requestedBy = by, requestedByToken = (object?)null,
+                policyPacks = Array.Empty<object>(), githubCommitInfo = (object?)null,
+                resourceChanges = changes, resourceCount = 12,
+                environment = new Dictionary<string, string>(), config = new { },
+            };
+        }
         return System.Text.Json.JsonSerializer.Serialize(new { updates = new[] { Update(3, 7200), Update(2, 86400), Update(1, 172800) } });
     }
 
