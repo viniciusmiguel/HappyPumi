@@ -7,14 +7,16 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// GetPolicyPack
 /// </summary>
-public sealed class GetPolicyPackEndpoint : Endpoint<GetPolicyPackRequest, AppGetPolicyPackResponse>
+public sealed class GetPolicyPackEndpoint(IPolicyStore policy) : Endpoint<GetPolicyPackRequest, AppGetPolicyPackResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,15 @@ public sealed class GetPolicyPackEndpoint : Endpoint<GetPolicyPackRequest, AppGe
         );
     }
 
-    public override Task HandleAsync(GetPolicyPackRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetPolicyPackRequest req, CancellationToken ct)
     {
-        // TODO: implement GetPolicyPack
-        // HTTP: GET /api/orgs/{orgName}/policypacks/{policyPackName}/versions/{version}
-        // Should produce: AppGetPolicyPackResponse
-        throw new NotImplementedException("Endpoint GetPolicyPack not implemented.");
+        var pack = policy.GetPack(req.OrgName, req.PolicyPackName);
+        if (pack is null || !long.TryParse(req.Version, out var v) || !pack.Versions.TryGetValue(v, out var version))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(PolicyMapper.ToPackResponse(pack, version), ct);
     }
 }

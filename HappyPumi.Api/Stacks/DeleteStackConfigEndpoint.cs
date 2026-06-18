@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// DeleteStackConfig
 /// </summary>
-public sealed class DeleteStackConfigEndpoint : Endpoint<DeleteStackConfigRequest>
+public sealed class DeleteStackConfigEndpoint(IStackStore stacks) : Endpoint<DeleteStackConfigRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,16 @@ public sealed class DeleteStackConfigEndpoint : Endpoint<DeleteStackConfigReques
         );
     }
 
-    public override Task HandleAsync(DeleteStackConfigRequest req, CancellationToken ct)
+    public async override Task HandleAsync(DeleteStackConfigRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteStackConfig
-        // HTTP: DELETE /api/stacks/{orgName}/{projectName}/{stackName}/config
-        throw new NotImplementedException("Endpoint DeleteStackConfig not implemented.");
+        // Clearing config makes the CLI fall back to the local config file. 404 when the stack is
+        // unknown; clearing an already-empty config on an existing stack is idempotently a 204.
+        if (!stacks.ClearConfig(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName)))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

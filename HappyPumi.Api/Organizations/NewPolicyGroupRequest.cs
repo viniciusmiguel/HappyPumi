@@ -23,8 +23,9 @@ public sealed class NewPolicyGroupRequest
     public string OrgName { get; set; } = default!;
 
     /// <summary>
-    /// Request body.
+    /// Request body. The generator emitted a self-referential type; the real body is <c>{ "name": ... }</c>,
+    /// bound as a string map.
     /// </summary>
     [FromBody]
-    public NewPolicyGroupRequest Body { get; set; } = default!;
+    public Dictionary<string, string> Body { get; set; } = default!;
 }

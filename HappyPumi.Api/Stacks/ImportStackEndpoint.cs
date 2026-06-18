@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// ImportStack
 /// </summary>
-public sealed class ImportStackEndpoint : Endpoint<ImportStackRequest, AppImportStackResponse>
+public sealed class ImportStackEndpoint(IStackStore stacks) : Endpoint<ImportStackRequest, AppImportStackResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,24 @@ public sealed class ImportStackEndpoint : Endpoint<ImportStackRequest, AppImport
         );
     }
 
-    public override Task HandleAsync(ImportStackRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ImportStackRequest req, CancellationToken ct)
     {
-        // TODO: implement ImportStack
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/import
-        // Should produce: AppImportStackResponse
-        throw new NotImplementedException("Endpoint ImportStack not implemented.");
+        // Replace the whole checkpoint with the imported one (the mirror of ExportStack) and bump the
+        // version, the way a state-changing update would. The reported updateId lets the CLI track it.
+        var deployment = new AppUntypedDeployment
+        {
+            Version = req.Body.Version,
+            Deployment = req.Body.Deployment,
+            Features = req.Body.Features,
+        };
+        var imported = stacks.SetDeployment(
+            new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), deployment, bumpVersion: true);
+        if (imported is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(new AppImportStackResponse { UpdateId = Guid.NewGuid().ToString() }, ct);
     }
 }

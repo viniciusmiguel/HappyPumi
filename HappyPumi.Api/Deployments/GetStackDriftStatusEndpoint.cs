@@ -7,7 +7,10 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Secrets;
 
 namespace HappyPumi.Api.Endpoints.Deployments;
 
@@ -28,11 +31,14 @@ public sealed class GetStackDriftStatusEndpoint : Endpoint<GetStackDriftStatusRe
         );
     }
 
-    public override Task HandleAsync(GetStackDriftStatusRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetStackDriftStatusRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStackDriftStatus
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/drift/status
-        // Should produce: StackDriftStatus
-        throw new NotImplementedException("Endpoint GetStackDriftStatus not implemented.");
+        // No drift detection runs against stacks yet, so no drift is detected.
+        await Send.OkAsync(new StackDriftStatus
+        {
+            DriftDetected = false,
+            RunInProgress = false,
+            LatestDriftRun = string.Empty,
+        }, ct);
     }
 }

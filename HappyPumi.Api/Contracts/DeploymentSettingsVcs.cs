@@ -49,7 +49,9 @@ public class DeploymentSettingsVcs
     [JsonPropertyName("previewPullRequests")]
     public bool? PreviewPullRequests { get; set; }
 
-    [JsonPropertyName("provider")]
+    // "provider" is the [JsonPolymorphic] discriminator (emitted automatically); this explicit property
+    // collided with that reserved name (System.Text.Json throws at config time), so it is ignored.
+    [JsonIgnore]
     public string Provider { get; set; } = default!;
 
     /// <summary>

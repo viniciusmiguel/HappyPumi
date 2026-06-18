@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetStackConfig
 /// </summary>
-public sealed class GetStackConfigEndpoint : Endpoint<GetStackConfigRequest, AppStackConfig>
+public sealed class GetStackConfigEndpoint(IStackStore stacks) : Endpoint<GetStackConfigRequest, AppStackConfig>
 {
     public override void Configure()
     {
@@ -28,11 +29,17 @@ public sealed class GetStackConfigEndpoint : Endpoint<GetStackConfigRequest, App
         );
     }
 
-    public override Task HandleAsync(GetStackConfigRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetStackConfigRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStackConfig
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/config
-        // Should produce: AppStackConfig
-        throw new NotImplementedException("Endpoint GetStackConfig not implemented.");
+        // 404 means "no service-managed config" — the CLI then falls back to the local Pulumi.<stack>.yaml.
+        // We answer 404 both when the stack is unknown and when it has no config set.
+        var stack = stacks.Find(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName));
+        if (stack?.Config is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(stack.Config, ct);
     }
 }

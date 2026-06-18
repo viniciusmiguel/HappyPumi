@@ -29,8 +29,9 @@ public sealed class UpdateRoleRequest
     public string RoleId { get; set; } = default!;
 
     /// <summary>
-    /// Request body.
+    /// Request body. The generator emitted a self-referential type; the role descriptor is the same shape
+    /// CreateRole accepts (PermissionDescriptorBase).
     /// </summary>
     [FromBody]
-    public UpdateRoleRequest Body { get; set; } = default!;
+    public PermissionDescriptorBase Body { get; set; } = default!;
 }

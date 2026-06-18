@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// ExportStack
 /// </summary>
-public sealed class ExportStackEndpoint : Endpoint<ExportStackRequest, AppUntypedDeployment>
+public sealed class ExportStackEndpoint(IStackStore stacks) : Endpoint<ExportStackRequest, AppUntypedDeployment>
 {
     public override void Configure()
     {
@@ -28,11 +29,17 @@ public sealed class ExportStackEndpoint : Endpoint<ExportStackRequest, AppUntype
         );
     }
 
-    public override Task HandleAsync(ExportStackRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ExportStackRequest req, CancellationToken ct)
     {
-        // TODO: implement ExportStack
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/export
-        // Should produce: AppUntypedDeployment
-        throw new NotImplementedException("Endpoint ExportStack not implemented.");
+        // The engine reads this as the base snapshot at the start of every update, so an unknown stack
+        // is 404 but a known-but-undeployed one returns the empty (valid) deployment, not 404.
+        var stack = stacks.Find(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName));
+        if (stack is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(stack.Deployment ?? DeploymentFactory.Empty(), ct);
     }
 }

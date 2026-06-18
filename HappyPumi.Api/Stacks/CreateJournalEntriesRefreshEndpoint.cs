@@ -28,10 +28,10 @@ public sealed class CreateJournalEntriesRefreshEndpoint : Endpoint<CreateJournal
         );
     }
 
-    public override Task HandleAsync(CreateJournalEntriesRefreshRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CreateJournalEntriesRefreshRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateJournalEntriesRefresh
-        // HTTP: PATCH /api/stacks/{orgName}/{projectName}/{stackName}/refresh/{updateID}/journalentries
-        throw new NotImplementedException("Endpoint CreateJournalEntriesRefresh not implemented.");
+        // Accepted and acknowledged; not persisted in this in-memory backend (events/logs are rendered
+        // by the CLI locally, and journaling/delta protocols are not advertised in Capabilities).
+        await Send.NoContentAsync(ct);
     }
 }

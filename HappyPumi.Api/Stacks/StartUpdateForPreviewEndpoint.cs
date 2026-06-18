@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// StartUpdateForPreview
 /// </summary>
-public sealed class StartUpdateForPreviewEndpoint : Endpoint<StartUpdateForPreviewRequest, AppStartUpdateResponse>
+public sealed class StartUpdateForPreviewEndpoint(UpdateLifecycle lifecycle) : Endpoint<StartUpdateForPreviewRequest, AppStartUpdateResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,21 @@ public sealed class StartUpdateForPreviewEndpoint : Endpoint<StartUpdateForPrevi
         );
     }
 
-    public override Task HandleAsync(StartUpdateForPreviewRequest req, CancellationToken ct)
+    public async override Task HandleAsync(StartUpdateForPreviewRequest req, CancellationToken ct)
     {
-        // TODO: implement StartUpdateForPreview
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/preview/{updateID}
-        // Should produce: AppStartUpdateResponse
-        throw new NotImplementedException("Endpoint StartUpdateForPreview not implemented.");
+        var update = lifecycle.Start(req.UpdateId);
+        if (update is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        // JournalVersion 0 => the CLI persists via full checkpoints, not journaling (see backend.go:2068).
+        await Send.OkAsync(new AppStartUpdateResponse
+        {
+            Version = update.Version,
+            Token = update.Token,
+            JournalVersion = 0,
+        }, ct);
     }
 }

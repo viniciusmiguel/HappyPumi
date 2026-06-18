@@ -7,14 +7,16 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// DeletePolicyGroup
 /// </summary>
-public sealed class DeletePolicyGroupEndpoint : Endpoint<DeletePolicyGroupRequest>
+public sealed class DeletePolicyGroupEndpoint(IPolicyStore policy) : Endpoint<DeletePolicyGroupRequest>
 {
     public override void Configure()
     {
@@ -28,10 +30,14 @@ public sealed class DeletePolicyGroupEndpoint : Endpoint<DeletePolicyGroupReques
         );
     }
 
-    public override Task HandleAsync(DeletePolicyGroupRequest req, CancellationToken ct)
+    public async override Task HandleAsync(DeletePolicyGroupRequest req, CancellationToken ct)
     {
-        // TODO: implement DeletePolicyGroup
-        // HTTP: DELETE /api/orgs/{orgName}/policygroups/{policyGroup}
-        throw new NotImplementedException("Endpoint DeletePolicyGroup not implemented.");
+        if (!policy.DeleteGroup(req.OrgName, req.PolicyGroup))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

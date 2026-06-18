@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetUpdateStatusForUpdate
 /// </summary>
-public sealed class GetUpdateStatusForUpdateEndpoint : Endpoint<GetUpdateStatusForUpdateRequest, AppUpdateResults>
+public sealed class GetUpdateStatusForUpdateEndpoint(UpdateLifecycle lifecycle) : Endpoint<GetUpdateStatusForUpdateRequest, AppUpdateResults>
 {
     public override void Configure()
     {
@@ -28,11 +29,22 @@ public sealed class GetUpdateStatusForUpdateEndpoint : Endpoint<GetUpdateStatusF
         );
     }
 
-    public override Task HandleAsync(GetUpdateStatusForUpdateRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetUpdateStatusForUpdateRequest req, CancellationToken ct)
     {
-        // TODO: implement GetUpdateStatusForUpdate
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/update/{updateID}
-        // Should produce: AppUpdateResults
-        throw new NotImplementedException("Endpoint GetUpdateStatusForUpdate not implemented.");
+        var update = lifecycle.Find(req.UpdateId);
+        if (update is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        // Engine events are streamed by the CLI locally during an interactive update; we do not replay
+        // them here. A null continuationToken signals "no more events" — see apitype.UpdateResults.
+        await Send.OkAsync(new AppUpdateResults
+        {
+            Status = update.Status,
+            Events = new List<AppUpdateEvent>(),
+            ContinuationToken = null,
+        }, ct);
     }
 }

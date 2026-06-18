@@ -28,10 +28,9 @@ public sealed class AppendUpdateLogEntryUpdateEndpoint : Endpoint<AppendUpdateLo
         );
     }
 
-    public override Task HandleAsync(AppendUpdateLogEntryUpdateRequest req, CancellationToken ct)
+    public async override Task HandleAsync(AppendUpdateLogEntryUpdateRequest req, CancellationToken ct)
     {
-        // TODO: implement AppendUpdateLogEntryUpdate
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/update/{updateID}/log
-        throw new NotImplementedException("Endpoint AppendUpdateLogEntryUpdate not implemented.");
+        // Human-readable update log lines are accepted and acknowledged; not persisted in this backend.
+        await Send.NoContentAsync(ct);
     }
 }

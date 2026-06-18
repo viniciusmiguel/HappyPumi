@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// PatchUpdateVerbatimCheckpoint
 /// </summary>
-public sealed class PatchUpdateVerbatimCheckpointUpdateEndpoint : Endpoint<PatchUpdateVerbatimCheckpointUpdateRequest>
+public sealed class PatchUpdateVerbatimCheckpointUpdateEndpoint(UpdateLifecycle lifecycle) : Endpoint<PatchUpdateVerbatimCheckpointUpdateRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,21 @@ public sealed class PatchUpdateVerbatimCheckpointUpdateEndpoint : Endpoint<Patch
         );
     }
 
-    public override Task HandleAsync(PatchUpdateVerbatimCheckpointUpdateRequest req, CancellationToken ct)
+    public async override Task HandleAsync(PatchUpdateVerbatimCheckpointUpdateRequest req, CancellationToken ct)
     {
-        // TODO: implement PatchUpdateVerbatimCheckpointUpdate
-        // HTTP: PATCH /api/stacks/{orgName}/{projectName}/{stackName}/update/{updateID}/checkpointverbatim
-        throw new NotImplementedException("Endpoint PatchUpdateVerbatimCheckpointUpdate not implemented.");
+        // The verbatim variant carries the full deployment in `untypedDeployment`; we treat it the same
+        // as a structured checkpoint (we don't need byte-level fidelity for the in-memory store).
+        var deployment = new AppUntypedDeployment
+        {
+            Version = req.Body.Version,
+            Deployment = req.Body.UntypedDeployment,
+        };
+        if (lifecycle.SaveCheckpoint(req.UpdateId, deployment) is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

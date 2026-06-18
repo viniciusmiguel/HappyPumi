@@ -6,15 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetStackUpdate
 /// </summary>
-public sealed class GetStackUpdateEndpoint : Endpoint<GetStackUpdateRequest, UpdateInfo>
+public sealed class GetStackUpdateEndpoint(IStackStore stacks) : Endpoint<GetStackUpdateRequest, UpdateInfo>
 {
     public override void Configure()
     {
@@ -28,11 +30,16 @@ public sealed class GetStackUpdateEndpoint : Endpoint<GetStackUpdateRequest, Upd
         );
     }
 
-    public override Task HandleAsync(GetStackUpdateRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetStackUpdateRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStackUpdate
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/updates/{version}
-        // Should produce: UpdateInfo
-        throw new NotImplementedException("Endpoint GetStackUpdate not implemented.");
+        var stack = stacks.Find(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName));
+        var entry = stack?.History.FirstOrDefault(e => e.Info.Version == req.Version);
+        if (stack is null || entry is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(StackMapper.ToUpdateInfo(stack, entry), ct);
     }
 }

@@ -28,11 +28,9 @@ public sealed class UpdatePolicyIssueEndpoint : Endpoint<UpdatePolicyIssueReques
         );
     }
 
-    public override Task HandleAsync(UpdatePolicyIssueRequest req, CancellationToken ct)
+    public async override Task HandleAsync(UpdatePolicyIssueRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdatePolicyIssue
-        // HTTP: PATCH /api/orgs/{orgName}/policyresults/issues/{issueId}
-        // Should produce: GetPolicyIssueResponse
-        throw new NotImplementedException("Endpoint UpdatePolicyIssue not implemented.");
+        // No policy issues exist to update (no evaluation runs), so any issue id is 404.
+        await Send.NotFoundAsync(ct);
     }
 }

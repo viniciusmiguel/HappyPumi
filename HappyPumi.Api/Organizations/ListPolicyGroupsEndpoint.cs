@@ -7,14 +7,16 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// ListPolicyGroups
 /// </summary>
-public sealed class ListPolicyGroupsEndpoint : Endpoint<ListPolicyGroupsRequest, AppListPolicyGroupsResponse>
+public sealed class ListPolicyGroupsEndpoint(IPolicyStore policy) : Endpoint<ListPolicyGroupsRequest, AppListPolicyGroupsResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,9 @@ public sealed class ListPolicyGroupsEndpoint : Endpoint<ListPolicyGroupsRequest,
         );
     }
 
-    public override Task HandleAsync(ListPolicyGroupsRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ListPolicyGroupsRequest req, CancellationToken ct)
     {
-        // TODO: implement ListPolicyGroups
-        // HTTP: GET /api/orgs/{orgName}/policygroups
-        // Should produce: AppListPolicyGroupsResponse
-        throw new NotImplementedException("Endpoint ListPolicyGroups not implemented.");
+        var groups = policy.ListGroups(req.OrgName).Select(PolicyMapper.ToGroupSummary).ToList();
+        await Send.OkAsync(new AppListPolicyGroupsResponse { PolicyGroups = groups }, ct);
     }
 }

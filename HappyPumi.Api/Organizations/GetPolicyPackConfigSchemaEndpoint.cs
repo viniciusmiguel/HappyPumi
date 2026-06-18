@@ -7,7 +7,9 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
@@ -28,11 +30,12 @@ public sealed class GetPolicyPackConfigSchemaEndpoint : Endpoint<GetPolicyPackCo
         );
     }
 
-    public override Task HandleAsync(GetPolicyPackConfigSchemaRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetPolicyPackConfigSchemaRequest req, CancellationToken ct)
     {
-        // TODO: implement GetPolicyPackConfigSchema
-        // HTTP: GET /api/orgs/{orgName}/policypacks/{policyPackName}/versions/{version}/schema
-        // Should produce: AppGetPolicyPackConfigSchemaResponse
-        throw new NotImplementedException("Endpoint GetPolicyPackConfigSchema not implemented.");
+        // No config schema is modeled yet; return an empty (well-formed) schema map.
+        await Send.OkAsync(new AppGetPolicyPackConfigSchemaResponse
+        {
+            ConfigSchema = new Dictionary<string, AppPolicyConfigSchema>(),
+        }, ct);
     }
 }

@@ -28,11 +28,14 @@ public sealed class GetEngineEventsUpdateEndpoint : Endpoint<GetEngineEventsUpda
         );
     }
 
-    public override Task HandleAsync(GetEngineEventsUpdateRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetEngineEventsUpdateRequest req, CancellationToken ct)
     {
-        // TODO: implement GetEngineEventsUpdate
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/update/{updateID}/events
-        // Should produce: GetUpdateEventsResponse
-        throw new NotImplementedException("Endpoint GetEngineEventsUpdate not implemented.");
+        // We do not persist engine events (see RecordEngineEvent), so the read side is always empty.
+        // An empty continuation token signals there are no further events to fetch.
+        await Send.OkAsync(new GetUpdateEventsResponse
+        {
+            Events = new List<EngineEvent>(),
+            ContinuationToken = string.Empty,
+        }, ct);
     }
 }

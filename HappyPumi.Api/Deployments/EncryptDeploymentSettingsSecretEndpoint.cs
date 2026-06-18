@@ -7,14 +7,17 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Secrets;
 
 namespace HappyPumi.Api.Endpoints.Deployments;
 
 /// <summary>
 /// EncryptDeploymentSettingsSecret
 /// </summary>
-public sealed class EncryptDeploymentSettingsSecretEndpoint : Endpoint<EncryptDeploymentSettingsSecretRequest, SecretValue>
+public sealed class EncryptDeploymentSettingsSecretEndpoint(IValueCrypter crypter) : Endpoint<EncryptDeploymentSettingsSecretRequest, SecretValue>
 {
     public override void Configure()
     {
@@ -28,11 +31,13 @@ public sealed class EncryptDeploymentSettingsSecretEndpoint : Endpoint<EncryptDe
         );
     }
 
-    public override Task HandleAsync(EncryptDeploymentSettingsSecretRequest req, CancellationToken ct)
+    public async override Task HandleAsync(EncryptDeploymentSettingsSecretRequest req, CancellationToken ct)
     {
-        // TODO: implement EncryptDeploymentSettingsSecret
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/deployments/settings/encrypt
-        // Should produce: SecretValue
-        throw new NotImplementedException("Endpoint EncryptDeploymentSettingsSecret not implemented.");
+        var plaintext = req.Body?.Secret ?? string.Empty;
+        await Send.OkAsync(new SecretValue
+        {
+            Secret = plaintext,
+            Ciphertext = crypter.Encrypt(System.Text.Encoding.UTF8.GetBytes(plaintext)),
+        }, ct);
     }
 }

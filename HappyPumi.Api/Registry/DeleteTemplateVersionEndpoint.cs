@@ -14,7 +14,7 @@ namespace HappyPumi.Api.Endpoints.Registry;
 /// <summary>
 /// DeleteTemplateVersion
 /// </summary>
-public sealed class DeleteTemplateVersionEndpoint : Endpoint<DeleteTemplateVersionRequest>
+public sealed class DeleteTemplateVersionEndpoint(HappyPumi.Api.State.ITemplateRegistry registry) : Endpoint<DeleteTemplateVersionRequest>
 {
     public override void Configure()
     {
@@ -28,10 +28,14 @@ public sealed class DeleteTemplateVersionEndpoint : Endpoint<DeleteTemplateVersi
         );
     }
 
-    public override Task HandleAsync(DeleteTemplateVersionRequest req, CancellationToken ct)
+    public async override Task HandleAsync(DeleteTemplateVersionRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteTemplateVersion
-        // HTTP: DELETE /api/registry/templates/{source}/{publisher}/{name}/versions/{version}
-        throw new NotImplementedException("Endpoint DeleteTemplateVersion not implemented.");
+        if (!registry.Delete(new HappyPumi.Api.State.TemplateCoordinates(req.Source, req.Publisher, req.Name), req.Version))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

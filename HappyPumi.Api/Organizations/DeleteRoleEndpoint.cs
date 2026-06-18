@@ -7,19 +7,21 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using HappyPumi.Api.Auth;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// DeleteRole
 /// </summary>
-public sealed class DeleteRoleEndpoint : Endpoint<DeleteRoleRequest>
+public sealed class DeleteRoleEndpoint(IIdentityStore identity) : Endpoint<DeleteRoleRequest>
 {
     public override void Configure()
     {
         Delete("/api/orgs/{orgName}/roles/{roleID}");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Policies(AuthPolicies.OrgAdmin); // org management requires the admin role (ADR-0007)
         Description(b => b
             .WithTags("Organizations")
             .WithSummary("DeleteRole")
@@ -28,10 +30,15 @@ public sealed class DeleteRoleEndpoint : Endpoint<DeleteRoleRequest>
         );
     }
 
-    public override Task HandleAsync(DeleteRoleRequest req, CancellationToken ct)
+    public async override Task HandleAsync(DeleteRoleRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteRole
-        // HTTP: DELETE /api/orgs/{orgName}/roles/{roleID}
-        throw new NotImplementedException("Endpoint DeleteRole not implemented.");
+        // Deleting a role also drops any team grants of it (handled in the store).
+        if (!identity.DeleteRole(req.OrgName, req.RoleId))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

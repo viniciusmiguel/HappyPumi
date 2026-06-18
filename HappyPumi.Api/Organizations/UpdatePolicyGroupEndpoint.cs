@@ -7,14 +7,16 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// UpdatePolicyGroup
 /// </summary>
-public sealed class UpdatePolicyGroupEndpoint : Endpoint<UpdatePolicyGroupRequest>
+public sealed class UpdatePolicyGroupEndpoint(IPolicyStore policy) : Endpoint<UpdatePolicyGroupRequest>
 {
     public override void Configure()
     {
@@ -28,10 +30,18 @@ public sealed class UpdatePolicyGroupEndpoint : Endpoint<UpdatePolicyGroupReques
         );
     }
 
-    public override Task HandleAsync(UpdatePolicyGroupRequest req, CancellationToken ct)
+    public async override Task HandleAsync(UpdatePolicyGroupRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdatePolicyGroup
-        // HTTP: PATCH /api/orgs/{orgName}/policygroups/{policyGroup}
-        throw new NotImplementedException("Endpoint UpdatePolicyGroup not implemented.");
+        if (policy.GetGroup(req.OrgName, req.PolicyGroup) is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        // The service accepts one mutation per call; we model the rename and accept other (unmodeled) ones.
+        if (req.Body is not null && req.Body.TryGetValue("newName", out var newName) && !string.IsNullOrWhiteSpace(newName))
+            policy.RenameGroup(req.OrgName, req.PolicyGroup, newName);
+
+        await Send.NoContentAsync(ct);
     }
 }

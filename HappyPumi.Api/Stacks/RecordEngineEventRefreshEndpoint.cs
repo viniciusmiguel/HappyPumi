@@ -28,10 +28,10 @@ public sealed class RecordEngineEventRefreshEndpoint : Endpoint<RecordEngineEven
         );
     }
 
-    public override Task HandleAsync(RecordEngineEventRefreshRequest req, CancellationToken ct)
+    public async override Task HandleAsync(RecordEngineEventRefreshRequest req, CancellationToken ct)
     {
-        // TODO: implement RecordEngineEventRefresh
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/refresh/{updateID}/events
-        throw new NotImplementedException("Endpoint RecordEngineEventRefresh not implemented.");
+        // Accepted and acknowledged; not persisted in this in-memory backend (events/logs are rendered
+        // by the CLI locally, and journaling/delta protocols are not advertised in Capabilities).
+        await Send.NoContentAsync(ct);
     }
 }

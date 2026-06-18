@@ -28,10 +28,10 @@ public sealed class RecordEngineEventBatchPreviewEndpoint : Endpoint<RecordEngin
         );
     }
 
-    public override Task HandleAsync(RecordEngineEventBatchPreviewRequest req, CancellationToken ct)
+    public async override Task HandleAsync(RecordEngineEventBatchPreviewRequest req, CancellationToken ct)
     {
-        // TODO: implement RecordEngineEventBatchPreview
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/preview/{updateID}/events/batch
-        throw new NotImplementedException("Endpoint RecordEngineEventBatchPreview not implemented.");
+        // Accepted and acknowledged; not persisted in this in-memory backend (events/logs are rendered
+        // by the CLI locally, and journaling/delta protocols are not advertised in Capabilities).
+        await Send.NoContentAsync(ct);
     }
 }

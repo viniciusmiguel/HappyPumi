@@ -7,14 +7,17 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Secrets;
 
 namespace HappyPumi.Api.Endpoints.Deployments;
 
 /// <summary>
 /// DeleteDeploymentSettings
 /// </summary>
-public sealed class DeleteDeploymentSettingsEndpoint : Endpoint<DeleteDeploymentSettingsRequest, bool>
+public sealed class DeleteDeploymentSettingsEndpoint(IDeploymentStore deployments) : Endpoint<DeleteDeploymentSettingsRequest, bool>
 {
     public override void Configure()
     {
@@ -28,11 +31,9 @@ public sealed class DeleteDeploymentSettingsEndpoint : Endpoint<DeleteDeployment
         );
     }
 
-    public override Task HandleAsync(DeleteDeploymentSettingsRequest req, CancellationToken ct)
+    public async override Task HandleAsync(DeleteDeploymentSettingsRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteDeploymentSettings
-        // HTTP: DELETE /api/stacks/{orgName}/{projectName}/{stackName}/deployments/settings
-        // Should produce: bool
-        throw new NotImplementedException("Endpoint DeleteDeploymentSettings not implemented.");
+        // Returns a bool body indicating whether settings existed and were removed.
+        await Send.OkAsync(deployments.DeleteSettings(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName)), ct);
     }
 }

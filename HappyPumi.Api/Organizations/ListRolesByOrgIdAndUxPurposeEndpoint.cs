@@ -6,20 +6,23 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
+using HappyPumi.Api.Auth;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// ListRolesByOrgIDAndUXPurpose
 /// </summary>
-public sealed class ListRolesByOrgIdAndUxPurposeEndpoint : Endpoint<ListRolesByOrgIdAndUxPurposeRequest, ListRolesResponse>
+public sealed class ListRolesByOrgIdAndUxPurposeEndpoint(IIdentityStore identity) : Endpoint<ListRolesByOrgIdAndUxPurposeRequest, ListRolesResponse>
 {
     public override void Configure()
     {
         Get("/api/orgs/{orgName}/roles");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Policies(AuthPolicies.OrgAdmin); // org management requires the admin role (ADR-0007)
         Description(b => b
             .WithTags("Organizations")
             .WithSummary("ListRolesByOrgIDAndUXPurpose")
@@ -28,11 +31,13 @@ public sealed class ListRolesByOrgIdAndUxPurposeEndpoint : Endpoint<ListRolesByO
         );
     }
 
-    public override Task HandleAsync(ListRolesByOrgIdAndUxPurposeRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ListRolesByOrgIdAndUxPurposeRequest req, CancellationToken ct)
     {
-        // TODO: implement ListRolesByOrgIdAndUxPurpose
-        // HTTP: GET /api/orgs/{orgName}/roles
-        // Should produce: ListRolesResponse
-        throw new NotImplementedException("Endpoint ListRolesByOrgIdAndUxPurpose not implemented.");
+        // Optionally filter by uxPurpose (organization/team/token); null returns all custom roles.
+        var roles = identity.ListRoles(req.OrgName)
+            .Where(r => req.UxPurpose is null || r.UxPurpose == req.UxPurpose)
+            .Select(IdentityMapper.ToRecord)
+            .ToList();
+        await Send.OkAsync(new ListRolesResponse { Roles = roles }, ct);
     }
 }

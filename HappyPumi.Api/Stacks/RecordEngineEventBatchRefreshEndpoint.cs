@@ -28,10 +28,10 @@ public sealed class RecordEngineEventBatchRefreshEndpoint : Endpoint<RecordEngin
         );
     }
 
-    public override Task HandleAsync(RecordEngineEventBatchRefreshRequest req, CancellationToken ct)
+    public async override Task HandleAsync(RecordEngineEventBatchRefreshRequest req, CancellationToken ct)
     {
-        // TODO: implement RecordEngineEventBatchRefresh
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/refresh/{updateID}/events/batch
-        throw new NotImplementedException("Endpoint RecordEngineEventBatchRefresh not implemented.");
+        // Accepted and acknowledged; not persisted in this in-memory backend (events/logs are rendered
+        // by the CLI locally, and journaling/delta protocols are not advertised in Capabilities).
+        await Send.NoContentAsync(ct);
     }
 }

@@ -7,14 +7,16 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// CreatePolicyPack
 /// </summary>
-public sealed class CreatePolicyPackEndpoint : Endpoint<CreatePolicyPackRequest, AppCreatePolicyPackResponse>
+public sealed class CreatePolicyPackEndpoint(IPolicyStore policy) : Endpoint<CreatePolicyPackRequest, AppCreatePolicyPackResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,22 @@ public sealed class CreatePolicyPackEndpoint : Endpoint<CreatePolicyPackRequest,
         );
     }
 
-    public override Task HandleAsync(CreatePolicyPackRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CreatePolicyPackRequest req, CancellationToken ct)
     {
-        // TODO: implement CreatePolicyPack
-        // HTTP: POST /api/orgs/{orgName}/policypacks
-        // Should produce: AppCreatePolicyPackResponse
-        throw new NotImplementedException("Endpoint CreatePolicyPack not implemented.");
+        var body = req.Body;
+        if (body is null || string.IsNullOrWhiteSpace(body.Name))
+        {
+            AddError("'name' is required.", "name");
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+
+        // Auto-increment the pack version; the client then uploads to UploadUri and calls complete.
+        var version = policy.CreatePackVersion(req.OrgName, body.Name, body.DisplayName ?? body.Name, body.Policies);
+        await Send.OkAsync(new AppCreatePolicyPackResponse
+        {
+            Version = version,
+            UploadUri = $"/api/orgs/{req.OrgName}/policypacks/{body.Name}/versions/{version}/upload",
+        }, ct);
     }
 }

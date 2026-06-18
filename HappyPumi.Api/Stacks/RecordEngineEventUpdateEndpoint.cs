@@ -28,10 +28,10 @@ public sealed class RecordEngineEventUpdateEndpoint : Endpoint<RecordEngineEvent
         );
     }
 
-    public override Task HandleAsync(RecordEngineEventUpdateRequest req, CancellationToken ct)
+    public async override Task HandleAsync(RecordEngineEventUpdateRequest req, CancellationToken ct)
     {
-        // TODO: implement RecordEngineEventUpdate
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/update/{updateID}/events
-        throw new NotImplementedException("Endpoint RecordEngineEventUpdate not implemented.");
+        // Engine events are accepted and acknowledged; this in-memory backend does not persist or replay
+        // them (the CLI renders the live stream locally). Read-side replay can attach to a real store later.
+        await Send.NoContentAsync(ct);
     }
 }

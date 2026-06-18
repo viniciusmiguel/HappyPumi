@@ -14,8 +14,9 @@ namespace HappyPumi.Api.Contracts;
 public class AppBatchEncryptResponse
 {
     /// <summary>
-    /// The encrypted values, in order of the plaintexts from the request.
+    /// The encrypted values, in order of the plaintexts from the request. Go <c>[][]byte</c>: a JSON
+    /// array of base64 strings; the generator mis-maps the inner <c>[]byte</c> to <c>List&lt;byte[]&gt;</c>.
     /// </summary>
     [JsonPropertyName("ciphertexts")]
-    public List<List<byte[]>> Ciphertexts { get; set; } = default!;
+    public List<byte[]> Ciphertexts { get; set; } = default!;
 }

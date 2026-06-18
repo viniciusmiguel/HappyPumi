@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.Secrets;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// BatchDecryptValue
 /// </summary>
-public sealed class BatchDecryptValueEndpoint : Endpoint<BatchDecryptValueRequest, AppBatchDecryptResponse>
+public sealed class BatchDecryptValueEndpoint(IValueCrypter crypter) : Endpoint<BatchDecryptValueRequest, AppBatchDecryptResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,14 @@ public sealed class BatchDecryptValueEndpoint : Endpoint<BatchDecryptValueReques
         );
     }
 
-    public override Task HandleAsync(BatchDecryptValueRequest req, CancellationToken ct)
+    public async override Task HandleAsync(BatchDecryptValueRequest req, CancellationToken ct)
     {
-        // TODO: implement BatchDecryptValue
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/batch-decrypt
-        // Should produce: AppBatchDecryptResponse
-        throw new NotImplementedException("Endpoint BatchDecryptValue not implemented.");
+        // The response is keyed by the base64 of each ciphertext (the CLI looks plaintexts up by that
+        // key), so repeated ciphertexts collapse to a single entry — which is what the CLI expects.
+        var plaintexts = new Dictionary<string, byte[]>();
+        foreach (var ciphertext in req.Body.Ciphertexts)
+            plaintexts[Convert.ToBase64String(ciphertext)] = crypter.Decrypt(ciphertext);
+
+        await Send.OkAsync(new AppBatchDecryptResponse { Plaintexts = plaintexts }, ct);
     }
 }

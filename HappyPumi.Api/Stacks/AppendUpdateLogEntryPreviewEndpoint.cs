@@ -28,10 +28,10 @@ public sealed class AppendUpdateLogEntryPreviewEndpoint : Endpoint<AppendUpdateL
         );
     }
 
-    public override Task HandleAsync(AppendUpdateLogEntryPreviewRequest req, CancellationToken ct)
+    public async override Task HandleAsync(AppendUpdateLogEntryPreviewRequest req, CancellationToken ct)
     {
-        // TODO: implement AppendUpdateLogEntryPreview
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/preview/{updateID}/log
-        throw new NotImplementedException("Endpoint AppendUpdateLogEntryPreview not implemented.");
+        // Accepted and acknowledged; not persisted in this in-memory backend (events/logs are rendered
+        // by the CLI locally, and journaling/delta protocols are not advertised in Capabilities).
+        await Send.NoContentAsync(ct);
     }
 }

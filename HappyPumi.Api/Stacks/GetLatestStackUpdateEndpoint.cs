@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetLatestStackUpdate
 /// </summary>
-public sealed class GetLatestStackUpdateEndpoint : Endpoint<GetLatestStackUpdateRequest, UpdateInfo>
+public sealed class GetLatestStackUpdateEndpoint(IStackStore stacks) : Endpoint<GetLatestStackUpdateRequest, UpdateInfo>
 {
     public override void Configure()
     {
@@ -28,11 +29,17 @@ public sealed class GetLatestStackUpdateEndpoint : Endpoint<GetLatestStackUpdate
         );
     }
 
-    public override Task HandleAsync(GetLatestStackUpdateRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetLatestStackUpdateRequest req, CancellationToken ct)
     {
-        // TODO: implement GetLatestStackUpdate
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/updates/latest
-        // Should produce: UpdateInfo
-        throw new NotImplementedException("Endpoint GetLatestStackUpdate not implemented.");
+        // The CLI's GetLatestConfiguration reads Info.Config from here, and treats 404 as "no previous
+        // deployment" (a fresh stack). So an unknown stack or empty history is 404.
+        var stack = stacks.Find(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName));
+        if (stack is null || stack.History.Count == 0)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(StackMapper.ToUpdateInfo(stack, stack.History[^1]), ct);
     }
 }

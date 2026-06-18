@@ -6,15 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Registry;
 
 /// <summary>
 /// PostPublishPackageVersion
 /// </summary>
-public sealed class PostPublishPackageVersionEndpoint : Endpoint<PostPublishPackageVersionRequest, StartPackagePublishResponse>
+public sealed class PostPublishPackageVersionEndpoint(IPackageRegistry registry) : Endpoint<PostPublishPackageVersionRequest, StartPackagePublishResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,23 @@ public sealed class PostPublishPackageVersionEndpoint : Endpoint<PostPublishPack
         );
     }
 
-    public override Task HandleAsync(PostPublishPackageVersionRequest req, CancellationToken ct)
+    public async override Task HandleAsync(PostPublishPackageVersionRequest req, CancellationToken ct)
     {
-        // TODO: implement PostPublishPackageVersion
-        // HTTP: POST /api/registry/packages/{source}/{publisher}/{name}/versions
-        // Should produce: StartPackagePublishResponse
-        throw new NotImplementedException("Endpoint PostPublishPackageVersion not implemented.");
+        if (string.IsNullOrWhiteSpace(req.Body?.Version))
+        {
+            AddError("'version' is required.", "version");
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+
+        // Phase one of the publish handshake: register the (unpublished) version and hand back stub
+        // upload URLs. The client uploads, then calls complete to finalize.
+        var coords = new PackageCoordinates(req.Source, req.Publisher, req.Name);
+        registry.StartPublish(coords, req.Body.Version, req.Body.PublishedAt);
+        await Send.OkAsync(new StartPackagePublishResponse
+        {
+            OperationId = Guid.NewGuid().ToString(),
+            UploadUrLs = RegistryMapper.UploadUrls(coords, req.Body.Version),
+        }, ct);
     }
 }

@@ -14,8 +14,9 @@ namespace HappyPumi.Api.Contracts;
 public class AppBatchDecryptRequest
 {
     /// <summary>
-    /// List of ciphertexts
+    /// List of ciphertexts. Go <c>[][]byte</c>: a JSON array of base64 strings; the generator
+    /// mis-maps the inner <c>[]byte</c> to <c>List&lt;byte[]&gt;</c>.
     /// </summary>
     [JsonPropertyName("ciphertexts")]
-    public List<List<byte[]>> Ciphertexts { get; set; } = default!;
+    public List<byte[]> Ciphertexts { get; set; } = default!;
 }

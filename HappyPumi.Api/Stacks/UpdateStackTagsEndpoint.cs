@@ -6,15 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// UpdateStackTags
 /// </summary>
-public sealed class UpdateStackTagsEndpoint : Endpoint<UpdateStackTagsRequest>
+public sealed class UpdateStackTagsEndpoint(IStackStore stacks) : Endpoint<UpdateStackTagsRequest>
 {
     public override void Configure()
     {
@@ -28,10 +30,16 @@ public sealed class UpdateStackTagsEndpoint : Endpoint<UpdateStackTagsRequest>
         );
     }
 
-    public override Task HandleAsync(UpdateStackTagsRequest req, CancellationToken ct)
+    public async override Task HandleAsync(UpdateStackTagsRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateStackTags
-        // HTTP: PATCH /api/stacks/{orgName}/{projectName}/{stackName}/tags
-        throw new NotImplementedException("Endpoint UpdateStackTags not implemented.");
+        // Wholesale replacement: tags absent from the body are removed.
+        var coords = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        if (stacks.ReplaceTags(coords, req.Body ?? new Dictionary<string, string>()) is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

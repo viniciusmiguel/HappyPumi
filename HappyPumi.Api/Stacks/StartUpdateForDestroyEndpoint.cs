@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// StartUpdateForDestroy
 /// </summary>
-public sealed class StartUpdateForDestroyEndpoint : Endpoint<StartUpdateForDestroyRequest, AppStartUpdateResponse>
+public sealed class StartUpdateForDestroyEndpoint(UpdateLifecycle lifecycle) : Endpoint<StartUpdateForDestroyRequest, AppStartUpdateResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,21 @@ public sealed class StartUpdateForDestroyEndpoint : Endpoint<StartUpdateForDestr
         );
     }
 
-    public override Task HandleAsync(StartUpdateForDestroyRequest req, CancellationToken ct)
+    public async override Task HandleAsync(StartUpdateForDestroyRequest req, CancellationToken ct)
     {
-        // TODO: implement StartUpdateForDestroy
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/destroy/{updateID}
-        // Should produce: AppStartUpdateResponse
-        throw new NotImplementedException("Endpoint StartUpdateForDestroy not implemented.");
+        var update = lifecycle.Start(req.UpdateId);
+        if (update is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        // JournalVersion 0 => the CLI persists via full checkpoints, not journaling (see backend.go:2068).
+        await Send.OkAsync(new AppStartUpdateResponse
+        {
+            Version = update.Version,
+            Token = update.Token,
+            JournalVersion = 0,
+        }, ct);
     }
 }

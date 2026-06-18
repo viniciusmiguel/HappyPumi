@@ -7,14 +7,17 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Secrets;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// CreateStackWebhook
 /// </summary>
-public sealed class CreateStackWebhookEndpoint : Endpoint<CreateStackWebhookRequest, WebhookResponse>
+public sealed class CreateStackWebhookEndpoint(IDeploymentStore deployments) : Endpoint<CreateStackWebhookRequest, WebhookResponse>
 {
     public override void Configure()
     {
@@ -28,11 +31,19 @@ public sealed class CreateStackWebhookEndpoint : Endpoint<CreateStackWebhookRequ
         );
     }
 
-    public override Task HandleAsync(CreateStackWebhookRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CreateStackWebhookRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateStackWebhook
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/hooks
-        // Should produce: WebhookResponse
-        throw new NotImplementedException("Endpoint CreateStackWebhook not implemented.");
+        var webhook = new WebhookResponse
+        {
+            Name = req.Body?.Name ?? System.Guid.NewGuid().ToString("N"),
+            DisplayName = req.Body?.DisplayName ?? string.Empty,
+            PayloadUrl = req.Body?.PayloadUrl ?? string.Empty,
+            OrganizationName = req.OrgName,
+            Active = req.Body?.Active ?? true,
+            HasSecret = false,
+            SecretCiphertext = string.Empty,
+        };
+        deployments.AddWebhook(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), webhook);
+        await Send.OkAsync(webhook, ct);
     }
 }

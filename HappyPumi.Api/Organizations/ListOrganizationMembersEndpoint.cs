@@ -6,20 +6,23 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
+using HappyPumi.Api.Auth;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// ListOrganizationMembers
 /// </summary>
-public sealed class ListOrganizationMembersEndpoint : Endpoint<ListOrganizationMembersRequest, ListOrganizationMembersResponse>
+public sealed class ListOrganizationMembersEndpoint(IIdentityStore identity) : Endpoint<ListOrganizationMembersRequest, ListOrganizationMembersResponse>
 {
     public override void Configure()
     {
         Get("/api/orgs/{orgName}/members");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Policies(AuthPolicies.OrgAdmin); // org management requires the admin role (ADR-0007)
         Description(b => b
             .WithTags("Organizations")
             .WithSummary("ListOrganizationMembers")
@@ -28,11 +31,9 @@ public sealed class ListOrganizationMembersEndpoint : Endpoint<ListOrganizationM
         );
     }
 
-    public override Task HandleAsync(ListOrganizationMembersRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ListOrganizationMembersRequest req, CancellationToken ct)
     {
-        // TODO: implement ListOrganizationMembers
-        // HTTP: GET /api/orgs/{orgName}/members
-        // Should produce: ListOrganizationMembersResponse
-        throw new NotImplementedException("Endpoint ListOrganizationMembers not implemented.");
+        var members = identity.ListMembers(req.OrgName).Select(IdentityMapper.ToMember).ToList();
+        await Send.OkAsync(new ListOrganizationMembersResponse { Members = members, ContinuationToken = null }, ct);
     }
 }

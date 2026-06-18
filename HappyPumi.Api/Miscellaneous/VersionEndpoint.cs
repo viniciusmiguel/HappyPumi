@@ -28,11 +28,17 @@ public sealed class VersionEndpoint : EndpointWithoutRequest<AppCliVersionRespon
         );
     }
 
-    public override Task HandleAsync(CancellationToken ct)
+    public async override Task HandleAsync(CancellationToken ct)
     {
-        // TODO: implement Version
-        // HTTP: GET /api/cli/version
-        // Should produce: AppCliVersionResponse
-        throw new NotImplementedException("Endpoint Version not implemented.");
+        // The CLI's update-check compares its own version against these and nags when it is older
+        // than OldestWithoutWarning. A self-hosted HappyPumi does not gate CLI versions, so we
+        // advertise a permissive floor (1.0.0) to suppress spurious upgrade prompts — including for
+        // the locally-built dev CLI (v3.0.0-happypumi-dev, a pre-release that sorts below 3.0.0).
+        await Send.OkAsync(new AppCliVersionResponse
+        {
+            LatestVersion = "3.0.0",
+            LatestDevVersion = "3.0.0",
+            OldestWithoutWarning = "1.0.0"
+        }, ct);
     }
 }

@@ -28,11 +28,13 @@ public sealed class GetOrgResourceSearchQueryEndpoint : Endpoint<GetOrgResourceS
         );
     }
 
-    public override Task HandleAsync(GetOrgResourceSearchQueryRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetOrgResourceSearchQueryRequest req, CancellationToken ct)
     {
-        // TODO: implement GetOrgResourceSearchQuery
-        // HTTP: GET /api/orgs/{orgName}/search/resources
-        // Should produce: ResourceSearchResult
-        throw new NotImplementedException("Endpoint GetOrgResourceSearchQuery not implemented.");
+        // No cross-stack resource index is maintained yet, so search returns no resources.
+        await Send.OkAsync(new ResourceSearchResult
+        {
+            Resources = new List<ResourceResult>(),
+            Total = 0,
+        }, ct);
     }
 }

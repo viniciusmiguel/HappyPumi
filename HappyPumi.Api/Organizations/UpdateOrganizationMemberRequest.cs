@@ -29,8 +29,9 @@ public sealed class UpdateOrganizationMemberRequest
     public string UserLogin { get; set; } = default!;
 
     /// <summary>
-    /// Request body.
+    /// Request body. The generator emitted a self-referential type; the real body is <c>{ "role": ... }</c>,
+    /// bound as a string map.
     /// </summary>
     [FromBody]
-    public UpdateOrganizationMemberRequest Body { get; set; } = default!;
+    public Dictionary<string, string> Body { get; set; } = default!;
 }

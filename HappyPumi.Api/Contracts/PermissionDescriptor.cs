@@ -20,6 +20,8 @@ namespace HappyPumi.Api.Contracts;
 [JsonDerivedType(typeof(PermissionDescriptorSelect), typeDiscriminator: "PermissionDescriptorSelect")]
 public class PermissionDescriptor
 {
-    [JsonPropertyName("__type")]
+    // The "__type" discriminator is emitted by [JsonPolymorphic] above; this explicit property collided
+    // with that reserved name (System.Text.Json throws at config time), so it is excluded from (de)serialization.
+    [JsonIgnore]
     public string Type { get; set; } = default!;
 }

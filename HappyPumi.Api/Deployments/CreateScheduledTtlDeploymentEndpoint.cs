@@ -7,14 +7,17 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Secrets;
 
 namespace HappyPumi.Api.Endpoints.Deployments;
 
 /// <summary>
 /// CreateScheduledTTLDeployment
 /// </summary>
-public sealed class CreateScheduledTtlDeploymentEndpoint : Endpoint<CreateScheduledTtlDeploymentRequest, ScheduledAction>
+public sealed class CreateScheduledTtlDeploymentEndpoint(IDeploymentStore deployments) : Endpoint<CreateScheduledTtlDeploymentRequest, ScheduledAction>
 {
     public override void Configure()
     {
@@ -28,11 +31,20 @@ public sealed class CreateScheduledTtlDeploymentEndpoint : Endpoint<CreateSchedu
         );
     }
 
-    public override Task HandleAsync(CreateScheduledTtlDeploymentRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CreateScheduledTtlDeploymentRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateScheduledTtlDeployment
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/deployments/ttl/schedules
-        // Should produce: ScheduledAction
-        throw new NotImplementedException("Endpoint CreateScheduledTtlDeployment not implemented.");
+        var schedule = new ScheduledAction
+        {
+            Id = System.Guid.NewGuid().ToString(),
+            Kind = "ttl",
+            OrgId = req.OrgName,
+            Created = System.DateTimeOffset.UtcNow.ToString("o"),
+            Modified = System.DateTimeOffset.UtcNow.ToString("o"),
+            LastExecuted = string.Empty,
+            NextExecution = string.Empty,
+            Definition = new Dictionary<string, object>(),
+        };
+        deployments.AddSchedule(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), schedule);
+        await Send.OkAsync(schedule, ct);
     }
 }

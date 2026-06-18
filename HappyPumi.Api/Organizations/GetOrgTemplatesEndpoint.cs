@@ -28,11 +28,16 @@ public sealed class GetOrgTemplatesEndpoint : Endpoint<GetOrgTemplatesRequest, G
         );
     }
 
-    public override Task HandleAsync(GetOrgTemplatesRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetOrgTemplatesRequest req, CancellationToken ct)
     {
-        // TODO: implement GetOrgTemplates
-        // HTTP: GET /api/orgs/{orgName}/templates
-        // Should produce: GetOrgTemplatesResponse
-        throw new NotImplementedException("Endpoint GetOrgTemplates not implemented.");
+        // Org-scoped template collections (VCS-backed) aren't modeled yet; report none so `pulumi new`
+        // falls back to the registry/built-in templates rather than erroring.
+        await Send.OkAsync(new GetOrgTemplatesResponse
+        {
+            Templates = new Dictionary<string, List<PulumiTemplateRemote>>(),
+            OrgHasTemplates = false,
+            HasAccessError = false,
+            HasUpstreamError = false,
+        }, ct);
     }
 }

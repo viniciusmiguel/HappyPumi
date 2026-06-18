@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetStack
 /// </summary>
-public sealed class GetStackEndpoint : Endpoint<GetStackRequest, AppStack>
+public sealed class GetStackEndpoint(IStackStore stacks) : Endpoint<GetStackRequest, AppStack>
 {
     public override void Configure()
     {
@@ -28,11 +29,15 @@ public sealed class GetStackEndpoint : Endpoint<GetStackRequest, AppStack>
         );
     }
 
-    public override Task HandleAsync(GetStackRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetStackRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStack
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}
-        // Should produce: AppStack
-        throw new NotImplementedException("Endpoint GetStack not implemented.");
+        var stack = stacks.Find(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName));
+        if (stack is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(StackMapper.ToAppStack(stack), ct);
     }
 }

@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// AddStackTag
 /// </summary>
-public sealed class AddStackTagEndpoint : Endpoint<AddStackTagRequest>
+public sealed class AddStackTagEndpoint(IStackStore stacks) : Endpoint<AddStackTagRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,22 @@ public sealed class AddStackTagEndpoint : Endpoint<AddStackTagRequest>
         );
     }
 
-    public override Task HandleAsync(AddStackTagRequest req, CancellationToken ct)
+    public async override Task HandleAsync(AddStackTagRequest req, CancellationToken ct)
     {
-        // TODO: implement AddStackTag
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/tags
-        throw new NotImplementedException("Endpoint AddStackTag not implemented.");
+        if (string.IsNullOrWhiteSpace(req.Body?.Name))
+        {
+            AddError("'name' is required.", "name");
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+
+        var coords = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        if (stacks.SetTag(coords, req.Body.Name, req.Body.Value ?? string.Empty) is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

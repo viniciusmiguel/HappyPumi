@@ -7,14 +7,16 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// CompletePolicyPack
 /// </summary>
-public sealed class CompletePolicyPackEndpoint : Endpoint<CompletePolicyPackRequest>
+public sealed class CompletePolicyPackEndpoint(IPolicyStore policy) : Endpoint<CompletePolicyPackRequest>
 {
     public override void Configure()
     {
@@ -28,10 +30,14 @@ public sealed class CompletePolicyPackEndpoint : Endpoint<CompletePolicyPackRequ
         );
     }
 
-    public override Task HandleAsync(CompletePolicyPackRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CompletePolicyPackRequest req, CancellationToken ct)
     {
-        // TODO: implement CompletePolicyPack
-        // HTTP: POST /api/orgs/{orgName}/policypacks/{policyPackName}/versions/{version}/complete
-        throw new NotImplementedException("Endpoint CompletePolicyPack not implemented.");
+        if (!long.TryParse(req.Version, out var v) || !policy.CompletePack(req.OrgName, req.PolicyPackName, v))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

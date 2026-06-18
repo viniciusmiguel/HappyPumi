@@ -6,15 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Registry;
 
 /// <summary>
 /// ListTemplateVersions
 /// </summary>
-public sealed class ListTemplateVersionsEndpoint : Endpoint<ListTemplateVersionsRequest, ListTemplateVersionsResponse>
+public sealed class ListTemplateVersionsEndpoint(ITemplateRegistry registry) : Endpoint<ListTemplateVersionsRequest, ListTemplateVersionsResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,11 @@ public sealed class ListTemplateVersionsEndpoint : Endpoint<ListTemplateVersions
         );
     }
 
-    public override Task HandleAsync(ListTemplateVersionsRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ListTemplateVersionsRequest req, CancellationToken ct)
     {
-        // TODO: implement ListTemplateVersions
-        // HTTP: GET /api/registry/templates/{source}/{publisher}/{name}/versions
-        // Should produce: ListTemplateVersionsResponse
-        throw new NotImplementedException("Endpoint ListTemplateVersions not implemented.");
+        var versions = registry.ListVersions(new TemplateCoordinates(req.Source, req.Publisher, req.Name))
+            .Select(v => new TemplateVersion { Version = v.Version })
+            .ToList();
+        await Send.OkAsync(new ListTemplateVersionsResponse { Templates = versions, ContinuationToken = null }, ct);
     }
 }

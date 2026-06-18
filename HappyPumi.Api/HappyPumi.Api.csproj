@@ -14,8 +14,21 @@
     </ItemGroup>
 
     <ItemGroup>
+      <!-- The OpenAPI contract is served verbatim by FetchRestSpecification (GET
+           /api/openapi/pulumi-spec.json). Embedding it makes the byte stream available at runtime
+           regardless of the working directory. LogicalName is the manifest key used to read it. -->
+      <EmbeddedResource Include="..\pulumi-spec.json">
+        <LogicalName>HappyPumi.Api.pulumi-spec.json</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+
+    <ItemGroup>
       <PackageReference Include="FastEndpoints" Version="8.*" />
       <PackageReference Include="FastEndpoints.Swagger" Version="8.*" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\HappyPumi.ServiceDefaults\HappyPumi.ServiceDefaults.csproj" />
     </ItemGroup>
 
 </Project>

@@ -7,19 +7,21 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using HappyPumi.Api.Auth;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// CreateRole
 /// </summary>
-public sealed class CreateRoleEndpoint : Endpoint<CreateRoleRequest, PermissionDescriptorRecord>
+public sealed class CreateRoleEndpoint(IIdentityStore identity) : Endpoint<CreateRoleRequest, PermissionDescriptorRecord>
 {
     public override void Configure()
     {
         Post("/api/orgs/{orgName}/roles");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Policies(AuthPolicies.OrgAdmin); // org management requires the admin role (ADR-0007)
         Description(b => b
             .WithTags("Organizations")
             .WithSummary("CreateRole")
@@ -28,11 +30,9 @@ public sealed class CreateRoleEndpoint : Endpoint<CreateRoleRequest, PermissionD
         );
     }
 
-    public override Task HandleAsync(CreateRoleRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CreateRoleRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateRole
-        // HTTP: POST /api/orgs/{orgName}/roles
-        // Should produce: PermissionDescriptorRecord
-        throw new NotImplementedException("Endpoint CreateRole not implemented.");
+        var role = identity.CreateRole(req.OrgName, req.Body ?? new PermissionDescriptorBase());
+        await Send.OkAsync(IdentityMapper.ToRecord(role), ct);
     }
 }

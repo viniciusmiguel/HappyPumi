@@ -7,19 +7,21 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using HappyPumi.Api.Auth;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// GetRole
 /// </summary>
-public sealed class GetRoleEndpoint : Endpoint<GetRoleRequest, PermissionDescriptorRecord>
+public sealed class GetRoleEndpoint(IIdentityStore identity) : Endpoint<GetRoleRequest, PermissionDescriptorRecord>
 {
     public override void Configure()
     {
         Get("/api/orgs/{orgName}/roles/{roleID}");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Policies(AuthPolicies.OrgAdmin); // org management requires the admin role (ADR-0007)
         Description(b => b
             .WithTags("Organizations")
             .WithSummary("GetRole")
@@ -28,11 +30,15 @@ public sealed class GetRoleEndpoint : Endpoint<GetRoleRequest, PermissionDescrip
         );
     }
 
-    public override Task HandleAsync(GetRoleRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetRoleRequest req, CancellationToken ct)
     {
-        // TODO: implement GetRole
-        // HTTP: GET /api/orgs/{orgName}/roles/{roleID}
-        // Should produce: PermissionDescriptorRecord
-        throw new NotImplementedException("Endpoint GetRole not implemented.");
+        var role = identity.GetRole(req.OrgName, req.RoleId);
+        if (role is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(IdentityMapper.ToRecord(role), ct);
     }
 }

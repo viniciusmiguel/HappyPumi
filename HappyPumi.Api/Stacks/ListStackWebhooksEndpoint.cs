@@ -7,14 +7,17 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Secrets;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// ListStackWebhooks
 /// </summary>
-public sealed class ListStackWebhooksEndpoint : Endpoint<ListStackWebhooksRequest, List<WebhookResponse>>
+public sealed class ListStackWebhooksEndpoint(IDeploymentStore deployments) : Endpoint<ListStackWebhooksRequest, List<WebhookResponse>>
 {
     public override void Configure()
     {
@@ -28,11 +31,8 @@ public sealed class ListStackWebhooksEndpoint : Endpoint<ListStackWebhooksReques
         );
     }
 
-    public override Task HandleAsync(ListStackWebhooksRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ListStackWebhooksRequest req, CancellationToken ct)
     {
-        // TODO: implement ListStackWebhooks
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/hooks
-        // Should produce: List<WebhookResponse>
-        throw new NotImplementedException("Endpoint ListStackWebhooks not implemented.");
+        await Send.OkAsync(deployments.ListWebhooks(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName)).ToList(), ct);
     }
 }

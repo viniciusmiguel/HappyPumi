@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Registry;
 
 /// <summary>
 /// DeletePublishPackageVersion
 /// </summary>
-public sealed class DeletePublishPackageVersionEndpoint : Endpoint<DeletePublishPackageVersionRequest>
+public sealed class DeletePublishPackageVersionEndpoint(IPackageRegistry registry) : Endpoint<DeletePublishPackageVersionRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,14 @@ public sealed class DeletePublishPackageVersionEndpoint : Endpoint<DeletePublish
         );
     }
 
-    public override Task HandleAsync(DeletePublishPackageVersionRequest req, CancellationToken ct)
+    public async override Task HandleAsync(DeletePublishPackageVersionRequest req, CancellationToken ct)
     {
-        // TODO: implement DeletePublishPackageVersion
-        // HTTP: DELETE /api/registry/packages/{source}/{publisher}/{name}/versions/{version}
-        throw new NotImplementedException("Endpoint DeletePublishPackageVersion not implemented.");
+        if (!registry.Delete(new PackageCoordinates(req.Source, req.Publisher, req.Name), req.Version))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

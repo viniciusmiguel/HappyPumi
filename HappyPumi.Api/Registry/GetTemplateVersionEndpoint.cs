@@ -14,7 +14,7 @@ namespace HappyPumi.Api.Endpoints.Registry;
 /// <summary>
 /// GetTemplateVersion
 /// </summary>
-public sealed class GetTemplateVersionEndpoint : Endpoint<GetTemplateVersionRequest, GetTemplateResponse>
+public sealed class GetTemplateVersionEndpoint(HappyPumi.Api.State.ITemplateRegistry registry) : Endpoint<GetTemplateVersionRequest, GetTemplateResponse>
 {
     public override void Configure()
     {
@@ -28,11 +28,15 @@ public sealed class GetTemplateVersionEndpoint : Endpoint<GetTemplateVersionRequ
         );
     }
 
-    public override Task HandleAsync(GetTemplateVersionRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetTemplateVersionRequest req, CancellationToken ct)
     {
-        // TODO: implement GetTemplateVersion
-        // HTTP: GET /api/registry/templates/{source}/{publisher}/{name}/versions/{version}
-        // Should produce: GetTemplateResponse
-        throw new NotImplementedException("Endpoint GetTemplateVersion not implemented.");
+        var tmpl = registry.Get(new HappyPumi.Api.State.TemplateCoordinates(req.Source, req.Publisher, req.Name), req.Version);
+        if (tmpl is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(HappyPumi.Api.State.RegistryMapper.ToTemplateResponse(tmpl), ct);
     }
 }

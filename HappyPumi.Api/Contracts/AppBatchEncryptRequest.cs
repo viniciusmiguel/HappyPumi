@@ -14,8 +14,9 @@ namespace HappyPumi.Api.Contracts;
 public class AppBatchEncryptRequest
 {
     /// <summary>
-    /// The values to encrypt.
+    /// The values to encrypt. Go <c>[][]byte</c>: a JSON array of base64 strings (each <c>[]byte</c>
+    /// is one base64 string); the generator mis-maps the inner <c>[]byte</c> to <c>List&lt;byte[]&gt;</c>.
     /// </summary>
     [JsonPropertyName("plaintexts")]
-    public List<List<byte[]>> Plaintexts { get; set; } = default!;
+    public List<byte[]> Plaintexts { get; set; } = default!;
 }

@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.Secrets;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// EncryptValue
 /// </summary>
-public sealed class EncryptValueEndpoint : Endpoint<EncryptValueRequest, AppEncryptValueResponse>
+public sealed class EncryptValueEndpoint(IValueCrypter crypter) : Endpoint<EncryptValueRequest, AppEncryptValueResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,11 @@ public sealed class EncryptValueEndpoint : Endpoint<EncryptValueRequest, AppEncr
         );
     }
 
-    public override Task HandleAsync(EncryptValueRequest req, CancellationToken ct)
+    public async override Task HandleAsync(EncryptValueRequest req, CancellationToken ct)
     {
-        // TODO: implement EncryptValue
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/encrypt
-        // Should produce: AppEncryptValueResponse
-        throw new NotImplementedException("Endpoint EncryptValue not implemented.");
+        await Send.OkAsync(new AppEncryptValueResponse
+        {
+            Ciphertext = crypter.Encrypt(req.Body.Plaintext)
+        }, ct);
     }
 }

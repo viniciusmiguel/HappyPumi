@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetUpdateStatusForRefresh
 /// </summary>
-public sealed class GetUpdateStatusForRefreshEndpoint : Endpoint<GetUpdateStatusForRefreshRequest, AppUpdateResults>
+public sealed class GetUpdateStatusForRefreshEndpoint(UpdateLifecycle lifecycle) : Endpoint<GetUpdateStatusForRefreshRequest, AppUpdateResults>
 {
     public override void Configure()
     {
@@ -28,11 +29,21 @@ public sealed class GetUpdateStatusForRefreshEndpoint : Endpoint<GetUpdateStatus
         );
     }
 
-    public override Task HandleAsync(GetUpdateStatusForRefreshRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetUpdateStatusForRefreshRequest req, CancellationToken ct)
     {
-        // TODO: implement GetUpdateStatusForRefresh
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/refresh/{updateID}
-        // Should produce: AppUpdateResults
-        throw new NotImplementedException("Endpoint GetUpdateStatusForRefresh not implemented.");
+        var update = lifecycle.Find(req.UpdateId);
+        if (update is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        // Engine events are streamed by the CLI locally; a null continuationToken means "no more".
+        await Send.OkAsync(new AppUpdateResults
+        {
+            Status = update.Status,
+            Events = new List<AppUpdateEvent>(),
+            ContinuationToken = null,
+        }, ct);
     }
 }

@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// CreateUpdateForPreview
 /// </summary>
-public sealed class CreateUpdateForPreviewEndpoint : Endpoint<CreateUpdateForPreviewRequest, AppUpdateProgramResponse>
+public sealed class CreateUpdateForPreviewEndpoint(UpdateLifecycle lifecycle) : Endpoint<CreateUpdateForPreviewRequest, AppUpdateProgramResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,16 @@ public sealed class CreateUpdateForPreviewEndpoint : Endpoint<CreateUpdateForPre
         );
     }
 
-    public override Task HandleAsync(CreateUpdateForPreviewRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CreateUpdateForPreviewRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateUpdateForPreview
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/preview
-        // Should produce: AppUpdateProgramResponse
-        throw new NotImplementedException("Endpoint CreateUpdateForPreview not implemented.");
+        // Creates the preview update record; the CLI starts it next. 404 if the stack is unknown.
+        var update = lifecycle.Create(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), "preview", req.Body);
+        if (update is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(new AppUpdateProgramResponse { UpdateId = update.UpdateId }, ct);
     }
 }

@@ -15,8 +15,9 @@ namespace HappyPumi.Api.Contracts;
 public class AppBatchDecryptResponse
 {
     /// <summary>
-    /// Map of plaintexts
+    /// Map of plaintexts, keyed by the base64 ciphertext. Go <c>map[string][]byte</c>: each value is
+    /// a base64 string; the generator mis-maps the <c>[]byte</c> value to <c>List&lt;byte[]&gt;</c>.
     /// </summary>
     [JsonPropertyName("plaintexts")]
-    public Dictionary<string, List<byte[]>> Plaintexts { get; set; } = default!;
+    public Dictionary<string, byte[]> Plaintexts { get; set; } = default!;
 }

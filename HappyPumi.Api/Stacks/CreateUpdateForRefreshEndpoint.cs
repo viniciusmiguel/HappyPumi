@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// CreateUpdateForRefresh
 /// </summary>
-public sealed class CreateUpdateForRefreshEndpoint : Endpoint<CreateUpdateForRefreshRequest, AppUpdateProgramResponse>
+public sealed class CreateUpdateForRefreshEndpoint(UpdateLifecycle lifecycle) : Endpoint<CreateUpdateForRefreshRequest, AppUpdateProgramResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,16 @@ public sealed class CreateUpdateForRefreshEndpoint : Endpoint<CreateUpdateForRef
         );
     }
 
-    public override Task HandleAsync(CreateUpdateForRefreshRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CreateUpdateForRefreshRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateUpdateForRefresh
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/refresh
-        // Should produce: AppUpdateProgramResponse
-        throw new NotImplementedException("Endpoint CreateUpdateForRefresh not implemented.");
+        // Creates the refresh update record; the CLI starts it next. 404 if the stack is unknown.
+        var update = lifecycle.Create(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), "refresh", req.Body);
+        if (update is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(new AppUpdateProgramResponse { UpdateId = update.UpdateId }, ct);
     }
 }

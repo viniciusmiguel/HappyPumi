@@ -28,10 +28,10 @@ public sealed class RecordEngineEventBatchDestroyEndpoint : Endpoint<RecordEngin
         );
     }
 
-    public override Task HandleAsync(RecordEngineEventBatchDestroyRequest req, CancellationToken ct)
+    public async override Task HandleAsync(RecordEngineEventBatchDestroyRequest req, CancellationToken ct)
     {
-        // TODO: implement RecordEngineEventBatchDestroy
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/destroy/{updateID}/events/batch
-        throw new NotImplementedException("Endpoint RecordEngineEventBatchDestroy not implemented.");
+        // Accepted and acknowledged; not persisted in this in-memory backend (events/logs are rendered
+        // by the CLI locally, and journaling/delta protocols are not advertised in Capabilities).
+        await Send.NoContentAsync(ct);
     }
 }

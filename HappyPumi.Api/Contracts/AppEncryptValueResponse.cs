@@ -14,8 +14,10 @@ namespace HappyPumi.Api.Contracts;
 public class AppEncryptValueResponse
 {
     /// <summary>
-    /// The encrypted value.
+    /// The encrypted value. On the wire this is a Go <c>[]byte</c>, i.e. a single base64 string —
+    /// the generator mis-maps it to <c>List&lt;byte[]&gt;</c>; <c>byte[]</c> is what System.Text.Json
+    /// serializes as base64, matching the CLI's <c>EncryptValueResponse.Ciphertext</c>.
     /// </summary>
     [JsonPropertyName("ciphertext")]
-    public List<byte[]> Ciphertext { get; set; } = default!;
+    public byte[] Ciphertext { get; set; } = default!;
 }
