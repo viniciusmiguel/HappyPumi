@@ -68,7 +68,8 @@ public static class DatabaseSeeder
                 Org = Org, Project = Project, Stack = stack, Version = version,
                 Tags = new Dictionary<string, string> { ["environment"] = stack, ["team"] = "platform" },
                 Config = new AppStackConfig { SecretsProvider = "service" },
-                Deployment = EmptyDeployment(),
+                // dev carries a realistic checkpoint so the Resources tab/count render; prod is empty.
+                Deployment = stack == "dev" ? ResourcesCheckpoint(stack, version) : EmptyDeployment(),
             });
 
             // A couple of history entries so `pulumi stack history` shows real updates.
@@ -190,4 +191,50 @@ public static class DatabaseSeeder
         Version = 3,
         Deployment = new Dictionary<string, object?> { ["manifest"] = new Dictionary<string, object?>() },
     };
+
+    /// <summary>
+    /// A realistic Pulumi state checkpoint (apitype v3) for a stack: the root Stack, the aws provider, and a
+    /// handful of custom AWS resources. The Resources tab + count read the <c>resources</c> array out of this.
+    /// </summary>
+    private static AppUntypedDeployment ResourcesCheckpoint(string stack, long version)
+    {
+        string Urn(string type, string name) => $"urn:pulumi:{stack}::{Project}::{type}::{name}";
+        var stackUrn = Urn("pulumi:pulumi:Stack", $"{Project}-{stack}");
+        var providerUrn = Urn("pulumi:providers:aws", "default_6_0_2");
+        var providerRef = $"{providerUrn}::24c69e0e-5f5f-4f4f-9f9f-1a2b3c4d5e6f";
+
+        Dictionary<string, object?> Res(string type, string name, bool custom, string? id, string parent,
+            Dictionary<string, object?>? outputs) => new()
+        {
+            ["urn"] = Urn(type, name), ["type"] = type, ["custom"] = custom, ["id"] = id, ["parent"] = parent,
+            ["provider"] = custom ? providerRef : null,
+            ["inputs"] = new Dictionary<string, object?>(), ["outputs"] = outputs ?? new(),
+            ["dependencies"] = new List<string>(),
+        };
+
+        var resources = new List<Dictionary<string, object?>>
+        {
+            Res("pulumi:pulumi:Stack", $"{Project}-{stack}", false, null, "",
+                new() { ["url"] = $"https://{stack}.webstore.dev" }),
+            Res("pulumi:providers:aws", "default_6_0_2", false, "24c69e0e-5f5f-4f4f-9f9f-1a2b3c4d5e6f", stackUrn, null),
+            Res("aws:s3/bucketV2:BucketV2", "assets", true, "webstore-assets-7f3a1", stackUrn,
+                new() { ["arn"] = "arn:aws:s3:::webstore-assets-7f3a1", ["bucket"] = "webstore-assets-7f3a1" }),
+            Res("aws:dynamodb/table:Table", "orders", true, "webstore-orders", stackUrn,
+                new() { ["arn"] = "arn:aws:dynamodb:us-west-2:123456789012:table/webstore-orders", ["name"] = "webstore-orders" }),
+            Res("aws:lambda/function:Function", "api", true, "webstore-api", stackUrn,
+                new() { ["arn"] = "arn:aws:lambda:us-west-2:123456789012:function:webstore-api", ["runtime"] = "go1.x" }),
+            Res("aws:apigatewayv2/api:Api", "gateway", true, "abcd1234", stackUrn,
+                new() { ["apiEndpoint"] = "https://abcd1234.execute-api.us-west-2.amazonaws.com" }),
+        };
+
+        return new AppUntypedDeployment
+        {
+            Version = version,
+            Deployment = new Dictionary<string, object?>
+            {
+                ["manifest"] = new Dictionary<string, object?>(),
+                ["resources"] = resources,
+            },
+        };
+    }
 }

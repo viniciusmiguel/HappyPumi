@@ -91,6 +91,13 @@ public class Resource
     public string? Parent { get; set; }
 
     /// <summary>
+    /// Provider is the reference (URN::id) of the provider that manages this resource, present on custom
+    /// resources. The console renders the per-row "Provider link" from it.
+    /// </summary>
+    [JsonPropertyName("provider")]
+    public string? Provider { get; set; }
+
+    /// <summary>
     /// Protect is set to true when this resource is &quot;protected&quot; and may not be deleted.
     /// </summary>
     [JsonPropertyName("protect")]

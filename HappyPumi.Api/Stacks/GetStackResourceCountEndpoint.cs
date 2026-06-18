@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetStackResourceCount
 /// </summary>
-public sealed class GetStackResourceCountEndpoint : Endpoint<GetStackResourceCountRequest, GetStackResourceCountResponse>
+public sealed class GetStackResourceCountEndpoint(IStackStore stacks) : Endpoint<GetStackResourceCountRequest, GetStackResourceCountResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,17 @@ public sealed class GetStackResourceCountEndpoint : Endpoint<GetStackResourceCou
         );
     }
 
-    public override Task HandleAsync(GetStackResourceCountRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetStackResourceCountRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStackResourceCount
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/resources/count
-        // Should produce: GetStackResourceCountResponse
-        throw new NotImplementedException("Endpoint GetStackResourceCount not implemented.");
+        var stack = stacks.Find(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName));
+        if (stack is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        await Send.OkAsync(new GetStackResourceCountResponse
+        {
+            ResourceCount = StackResources.Extract(stack.Deployment).Count, Version = stack.Version,
+        }, ct);
     }
 }
