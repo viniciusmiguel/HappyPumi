@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.Miscellaneous;
 
 namespace HappyPumi.Api.Endpoints.Miscellaneous;
 
@@ -28,11 +29,34 @@ public sealed class TokenEndpoint : Endpoint<TokenRequest, TokenExchangeGrantRes
         );
     }
 
-    public override Task HandleAsync(TokenRequest req, CancellationToken ct)
+    // Default access-token lifetime (seconds) when the request omits an explicit `expiration`.
+    private const long DefaultExpiresInSeconds = 3600;
+
+    public async override Task HandleAsync(TokenRequest req, CancellationToken ct)
     {
-        // TODO: implement Token
-        // HTTP: POST /api/oauth/token
-        // Should produce: TokenExchangeGrantResponse
-        throw new NotImplementedException("Endpoint Token not implemented.");
+        var body = req.Body ?? new Dictionary<string, object>();
+        foreach (var (field, message) in TokenExchange.Validate(body))
+            AddError(message, field);
+        ThrowIfAnyErrors(); // 400 with the per-field problem details the CLI surfaces
+
+        // SECURITY (ADR-0007 follow-up): a real exchange must cryptographically verify `subject_token`
+        // against the OIDC issuer's JWKS and mint a signed, scoped access token. That belongs to the
+        // not-yet-built auth subsystem; until then this issues an opaque dev token so the CI/OIDC login
+        // wire flow works end-to-end against the Dex-backed local environment. The token grants nothing
+        // (all endpoints are still anonymous), so it is not a privilege boundary yet.
+        await Send.OkAsync(IssueDevToken(body), ct);
+    }
+
+    private static TokenExchangeGrantResponse IssueDevToken(IReadOnlyDictionary<string, object> body)
+    {
+        var requestedType = TokenExchange.GetString(body, "requested_token_type")!;
+        return new TokenExchangeGrantResponse
+        {
+            AccessToken = $"pul-dev-{Guid.NewGuid():N}",
+            TokenType = "Bearer",
+            IssuedTokenType = requestedType,
+            ExpiresIn = DefaultExpiresInSeconds,
+            Scope = TokenExchange.GetString(body, "scope") ?? string.Empty,
+        };
     }
 }

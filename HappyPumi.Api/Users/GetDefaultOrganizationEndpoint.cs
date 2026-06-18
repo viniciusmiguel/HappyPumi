@@ -28,11 +28,17 @@ public sealed class GetDefaultOrganizationEndpoint : EndpointWithoutRequest<AppG
         );
     }
 
-    public override Task HandleAsync(CancellationToken ct)
+    public async override Task HandleAsync(CancellationToken ct)
     {
-        // TODO: implement GetDefaultOrganization
-        // HTTP: GET /api/user/organizations/default
-        // Should produce: AppGetDefaultOrganizationResponse
-        throw new NotImplementedException("Endpoint GetDefaultOrganization not implemented.");
+        // The CLI calls this to resolve the org for unqualified stack names (`pulumi stack init dev`
+        // → `<defaultOrg>/<project>/dev`). Despite the field name, `GitHubLogin` carries the *org*
+        // name (Pulumi models each user's personal org under their login). We mirror the login
+        // returned by GetCurrentUser so the two stay consistent. Once orgs are persisted (Tier 3)
+        // this will read the user's configured default org instead of the hard-coded personal one.
+        await Send.OkAsync(new AppGetDefaultOrganizationResponse
+        {
+            GitHubLogin = "happypumi",
+            Messages = new List<AppMessage>()
+        }, ct);
     }
 }

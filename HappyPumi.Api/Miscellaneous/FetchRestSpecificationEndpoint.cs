@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.Miscellaneous;
 
 namespace HappyPumi.Api.Endpoints.Miscellaneous;
 
@@ -28,11 +29,12 @@ public sealed class FetchRestSpecificationEndpoint : EndpointWithoutRequest<List
         );
     }
 
-    public override Task HandleAsync(CancellationToken ct)
+    public async override Task HandleAsync(CancellationToken ct)
     {
-        // TODO: implement FetchRestSpecification
-        // HTTP: GET /api/openapi/pulumi-spec.json
-        // Should produce: List<byte[]>
-        throw new NotImplementedException("Endpoint FetchRestSpecification not implemented.");
+        // The CLI fetches the live OpenAPI contract here. The generated response type (List<byte[]>)
+        // is a generator artifact of a raw-bytes body; we stream the embedded spec verbatim as JSON
+        // instead so the bytes match the document the API is built from.
+        await using var spec = OpenApiSpecResource.OpenRead();
+        await Send.StreamAsync(spec, contentType: "application/json", cancellation: ct);
     }
 }
