@@ -108,6 +108,11 @@ public static class MockConsoleMiddleware
         ("/console-settings/favorites", """{"favorites":[]}"""),
         ("/neo/token-budget", """{"remaining":1000000,"limit":1000000,"used":0}"""),
         ("/tags", "[]"),  // org tags collection the stacks page .map()s
+        ("/invites", "[]"),                                   // access-management invites list
+        ("/projects/services", """{"services":[],"stacks":[]}"""),  // services page reads resp.stacks
+        ("/auditlogs/v2", """{"auditLogEvents":[],"continuationToken":null}"""),
+        ("/auditlogs/reader-kind", """{"readerKind":"standard"}"""),
+        ("/auditlogs/export/config", """{"enabled":false}"""),
     ];
 
     // Every "resource:action" permission the console gates UI on (mined from the bundle). Grants everything.
