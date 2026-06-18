@@ -24,6 +24,7 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
     public DbSet<PolicyPackVersionRow> PolicyPackVersions => Set<PolicyPackVersionRow>();
     public DbSet<DeploymentSettingsRow> DeploymentSettings => Set<DeploymentSettingsRow>();
     public DbSet<DeploymentRow> Deployments => Set<DeploymentRow>();
+    public DbSet<DeploymentLogRow> DeploymentLogs => Set<DeploymentLogRow>();
     public DbSet<ScheduleRow> Schedules => Set<ScheduleRow>();
     public DbSet<WebhookRow> Webhooks => Set<WebhookRow>();
 
@@ -88,6 +89,15 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
         {
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.Org, x.Project, x.Stack });
+            e.HasIndex(x => x.Status);       // poll claims the oldest not-started row
+            e.HasIndex(x => x.JobId);         // runner callbacks look up by job id
+        });
+
+        b.Entity<DeploymentLogRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).ValueGeneratedOnAdd();
+            e.HasIndex(x => x.DeploymentId);
         });
 
         b.Entity<ScheduleRow>(e =>

@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Deployments;
 
 /// <summary>
-/// PollDeploymentsQueue
+/// PollDeploymentsQueue — the customer-managed workflow agent's deployment poller calls this. Claims the
+/// next queued deployment and returns its workflow definition; 204 when the queue is empty.
 /// </summary>
-public sealed class PollDeploymentsQueueEndpoint : EndpointWithoutRequest<AgentWorkflowDefinition>
+public sealed class PollDeploymentsQueueEndpoint(IDeploymentQueue queue) : EndpointWithoutRequest<AgentWorkflowDefinition>
 {
     public override void Configure()
     {
@@ -28,11 +30,23 @@ public sealed class PollDeploymentsQueueEndpoint : EndpointWithoutRequest<AgentW
         );
     }
 
-    public override Task HandleAsync(CancellationToken ct)
+    public override async Task HandleAsync(CancellationToken ct)
     {
-        // TODO: implement PollDeploymentsQueue
-        // HTTP: GET /api/deployments/poll
-        // Should produce: AgentWorkflowDefinition
-        throw new NotImplementedException("Endpoint PollDeploymentsQueue not implemented.");
+        var claimed = queue.ClaimNext();
+        if (claimed is null)
+        {
+            await Send.NoContentAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(new AgentWorkflowDefinition
+        {
+            JobId = claimed.JobId!,
+            JobToken = claimed.JobToken!,
+            OidcToken = "",
+            RunId = claimed.Id,
+            TypeSpecificId = claimed.Id,
+            DeploymentId = claimed.Id,
+        }, ct);
     }
 }

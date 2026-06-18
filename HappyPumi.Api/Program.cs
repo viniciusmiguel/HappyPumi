@@ -34,6 +34,7 @@ bld.Services.AddScoped<IPackageRegistry, PostgresPackageRegistry>();
 bld.Services.AddScoped<ITemplateRegistry, PostgresTemplateRegistry>();
 bld.Services.AddScoped<IPolicyStore, PostgresPolicyStore>();
 bld.Services.AddScoped<IDeploymentStore, PostgresDeploymentStore>();
+bld.Services.AddScoped<IDeploymentQueue, PostgresDeploymentQueue>(); // runner work queue (agent poll/dispatch)
 bld.Services.AddScoped<UpdateLifecycle>();
 
 // Service-managed secrets crypter for the /encrypt and /decrypt endpoints. Singleton so its
@@ -78,6 +79,15 @@ app.Use(async (ctx, next) =>
         ctx.Request.ContentType = null;
     await next();
 });
+
+// Dev-only wire logger to reverse-engineer the workflow agent/runner callbacks (method, path, content-type → status).
+if (app.Configuration.GetValue<bool>("LogRequests"))
+    app.Use(async (ctx, next) =>
+    {
+        await next();
+        Console.WriteLine($"WIRE {ctx.Request.Method} {ctx.Request.Path}{ctx.Request.QueryString} " +
+                          $"ct={ctx.Request.ContentType ?? "-"} -> {ctx.Response.StatusCode}");
+    });
 
 app.UseRequestDecompression(); // decode gzipped request bodies before model binding
 app.UseAuthentication();
