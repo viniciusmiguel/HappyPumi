@@ -28,11 +28,10 @@ public sealed class AiTemplateEndpoint : Endpoint<AiTemplateRequest, object>
         );
     }
 
-    public override Task HandleAsync(AiTemplateRequest req, CancellationToken ct)
+    public async override Task HandleAsync(AiTemplateRequest req, CancellationToken ct)
     {
-        // TODO: implement AiTemplate
-        // HTTP: POST /api/ai/template
-        // Should produce: object
-        throw new NotImplementedException("Endpoint AiTemplate not implemented.");
+        // AI-generated templates need an AI backend HappyPumi does not run. Decline explicitly with 501
+        // rather than throwing, so `pulumi new --ai` gets a clean "not implemented" instead of a 500.
+        await Send.ResponseAsync(new { message = "AI template generation is not available in HappyPumi." }, 501, ct);
     }
 }

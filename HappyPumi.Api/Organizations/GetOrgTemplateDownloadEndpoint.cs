@@ -28,11 +28,10 @@ public sealed class GetOrgTemplateDownloadEndpoint : Endpoint<GetOrgTemplateDown
         );
     }
 
-    public override Task HandleAsync(GetOrgTemplateDownloadRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetOrgTemplateDownloadRequest req, CancellationToken ct)
     {
-        // TODO: implement GetOrgTemplateDownload
-        // HTTP: GET /api/orgs/{orgName}/template/download
-        // Should produce: List<byte[]>
-        throw new NotImplementedException("Endpoint GetOrgTemplateDownload not implemented.");
+        // No org-scoped template archives are stored (GetOrgTemplates reports none), so there is nothing
+        // to download — 404 is the correct "template not found" answer.
+        await Send.NotFoundAsync(ct);
     }
 }

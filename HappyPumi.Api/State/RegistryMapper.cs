@@ -32,4 +32,34 @@ public static class RegistryMapper
             InstallationConfiguration = $"{basePath}/installation",
         };
     }
+
+    public static Template ToTemplate(StoredTemplateVersion tmpl) => new()
+    {
+        Source = tmpl.Coordinates.Source,
+        Publisher = tmpl.Coordinates.Publisher,
+        Name = tmpl.Coordinates.Name,
+        DisplayName = tmpl.Coordinates.Name,
+        Language = tmpl.Language ?? string.Empty,
+        Description = tmpl.Description,
+        Visibility = "public",
+        UpdatedAt = tmpl.UpdatedAt,
+        Url = $"/api/registry/templates/{tmpl.Coordinates.Source}/{tmpl.Coordinates.Publisher}/{tmpl.Coordinates.Name}",
+        DownloadUrl = $"/api/registry/templates/{tmpl.Coordinates.Source}/{tmpl.Coordinates.Publisher}/{tmpl.Coordinates.Name}/versions/{tmpl.Version}/archive",
+    };
+
+    public static GetTemplateResponse ToTemplateResponse(StoredTemplateVersion tmpl)
+    {
+        var t = ToTemplate(tmpl);
+        return new GetTemplateResponse
+        {
+            Source = t.Source, Publisher = t.Publisher, Name = t.Name, DisplayName = t.DisplayName,
+            Language = t.Language, Description = t.Description, Visibility = t.Visibility,
+            UpdatedAt = t.UpdatedAt, Url = t.Url, DownloadUrl = t.DownloadUrl,
+        };
+    }
+
+    public static TemplateUploadUrLs TemplateUploadUrls(TemplateCoordinates c, string version) => new()
+    {
+        Archive = $"/api/registry/templates/{c.Source}/{c.Publisher}/{c.Name}/versions/{version}/upload/archive",
+    };
 }

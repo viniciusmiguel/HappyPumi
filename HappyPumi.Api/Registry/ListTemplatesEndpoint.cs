@@ -6,15 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Registry;
 
 /// <summary>
 /// ListTemplates
 /// </summary>
-public sealed class ListTemplatesEndpoint : Endpoint<ListTemplatesRequest, ListTemplatesResponse>
+public sealed class ListTemplatesEndpoint(ITemplateRegistry registry) : Endpoint<ListTemplatesRequest, ListTemplatesResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,9 @@ public sealed class ListTemplatesEndpoint : Endpoint<ListTemplatesRequest, ListT
         );
     }
 
-    public override Task HandleAsync(ListTemplatesRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ListTemplatesRequest req, CancellationToken ct)
     {
-        // TODO: implement ListTemplates
-        // HTTP: GET /api/registry/templates
-        // Should produce: ListTemplatesResponse
-        throw new NotImplementedException("Endpoint ListTemplates not implemented.");
+        var templates = registry.ListLatest(req.Name).Select(RegistryMapper.ToTemplate).ToList();
+        await Send.OkAsync(new ListTemplatesResponse { Templates = templates, ContinuationToken = null }, ct);
     }
 }

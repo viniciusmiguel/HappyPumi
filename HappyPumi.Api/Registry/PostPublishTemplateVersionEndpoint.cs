@@ -14,7 +14,7 @@ namespace HappyPumi.Api.Endpoints.Registry;
 /// <summary>
 /// PostPublishTemplateVersion
 /// </summary>
-public sealed class PostPublishTemplateVersionEndpoint : Endpoint<PostPublishTemplateVersionRequest, StartTemplatePublishResponse>
+public sealed class PostPublishTemplateVersionEndpoint(HappyPumi.Api.State.ITemplateRegistry registry) : Endpoint<PostPublishTemplateVersionRequest, StartTemplatePublishResponse>
 {
     public override void Configure()
     {
@@ -28,11 +28,21 @@ public sealed class PostPublishTemplateVersionEndpoint : Endpoint<PostPublishTem
         );
     }
 
-    public override Task HandleAsync(PostPublishTemplateVersionRequest req, CancellationToken ct)
+    public async override Task HandleAsync(PostPublishTemplateVersionRequest req, CancellationToken ct)
     {
-        // TODO: implement PostPublishTemplateVersion
-        // HTTP: POST /api/registry/templates/{source}/{publisher}/{name}/versions
-        // Should produce: StartTemplatePublishResponse
-        throw new NotImplementedException("Endpoint PostPublishTemplateVersion not implemented.");
+        if (string.IsNullOrWhiteSpace(req.Body?.Version))
+        {
+            AddError("'version' is required.", "version");
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+
+        var coords = new HappyPumi.Api.State.TemplateCoordinates(req.Source, req.Publisher, req.Name);
+        registry.StartPublish(coords, req.Body.Version);
+        await Send.OkAsync(new StartTemplatePublishResponse
+        {
+            OperationId = System.Guid.NewGuid().ToString(),
+            UploadUrLs = HappyPumi.Api.State.RegistryMapper.TemplateUploadUrls(coords, req.Body.Version),
+        }, ct);
     }
 }

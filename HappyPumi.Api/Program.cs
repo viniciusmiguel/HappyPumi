@@ -33,6 +33,7 @@ bld.Services.AddSingleton<IIdentityStore, InMemoryIdentityStore>();
 
 // Package/template registry (ENDPOINTS.md 4). In-memory default (ADR-0005).
 bld.Services.AddSingleton<IPackageRegistry, InMemoryPackageRegistry>();
+bld.Services.AddSingleton<ITemplateRegistry, InMemoryTemplateRegistry>();
 
 var app = bld.Build();
 app.MapDefaultEndpoints(); // /health and /alive

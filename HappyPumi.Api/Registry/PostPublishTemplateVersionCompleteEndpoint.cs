@@ -14,7 +14,7 @@ namespace HappyPumi.Api.Endpoints.Registry;
 /// <summary>
 /// PostPublishTemplateVersionComplete
 /// </summary>
-public sealed class PostPublishTemplateVersionCompleteEndpoint : Endpoint<PostPublishTemplateVersionCompleteRequest, PublishTemplateVersionCompleteResponse>
+public sealed class PostPublishTemplateVersionCompleteEndpoint(HappyPumi.Api.State.ITemplateRegistry registry) : Endpoint<PostPublishTemplateVersionCompleteRequest, PublishTemplateVersionCompleteResponse>
 {
     public override void Configure()
     {
@@ -28,11 +28,14 @@ public sealed class PostPublishTemplateVersionCompleteEndpoint : Endpoint<PostPu
         );
     }
 
-    public override Task HandleAsync(PostPublishTemplateVersionCompleteRequest req, CancellationToken ct)
+    public async override Task HandleAsync(PostPublishTemplateVersionCompleteRequest req, CancellationToken ct)
     {
-        // TODO: implement PostPublishTemplateVersionComplete
-        // HTTP: POST /api/registry/templates/{source}/{publisher}/{name}/versions/{version}/complete
-        // Should produce: PublishTemplateVersionCompleteResponse
-        throw new NotImplementedException("Endpoint PostPublishTemplateVersionComplete not implemented.");
+        if (!registry.CompletePublish(new HappyPumi.Api.State.TemplateCoordinates(req.Source, req.Publisher, req.Name), req.Version))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(new PublishTemplateVersionCompleteResponse(), ct);
     }
 }
