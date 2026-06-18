@@ -1,0 +1,3 @@
+name: widget-app
+runtime: dotnet
+description: IdP demo — a C# Widget component backed by the fake-cloud (random) provider.

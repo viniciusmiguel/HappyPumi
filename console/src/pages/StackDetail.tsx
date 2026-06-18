@@ -23,6 +23,30 @@ function urnName(urn: string): string {
   return urn.split("::").pop() || urn;
 }
 
+// The provider/package name is the first segment of the type token ("aws:s3/bucketV2:BucketV2" -> "aws").
+function providerOf(type: string): string {
+  return type.split(":")[0] ?? "";
+}
+
+// Normalize "pkg:module/sub:Type" -> "pkg:module:Type" for display, matching the console.
+function normalizeType(type: string): string {
+  const [pkg, mod, name] = type.split(":");
+  if (!mod || !name) return type;
+  return `${pkg}:${mod.split("/")[0]}:${name}`;
+}
+
+// Cloud providers whose console we deep-link to; others (random, tls, pulumi) get no link.
+const CLOUD_LINKS: Record<string, string> = {
+  aws: "https://console.aws.amazon.com/",
+  gcp: "https://console.cloud.google.com/",
+  azure: "https://portal.azure.com/",
+  "azure-native": "https://portal.azure.com/",
+  azuread: "https://portal.azure.com/",
+  kubernetes: "https://kubernetes.io/docs/",
+  cloudflare: "https://dash.cloudflare.com/",
+  digitalocean: "https://cloud.digitalocean.com/",
+};
+
 export default function StackDetail() {
   const org = useOrg();
   const navigate = useNavigate();
@@ -198,12 +222,16 @@ function Resources({ resources }: { resources: Resource[] }) {
       <Table
         rows={rows}
         columns={[
-          { header: "Type", cell: (r) => <span className="font-mono text-xs">{r.type}</span> },
+          { header: "Type", cell: (r) => <span className="font-mono text-xs">{normalizeType(r.type)}</span> },
           { header: "Name", cell: (r) => <span className="font-medium">{urnName(r.urn)}</span> },
           { header: "Status", cell: () => <span className="text-ink-faint">—</span> },
-          { header: "Provider link", cell: (r) => r.provider
-            ? <a className="inline-flex items-center gap-1 text-brand hover:underline" href="#">aws <ExternalLink size={12} /></a>
-            : <span className="text-ink-faint">—</span> },
+          { header: "Provider link", cell: (r) => {
+            const prov = providerOf(r.type);
+            const link = CLOUD_LINKS[prov];
+            return link
+              ? <a className="inline-flex items-center gap-1 text-brand hover:underline" href={link} target="_blank" rel="noreferrer">{prov} <ExternalLink size={12} /></a>
+              : <span className="text-ink-faint">—</span>;
+          } },
         ]}
       />
     </div>
