@@ -14,10 +14,11 @@ namespace HappyPumi.Api.Contracts;
 public class SecretValue
 {
     /// <summary>
-    /// The encrypted representation of the secret value.
+    /// The encrypted representation of the secret value. Go <c>[]byte</c> on the wire (a single base64
+    /// string); the generator mis-maps it to <c>List&lt;byte[]&gt;</c>.
     /// </summary>
     [JsonPropertyName("ciphertext")]
-    public List<byte[]>? Ciphertext { get; set; }
+    public byte[]? Ciphertext { get; set; }
 
     /// <summary>
     /// The secret value in plaintext.

@@ -7,14 +7,17 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Secrets;
 
 namespace HappyPumi.Api.Endpoints.Deployments;
 
 /// <summary>
 /// ListStackDeploymentsHandlerV2
 /// </summary>
-public sealed class ListStackDeploymentsHandlerV2Endpoint : Endpoint<ListStackDeploymentsHandlerV2Request, ListDeploymentResponseV2>
+public sealed class ListStackDeploymentsHandlerV2Endpoint(IDeploymentStore deployments) : Endpoint<ListStackDeploymentsHandlerV2Request, ListDeploymentResponseV2>
 {
     public override void Configure()
     {
@@ -28,11 +31,22 @@ public sealed class ListStackDeploymentsHandlerV2Endpoint : Endpoint<ListStackDe
         );
     }
 
-    public override Task HandleAsync(ListStackDeploymentsHandlerV2Request req, CancellationToken ct)
+    public async override Task HandleAsync(ListStackDeploymentsHandlerV2Request req, CancellationToken ct)
     {
-        // TODO: implement ListStackDeploymentsHandlerV2
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/deployments
-        // Should produce: ListDeploymentResponseV2
-        throw new NotImplementedException("Endpoint ListStackDeploymentsHandlerV2 not implemented.");
+        var records = deployments.ListDeployments(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName));
+        var snapshots = records.Select(d => new ListDeploymentSnapshot
+        {
+            ProjectName = req.ProjectName,
+            StackName = req.StackName,
+            PulumiOperation = d.Operation,
+            Jobs = new List<DeploymentJob>(),
+            Updates = new List<DeploymentNestedUpdate>(),
+        }).ToList();
+        await Send.OkAsync(new ListDeploymentResponseV2
+        {
+            Deployments = snapshots,
+            Total = records.Count,
+            ItemsPerPage = 100,
+        }, ct);
     }
 }

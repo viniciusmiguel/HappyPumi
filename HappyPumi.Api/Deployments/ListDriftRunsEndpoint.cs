@@ -7,7 +7,10 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Secrets;
 
 namespace HappyPumi.Api.Endpoints.Deployments;
 
@@ -28,11 +31,14 @@ public sealed class ListDriftRunsEndpoint : Endpoint<ListDriftRunsRequest, ListD
         );
     }
 
-    public override Task HandleAsync(ListDriftRunsRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ListDriftRunsRequest req, CancellationToken ct)
     {
-        // TODO: implement ListDriftRuns
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/drift/runs
-        // Should produce: ListDriftRunsResponse
-        throw new NotImplementedException("Endpoint ListDriftRuns not implemented.");
+        // No drift detection runs yet; report none.
+        await Send.OkAsync(new ListDriftRunsResponse
+        {
+            DriftRuns = new List<DriftRun>(),
+            Total = 0,
+            ItemsPerPage = 100,
+        }, ct);
     }
 }

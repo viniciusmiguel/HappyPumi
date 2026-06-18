@@ -38,6 +38,9 @@ bld.Services.AddSingleton<ITemplateRegistry, InMemoryTemplateRegistry>();
 // CrossGuard policy: groups + versioned policy packs (ENDPOINTS.md 5). In-memory default (ADR-0005).
 bld.Services.AddSingleton<IPolicyStore, InMemoryPolicyStore>();
 
+// Managed deployments: settings, deployments, schedules, webhooks (ENDPOINTS.md 6). In-memory (ADR-0005).
+bld.Services.AddSingleton<IDeploymentStore, InMemoryDeploymentStore>();
+
 var app = bld.Build();
 app.MapDefaultEndpoints(); // /health and /alive
 

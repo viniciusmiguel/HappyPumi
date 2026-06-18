@@ -7,14 +7,17 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Secrets;
 
 namespace HappyPumi.Api.Endpoints.Deployments;
 
 /// <summary>
 /// CreateAPIDeploymentHandlerV2
 /// </summary>
-public sealed class CreateApiDeploymentHandlerV2Endpoint : Endpoint<CreateApiDeploymentHandlerV2Request, CreateDeploymentResponse>
+public sealed class CreateApiDeploymentHandlerV2Endpoint(IDeploymentStore deployments) : Endpoint<CreateApiDeploymentHandlerV2Request, CreateDeploymentResponse>
 {
     public override void Configure()
     {
@@ -28,11 +31,15 @@ public sealed class CreateApiDeploymentHandlerV2Endpoint : Endpoint<CreateApiDep
         );
     }
 
-    public override Task HandleAsync(CreateApiDeploymentHandlerV2Request req, CancellationToken ct)
+    public async override Task HandleAsync(CreateApiDeploymentHandlerV2Request req, CancellationToken ct)
     {
-        // TODO: implement CreateApiDeploymentHandlerV2
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/deployments
-        // Should produce: CreateDeploymentResponse
-        throw new NotImplementedException("Endpoint CreateApiDeploymentHandlerV2 not implemented.");
+        var operation = req.Body?.Operation ?? "update";
+        var deployment = deployments.CreateDeployment(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), operation);
+        await Send.OkAsync(new CreateDeploymentResponse
+        {
+            Id = deployment.Id,
+            Version = deployment.Version,
+            ConsoleUrl = $"/api/stacks/{req.OrgName}/{req.ProjectName}/{req.StackName}/deployments/{deployment.Id}",
+        }, ct);
     }
 }

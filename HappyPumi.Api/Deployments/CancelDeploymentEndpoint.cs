@@ -7,14 +7,17 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Secrets;
 
 namespace HappyPumi.Api.Endpoints.Deployments;
 
 /// <summary>
 /// CancelDeployment
 /// </summary>
-public sealed class CancelDeploymentEndpoint : Endpoint<CancelDeploymentRequest>
+public sealed class CancelDeploymentEndpoint(IDeploymentStore deployments) : Endpoint<CancelDeploymentRequest>
 {
     public override void Configure()
     {
@@ -28,10 +31,14 @@ public sealed class CancelDeploymentEndpoint : Endpoint<CancelDeploymentRequest>
         );
     }
 
-    public override Task HandleAsync(CancelDeploymentRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CancelDeploymentRequest req, CancellationToken ct)
     {
-        // TODO: implement CancelDeployment
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/deployments/{deploymentId}/cancel
-        throw new NotImplementedException("Endpoint CancelDeployment not implemented.");
+        if (!deployments.CancelDeployment(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), req.DeploymentId))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

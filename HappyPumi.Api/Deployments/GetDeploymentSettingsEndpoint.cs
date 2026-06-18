@@ -7,14 +7,17 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Secrets;
 
 namespace HappyPumi.Api.Endpoints.Deployments;
 
 /// <summary>
 /// GetDeploymentSettings
 /// </summary>
-public sealed class GetDeploymentSettingsEndpoint : Endpoint<GetDeploymentSettingsRequest, DeploymentSettings>
+public sealed class GetDeploymentSettingsEndpoint(IDeploymentStore deployments) : Endpoint<GetDeploymentSettingsRequest, DeploymentSettings>
 {
     public override void Configure()
     {
@@ -28,11 +31,15 @@ public sealed class GetDeploymentSettingsEndpoint : Endpoint<GetDeploymentSettin
         );
     }
 
-    public override Task HandleAsync(GetDeploymentSettingsRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetDeploymentSettingsRequest req, CancellationToken ct)
     {
-        // TODO: implement GetDeploymentSettings
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/deployments/settings
-        // Should produce: DeploymentSettings
-        throw new NotImplementedException("Endpoint GetDeploymentSettings not implemented.");
+        var settings = deployments.GetSettings(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName));
+        if (settings is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(settings, ct);
     }
 }

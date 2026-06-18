@@ -7,14 +7,17 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Secrets;
 
 namespace HappyPumi.Api.Endpoints.Deployments;
 
 /// <summary>
 /// ReplaceDeploymentSettings
 /// </summary>
-public sealed class ReplaceDeploymentSettingsEndpoint : Endpoint<ReplaceDeploymentSettingsRequest, DeploymentSettings>
+public sealed class ReplaceDeploymentSettingsEndpoint(IDeploymentStore deployments) : Endpoint<ReplaceDeploymentSettingsRequest, DeploymentSettings>
 {
     public override void Configure()
     {
@@ -28,11 +31,13 @@ public sealed class ReplaceDeploymentSettingsEndpoint : Endpoint<ReplaceDeployme
         );
     }
 
-    public override Task HandleAsync(ReplaceDeploymentSettingsRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ReplaceDeploymentSettingsRequest req, CancellationToken ct)
     {
-        // TODO: implement ReplaceDeploymentSettings
-        // HTTP: PUT /api/stacks/{orgName}/{projectName}/{stackName}/deployments/settings
-        // Should produce: DeploymentSettings
-        throw new NotImplementedException("Endpoint ReplaceDeploymentSettings not implemented.");
+        var settings = deployments.GetSettings(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName)) ?? new DeploymentSettings();
+        settings.AgentPoolId = req.Body?.AgentPoolId ?? settings.AgentPoolId;
+        settings.Tag = req.Body?.Tag ?? settings.Tag;
+        settings.Source ??= "git";
+        deployments.SetSettings(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), settings);
+        await Send.OkAsync(settings, ct);
     }
 }

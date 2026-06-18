@@ -7,14 +7,17 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Secrets;
 
 namespace HappyPumi.Api.Endpoints.Deployments;
 
 /// <summary>
 /// ListScheduledDeployment
 /// </summary>
-public sealed class ListScheduledDeploymentEndpoint : Endpoint<ListScheduledDeploymentRequest, ListScheduledActionsResponse>
+public sealed class ListScheduledDeploymentEndpoint(IDeploymentStore deployments) : Endpoint<ListScheduledDeploymentRequest, ListScheduledActionsResponse>
 {
     public override void Configure()
     {
@@ -28,11 +31,11 @@ public sealed class ListScheduledDeploymentEndpoint : Endpoint<ListScheduledDepl
         );
     }
 
-    public override Task HandleAsync(ListScheduledDeploymentRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ListScheduledDeploymentRequest req, CancellationToken ct)
     {
-        // TODO: implement ListScheduledDeployment
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/deployments/schedules
-        // Should produce: ListScheduledActionsResponse
-        throw new NotImplementedException("Endpoint ListScheduledDeployment not implemented.");
+        await Send.OkAsync(new ListScheduledActionsResponse
+        {
+            Schedules = deployments.ListSchedules(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName)).ToList(),
+        }, ct);
     }
 }
