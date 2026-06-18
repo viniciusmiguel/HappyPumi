@@ -28,11 +28,14 @@ public sealed class ListPolicyIssuesEndpoint : Endpoint<ListPolicyIssuesRequest,
         );
     }
 
-    public override Task HandleAsync(ListPolicyIssuesRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ListPolicyIssuesRequest req, CancellationToken ct)
     {
-        // TODO: implement ListPolicyIssues
-        // HTTP: POST /api/orgs/{orgName}/policyresults/issues
-        // Should produce: ListPolicyIssuesResponse
-        throw new NotImplementedException("Endpoint ListPolicyIssues not implemented.");
+        // No policy violations are recorded yet (no evaluation runs), so the issue list is empty.
+        await Send.OkAsync(new ListPolicyIssuesResponse
+        {
+            PolicyIssues = new List<PolicyIssue>(),
+            GroupData = new List<Dictionary<string, object>>(),
+            RowCount = 0,
+        }, ct);
     }
 }

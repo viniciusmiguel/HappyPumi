@@ -28,11 +28,14 @@ public sealed class GetPolicyComplianceResultsEndpoint : Endpoint<GetPolicyCompl
         );
     }
 
-    public override Task HandleAsync(GetPolicyComplianceResultsRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetPolicyComplianceResultsRequest req, CancellationToken ct)
     {
-        // TODO: implement GetPolicyComplianceResults
-        // HTTP: POST /api/orgs/{orgName}/policyresults/compliance
-        // Should produce: GetPolicyComplianceResultsResponse
-        throw new NotImplementedException("Endpoint GetPolicyComplianceResults not implemented.");
+        // No policy evaluation runs against stacks yet, so there are no compliance rows to report.
+        await Send.OkAsync(new GetPolicyComplianceResultsResponse
+        {
+            Columns = new List<string>(),
+            Rows = new List<PolicyComplianceResult>(),
+            ContinuationToken = null,
+        }, ct);
     }
 }
