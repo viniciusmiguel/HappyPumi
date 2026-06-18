@@ -15,7 +15,7 @@ namespace HappyPumi.Api.Endpoints.Registry;
 /// <summary>
 /// GetPackageReadme
 /// </summary>
-public sealed class GetPackageReadmeEndpoint(IPackageRegistry registry) : Endpoint<GetPackageReadmeRequest, GetPackageReadmeResponse>
+public sealed class GetPackageReadmeEndpoint(IPackageRegistry registry, IArtifactStore artifacts) : Endpoint<GetPackageReadmeRequest, GetPackageReadmeResponse>
 {
     public override void Configure()
     {
@@ -37,9 +37,12 @@ public sealed class GetPackageReadmeEndpoint(IPackageRegistry registry) : Endpoi
             await Send.NotFoundAsync(ct);
             return;
         }
-        // The console fetches the readme URL as raw text and feeds it to a markdown renderer, so serve the
-        // markdown directly rather than the JSON content-node envelope.
-        await Send.StringAsync(pkg.Readme ?? $"# {req.Name}\n\nNo README provided for this package.",
-            contentType: "text/markdown; charset=utf-8", cancellation: ct);
+        // The console fetches the readme URL as raw text and feeds it to a markdown renderer. Prefer the
+        // README uploaded at publish time (the "index" artifact), then the seeded readme, then a placeholder.
+        var uploaded = artifacts.Get(ArtifactKeys.Package(req.Source, req.Publisher, req.Name, pkg.Version, "index"));
+        var markdown = uploaded is not null
+            ? System.Text.Encoding.UTF8.GetString(uploaded.Content)
+            : pkg.Readme ?? $"# {req.Name}\n\nNo README provided for this package.";
+        await Send.StringAsync(markdown, contentType: "text/markdown; charset=utf-8", cancellation: ct);
     }
 }

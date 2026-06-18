@@ -16,7 +16,7 @@ namespace HappyPumi.Api.Endpoints.Registry;
 /// <summary>
 /// GetPackageNav
 /// </summary>
-public sealed class GetPackageNavEndpoint(IPackageRegistry registry) : Endpoint<GetPackageNavRequest, GetPackageNavResponse>
+public sealed class GetPackageNavEndpoint(IPackageRegistry registry, IArtifactStore artifacts) : Endpoint<GetPackageNavRequest, GetPackageNavResponse>
 {
     public override void Configure()
     {
@@ -39,11 +39,21 @@ public sealed class GetPackageNavEndpoint(IPackageRegistry registry) : Endpoint<
             await Send.NotFoundAsync(ct);
             return;
         }
-        var modules = pkg.Nav ?? new List<GetPackageNavModule>();
-        foreach (var m in modules)
+        // Prefer the seeded nav; otherwise derive it from the published schema artifact.
+        List<GetPackageNavModule> modules;
+        if (pkg.Nav is { Count: > 0 })
         {
-            m.ResourcesTotal = m.Resources?.Count ?? 0;
-            m.FunctionsTotal = m.Functions?.Count ?? 0;
+            modules = pkg.Nav;
+            foreach (var m in modules)
+            {
+                m.ResourcesTotal = m.Resources?.Count ?? 0;
+                m.FunctionsTotal = m.Functions?.Count ?? 0;
+            }
+        }
+        else
+        {
+            var schema = artifacts.Get(ArtifactKeys.Package(req.Source, req.Publisher, req.Name, pkg.Version, "schema"));
+            modules = schema is not null ? SchemaNav.Derive(schema.Content) : new List<GetPackageNavModule>();
         }
         var basePath = $"/api/registry/packages/{req.Source}/{req.Publisher}/{req.Name}/versions/{pkg.Version}";
         await Send.OkAsync(new GetPackageNavResponse

@@ -119,6 +119,33 @@ public sealed class RegistryPackagesTests(HappyPumiApp app)
         Assert.Equal(HttpStatusCode.NotFound, nav.StatusCode);
     }
 
+    [Fact]
+    public async Task PublishUploadsAndServesSchemaArtifact()
+    {
+        using var client = app.CreateAuthedClient();
+        var name = $"pkg{Guid.NewGuid():N}";
+
+        // Start -> absolute upload URLs -> PUT the schema bytes -> complete.
+        var start = await Post<StartPackagePublishResponse>(client, $"{Base(name)}/versions",
+            new StartPackagePublishRequest { Version = "1.0.0" });
+        Assert.StartsWith("http", start.UploadUrLs.Schema); // absolute, so the CLI can PUT to it
+
+        var schema = "{\"name\":\"" + name + "\",\"version\":\"1.0.0\",\"resources\":{\"" + name + ":index:Widget\":{\"isComponent\":true}}}";
+        using var put = await client.PutAsync($"{Base(name)}/versions/1.0.0/upload/schema",
+            new StringContent(schema, System.Text.Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.NoContent, put.StatusCode);
+
+        using var complete = await client.PostAsJsonAsync($"{Base(name)}/versions/1.0.0/complete", new { });
+        Assert.Equal(HttpStatusCode.OK, complete.StatusCode);
+
+        // The schema downloads back, and the nav is derived from it.
+        var served = await client.GetStringAsync($"{Base(name)}/versions/1.0.0/schema");
+        Assert.Contains($"{name}:index:Widget", served);
+
+        var nav = await client.GetFromJsonAsync<GetPackageNavResponse>($"{Base(name)}/versions/latest/nav");
+        Assert.Contains(nav!.Modules, m => m.Resources != null && m.Resources.Any(r => r.TypeToken == $"{name}:index:Widget"));
+    }
+
     private static async Task Publish(HttpClient client, string name, string version)
     {
         await Post<StartPackagePublishResponse>(client, $"{Base(name)}/versions",

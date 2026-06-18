@@ -30,6 +30,7 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
     public DbSet<WebhookRow> Webhooks => Set<WebhookRow>();
     public DbSet<EnvironmentRow> Environments => Set<EnvironmentRow>();
     public DbSet<EnvironmentRevisionRow> EnvironmentRevisions => Set<EnvironmentRevisionRow>();
+    public DbSet<RegistryArtifactRow> RegistryArtifacts => Set<RegistryArtifactRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -142,5 +143,7 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
             e.HasIndex(x => new { x.Org, x.Project, x.Name });
             e.Property(x => x.Tags).AsJsonb();
         });
+
+        b.Entity<RegistryArtifactRow>(e => e.HasKey(x => x.Key));
     }
 }
