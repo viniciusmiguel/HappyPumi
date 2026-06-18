@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
-  ChevronLeft, ChevronDown, Plus, PanelLeftClose,
-  Settings as SettingsIcon, LogOut, BookOpen, CreditCard, UserPlus,
+  ChevronLeft, ChevronDown, Plus, PanelLeftClose, Layers, KeyRound, UserPlus,
+  Settings as SettingsIcon, LogOut, BookOpen, CreditCard,
 } from "lucide-react";
 import { homeItems, sections, sectionForPath, type NavItem, type SectionId } from "../lib/nav";
 import { type CurrentUser } from "../lib/api";
+import { Dropdown } from "./ui";
 
 function NavRow({ item, onClick }: { item: NavItem; onClick?: () => void }) {
   const Icon = item.icon;
@@ -42,6 +43,7 @@ function SectionLauncher({ id, open }: { id: SectionId; open: (s: SectionId) => 
 
 export default function Sidebar({ user, onCollapse }: { user: CurrentUser | null; onCollapse: () => void }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const [section, setSection] = useState<SectionId | null>(() => sectionForPath(location.pathname));
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -82,11 +84,19 @@ export default function Sidebar({ user, onCollapse }: { user: CurrentUser | null
         </button>
       </div>
 
-      {/* primary action */}
+      {/* primary action — create shortcuts */}
       <div className="px-3 py-3">
-        <button className="flex w-full items-center justify-center gap-2 rounded-md bg-brand px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-hover">
-          <Plus size={16} /> New task
-        </button>
+        <Dropdown
+          trigger={
+            <button className="flex w-full items-center justify-center gap-2 rounded-md bg-brand px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-hover">
+              <Plus size={16} /> New
+            </button>
+          }
+          items={[
+            { label: "New stack", icon: Layers, onSelect: () => navigate("/stacks?new=1") },
+            { label: "New environment", icon: KeyRound, onSelect: () => navigate("/environments?new=1") },
+            { label: "Invite member", icon: UserPlus, onSelect: () => navigate("/settings/members?new=1") },
+          ]} />
       </div>
 
       {/* nav (home set, or a drilled-in section) */}

@@ -1,16 +1,31 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { KeyRound, Plus, Folder, ChevronDown, Search } from "lucide-react";
 import { api, timeAgo, type OrgEnvironment } from "../lib/api";
 import { useOrg } from "../lib/useOrg";
-import { PageHeader, EmptyState, PrimaryButton } from "../components/ui";
+import { PageHeader, EmptyState, PrimaryButton, SecondaryButton, Modal, Field } from "../components/ui";
 
 export default function Environments() {
   const org = useOrg();
+  const navigate = useNavigate();
   const [envs, setEnvs] = useState<OrgEnvironment[]>([]);
   const [q, setQ] = useState("");
+  const [searchParams] = useSearchParams();
+  const [showNew, setShowNew] = useState(searchParams.get("new") === "1");
+  const [form, setForm] = useState({ project: "default", name: "" });
 
   useEffect(() => { api.environments(org).then((r) => setEnvs(r.environments ?? [])); }, [org]);
+
+  function createEnv() {
+    if (!form.name) return;
+    const created: OrgEnvironment = {
+      id: `${org}/${form.project}/${form.name}`, organization: org, project: form.project, name: form.name,
+      modified: new Date().toISOString(), settings: { deletionProtected: false },
+    };
+    setEnvs((e) => [created, ...e]);
+    setShowNew(false);
+    navigate(`/environments/${created.project}/${created.name}`);
+  }
 
   const filtered = envs.filter((e) => `${e.project}/${e.name}`.includes(q));
   const groups = [...new Set(filtered.map((e) => e.project ?? "default"))].sort()
@@ -27,7 +42,7 @@ export default function Environments() {
           </div>
         } />
       <div className="flex items-center justify-between px-6 py-3">
-        <PrimaryButton icon={Plus}>Create Environment</PrimaryButton>
+        <PrimaryButton icon={Plus} onClick={() => setShowNew(true)}>Create Environment</PrimaryButton>
         <div className="flex items-center gap-2 rounded-md border border-line bg-panel px-2.5 py-1.5 text-sm">
           <Search size={14} className="text-ink-faint" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search"
@@ -37,7 +52,8 @@ export default function Environments() {
 
       {envs.length === 0 ? (
         <EmptyState icon={KeyRound} title="No environments"
-          description="You don't have any environments yet. Use the button above to create an environment." />
+          description="You don't have any environments yet. Use the button above to create an environment."
+          action={<PrimaryButton icon={Plus} onClick={() => setShowNew(true)}>Create Environment</PrimaryButton>} />
       ) : (
         <div className="space-y-3 px-6 pb-8">
           {groups.map((g) => (
@@ -59,6 +75,17 @@ export default function Environments() {
             </div>
           ))}
         </div>
+      )}
+
+      {showNew && (
+        <Modal title="Create Environment" onClose={() => setShowNew(false)}
+          footer={<>
+            <SecondaryButton onClick={() => setShowNew(false)}>Cancel</SecondaryButton>
+            <PrimaryButton onClick={createEnv}>Create</PrimaryButton>
+          </>}>
+          <Field label="Project" value={form.project} onChange={(v) => setForm((f) => ({ ...f, project: v }))} placeholder="default" />
+          <Field label="Environment name" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} placeholder="dev" />
+        </Modal>
       )}
     </div>
   );

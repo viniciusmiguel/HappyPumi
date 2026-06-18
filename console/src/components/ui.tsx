@@ -1,6 +1,7 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { Link, NavLink } from "react-router-dom";
+import { X } from "lucide-react";
 
 /** Page header with an icon, title, and optional actions, matching the console's page chrome. */
 export function PageHeader({ icon: Icon, title, actions }: { icon: LucideIcon; title: string; actions?: ReactNode }) {
@@ -182,6 +183,73 @@ export function SubNav({ items }: { items: { label: string; to: string; icon?: L
         </NavLink>
       ))}
     </nav>
+  );
+}
+
+/** Modal dialog with an overlay, title bar, body, and footer actions. Closes on overlay click / Esc. */
+export function Modal({ title, onClose, children, footer }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" onClick={onClose}>
+      <div className="w-full max-w-md overflow-hidden rounded-xl border border-line bg-panel shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-line px-4 py-3">
+          <h2 className="text-sm font-semibold">{title}</h2>
+          <button onClick={onClose} className="rounded p-1 text-ink-faint hover:bg-hover hover:text-ink"><X size={16} /></button>
+        </div>
+        <div className="space-y-3 p-4">{children}</div>
+        {footer && <div className="flex justify-end gap-2 border-t border-line px-4 py-3">{footer}</div>}
+      </div>
+    </div>
+  );
+}
+
+/** Labeled text input / select for modal forms. */
+export function Field({ label, value, onChange, placeholder, options }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; options?: string[];
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium text-ink-dim">{label}</span>
+      {options ? (
+        <select value={value} onChange={(e) => onChange(e.target.value)}
+          className="w-full rounded-md border border-line bg-bg px-2.5 py-1.5 text-sm outline-none focus:border-brand">
+          {options.map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+      ) : (
+        <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+          className="w-full rounded-md border border-line bg-bg px-2.5 py-1.5 text-sm outline-none placeholder:text-ink-faint focus:border-brand" />
+      )}
+    </label>
+  );
+}
+
+/** Button + click-away dropdown menu of actions. */
+export function Dropdown({ trigger, items }: { trigger: ReactNode; items: { label: string; icon?: LucideIcon; onSelect: () => void; danger?: boolean }[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const onDoc = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, []);
+  return (
+    <div className="relative" ref={ref}>
+      <div onClick={() => setOpen((v) => !v)}>{trigger}</div>
+      {open && (
+        <div className="absolute right-0 z-40 mt-1 w-48 overflow-hidden rounded-lg border border-line bg-panel py-1 shadow-xl">
+          {items.map((it) => (
+            <button key={it.label} onClick={() => { setOpen(false); it.onSelect(); }}
+              className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-hover ${it.danger ? "text-red-400" : "text-ink-dim hover:text-ink"}`}>
+              {it.icon && <it.icon size={15} />} {it.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -1,19 +1,31 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Users, UserPlus } from "lucide-react";
 import { api, type Member } from "../lib/api";
 import { useOrg } from "../lib/useOrg";
-import { PageHeader, Table, EmptyState, PrimaryButton } from "../components/ui";
+import { PageHeader, Table, EmptyState, PrimaryButton, SecondaryButton, Modal, Field } from "../components/ui";
 
 function login(m: Member) { return m.githubLogin ?? m.user?.githubLogin ?? m.name ?? "—"; }
 
 export default function Members() {
   const org = useOrg();
   const [members, setMembers] = useState<Member[]>([]);
+  const [searchParams] = useSearchParams();
+  const [showInvite, setShowInvite] = useState(searchParams.get("new") === "1");
+  const [form, setForm] = useState({ login: "", role: "member" });
+
   useEffect(() => { api.members(org).then((r) => setMembers(r.members ?? [])); }, [org]);
+
+  function invite() {
+    if (!form.login) return;
+    setMembers((m) => [...m, { githubLogin: form.login, role: form.role, user: { githubLogin: form.login, name: form.login } }]);
+    setShowInvite(false);
+    setForm({ login: "", role: "member" });
+  }
 
   return (
     <div>
-      <PageHeader icon={Users} title="Members" actions={<PrimaryButton icon={UserPlus}>Invite</PrimaryButton>} />
+      <PageHeader icon={Users} title="Members" actions={<PrimaryButton icon={UserPlus} onClick={() => setShowInvite(true)}>Invite</PrimaryButton>} />
       <Table
         rows={members}
         columns={[
@@ -27,8 +39,19 @@ export default function Members() {
         ]}
         empty={<EmptyState icon={Users} title="No members"
           description="Invite people to your organization and manage their roles in one place."
-          action={<PrimaryButton icon={UserPlus}>Invite member</PrimaryButton>} />}
+          action={<PrimaryButton icon={UserPlus} onClick={() => setShowInvite(true)}>Invite member</PrimaryButton>} />}
       />
+
+      {showInvite && (
+        <Modal title="Invite a member" onClose={() => setShowInvite(false)}
+          footer={<>
+            <SecondaryButton onClick={() => setShowInvite(false)}>Cancel</SecondaryButton>
+            <PrimaryButton onClick={invite}>Send invite</PrimaryButton>
+          </>}>
+          <Field label="GitHub login or email" value={form.login} onChange={(v) => setForm((f) => ({ ...f, login: v }))} placeholder="octocat" />
+          <Field label="Role" value={form.role} onChange={(v) => setForm((f) => ({ ...f, role: v }))} options={["member", "admin"]} />
+        </Modal>
+      )}
     </div>
   );
 }

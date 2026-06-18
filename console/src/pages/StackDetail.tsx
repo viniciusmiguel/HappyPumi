@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
-import { Layers, ChevronDown, ExternalLink } from "lucide-react";
+import { Link, useParams, useSearchParams, useNavigate } from "react-router-dom";
+import { Layers, ChevronDown, ExternalLink, RefreshCw, Download, Trash2 } from "lucide-react";
 import {
   api, timeAgo, type Stack, type UpdateInfo, type Resource, type Deployment,
 } from "../lib/api";
 import { useOrg } from "../lib/useOrg";
 import {
-  Breadcrumb, Tabs, Badge, StatusDot, Table, Card, KeyValue, SecondaryButton, Avatar, EmptyState,
+  Breadcrumb, Tabs, Badge, StatusDot, Table, Card, KeyValue, SecondaryButton,
+  Avatar, EmptyState, Dropdown, Modal,
 } from "../components/ui";
 
 const TABS = [
@@ -24,9 +25,11 @@ function urnName(urn: string): string {
 
 export default function StackDetail() {
   const org = useOrg();
+  const navigate = useNavigate();
   const { project = "", stack = "" } = useParams();
   const [params, setParams] = useSearchParams();
   const active = params.get("tab") || "overview";
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const [meta, setMeta] = useState<Stack | null>(null);
   const [updates, setUpdates] = useState<UpdateInfo[]>([]);
@@ -52,7 +55,13 @@ export default function StackDetail() {
             <span className="grid size-7 place-items-center rounded-md border border-line bg-panel text-ink-dim"><Layers size={16} /></span>
             <h1 className="text-xl font-semibold">{stack}</h1>
           </div>
-          <SecondaryButton icon={ChevronDown}>Actions</SecondaryButton>
+          <Dropdown
+            trigger={<SecondaryButton icon={ChevronDown}>Actions</SecondaryButton>}
+            items={[
+              { label: "Refresh", icon: RefreshCw, onSelect: () => navigate(`/deployments/${project}/${stack}/${lu?.version ?? 1}`) },
+              { label: "Export checkpoint", icon: Download, onSelect: () => window.open(`/api/stacks/${org}/${project}/${stack}/export`, "_blank") },
+              { label: "Delete stack", icon: Trash2, danger: true, onSelect: () => setConfirmDelete(true) },
+            ]} />
         </div>
         <Breadcrumb items={[{ label: "Stacks", to: "/stacks" }, { label: project }, { label: stack }]} />
         <div className="mt-3 flex items-center gap-2 text-sm">
@@ -75,8 +84,22 @@ export default function StackDetail() {
         {active === "updates" && <Updates updates={updates} />}
         {active === "deployments" && <Deployments deps={deps} project={project} stack={stack} />}
         {active === "resources" && <Resources resources={resources} />}
-        {active === "settings" && <Settings meta={meta} />}
+        {active === "settings" && <Settings meta={meta} onDelete={() => setConfirmDelete(true)} />}
       </div>
+
+      {confirmDelete && (
+        <Modal title="Delete stack" onClose={() => setConfirmDelete(false)}
+          footer={<>
+            <SecondaryButton onClick={() => setConfirmDelete(false)}>Cancel</SecondaryButton>
+            <button onClick={() => navigate("/stacks")}
+              className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-500">Delete stack</button>
+          </>}>
+          <p className="text-sm text-ink-dim">
+            This permanently deletes <b className="text-ink">{project}/{stack}</b> and all its update history.
+            This cannot be undone.
+          </p>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -187,7 +210,7 @@ function Resources({ resources }: { resources: Resource[] }) {
   );
 }
 
-function Settings({ meta }: { meta: Stack | null }) {
+function Settings({ meta, onDelete }: { meta: Stack | null; onDelete: () => void }) {
   const tags = Object.entries(meta?.tags ?? {});
   return (
     <div className="max-w-2xl space-y-4">
@@ -203,7 +226,7 @@ function Settings({ meta }: { meta: Stack | null }) {
         )}
       </Card>
       <Card title="Danger zone">
-        <button className="rounded-md border border-red-500/40 px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/10">Delete stack</button>
+        <button onClick={onDelete} className="rounded-md border border-red-500/40 px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/10">Delete stack</button>
       </Card>
     </div>
   );

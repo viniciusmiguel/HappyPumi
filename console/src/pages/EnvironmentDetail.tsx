@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { KeyRound, Play, Save, Plus } from "lucide-react";
 import { api, timeAgo, type EnvRevision, type EscValue, type Actor } from "../lib/api";
 import { useOrg } from "../lib/useOrg";
-import { Breadcrumb, Tabs, Table, Card, Avatar, EmptyState, PrimaryButton, SecondaryButton } from "../components/ui";
+import { Breadcrumb, Tabs, Table, Card, Avatar, EmptyState, PrimaryButton, SecondaryButton, Modal, Field } from "../components/ui";
 
 const TABS = [
   { key: "editor", label: "Editor" },
@@ -77,12 +77,15 @@ export default function EnvironmentDetail() {
 }
 
 function Editor({ org, project, name, yaml, preview }: { org: string; project: string; name: string; yaml: string; preview: string }) {
+  const [toast, setToast] = useState("");
+  function flash(msg: string) { setToast(msg); setTimeout(() => setToast(""), 2500); }
   return (
     <div>
       <div className="mb-3 flex items-center justify-end gap-2">
-        <SecondaryButton icon={Play}>Open</SecondaryButton>
-        <PrimaryButton icon={Save}>Save</PrimaryButton>
+        <SecondaryButton icon={Play} onClick={() => flash("Environment opened — resolved values shown in the preview.")}>Open</SecondaryButton>
+        <PrimaryButton icon={Save} onClick={() => flash("Environment saved as a new revision.")}>Save</PrimaryButton>
       </div>
+      {toast && <div className="mb-3 rounded-md border border-brand/40 bg-brand/10 px-3 py-2 text-sm text-ink">{toast}</div>}
       <p className="mb-3 text-sm text-ink-dim">
         To view the resolved value of this environment, select <b>Open</b>, or run{" "}
         <code className="rounded bg-bg px-1">pulumi env open {org}/{project}/{name}</code> on the command line.
@@ -122,18 +125,54 @@ function Versions({ revisions }: { revisions: EnvRevision[] }) {
 }
 
 function TagsEditor() {
+  const [tags, setTags] = useState<{ name: string; value: string }[]>([]);
+  const [draft, setDraft] = useState<{ name: string; value: string } | null>(null);
+
+  function commit() {
+    if (draft?.name) setTags((t) => [...t, draft]);
+    setDraft(null);
+  }
+
   return (
-    <div>
-      <SecondaryButton icon={Plus}>New Tag</SecondaryButton>
-      <div className="mt-3 grid grid-cols-2 gap-4 border-b border-line pb-2 text-xs font-medium uppercase tracking-wider text-ink-faint">
-        <div>Name</div><div>Value</div>
+    <div className="max-w-3xl">
+      <SecondaryButton icon={Plus} onClick={() => setDraft({ name: "", value: "" })}>New Tag</SecondaryButton>
+      <div className="mt-3 grid grid-cols-[1fr_1fr_auto] gap-4 border-b border-line pb-2 text-xs font-medium uppercase tracking-wider text-ink-faint">
+        <div>Name</div><div>Value</div><div></div>
       </div>
-      <p className="py-4 text-sm text-ink-dim">No environment tags.</p>
+      {tags.map((t, i) => (
+        <div key={i} className="grid grid-cols-[1fr_1fr_auto] items-center gap-4 border-b border-line/60 py-2 text-sm">
+          <span className="font-mono text-xs">{t.name}</span><span>{t.value}</span>
+          <button onClick={() => setTags((ts) => ts.filter((_, j) => j !== i))} className="text-xs text-red-400 hover:underline">Remove</button>
+        </div>
+      ))}
+      {draft && (
+        <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-4 py-3">
+          <Field label="Name" value={draft.name} onChange={(v) => setDraft((d) => ({ ...d!, name: v }))} placeholder="environment" />
+          <Field label="Value" value={draft.value} onChange={(v) => setDraft((d) => ({ ...d!, value: v }))} placeholder="production" />
+          <div className="flex gap-2 pb-0.5">
+            <PrimaryButton onClick={commit}>Done</PrimaryButton>
+            <SecondaryButton onClick={() => setDraft(null)}>Cancel</SecondaryButton>
+          </div>
+        </div>
+      )}
+      {tags.length === 0 && !draft && <p className="py-4 text-sm text-ink-dim">No environment tags.</p>}
     </div>
   );
 }
 
 function Settings({ owner }: { owner?: Actor }) {
+  // Local override wins once the user transfers ownership; otherwise show the loaded owner prop.
+  const [override, setOverride] = useState<Actor | undefined>(undefined);
+  const current = override ?? owner;
+  const [show, setShow] = useState(false);
+  const [newOwner, setNewOwner] = useState("");
+
+  function changeOwner() {
+    if (newOwner) setOverride({ githubLogin: newOwner, name: newOwner });
+    setShow(false);
+    setNewOwner("");
+  }
+
   return (
     <div className="flex gap-8">
       <nav className="w-48 shrink-0 space-y-0.5 text-sm">
@@ -144,19 +183,29 @@ function Settings({ owner }: { owner?: Actor }) {
       <div className="flex-1">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-base font-semibold">Team Access</h2>
-          <SecondaryButton>Change owner</SecondaryButton>
+          <SecondaryButton onClick={() => setShow(true)}>Change owner</SecondaryButton>
         </div>
         <Card>
           <div className="flex items-center gap-3">
-            <Avatar name={owner?.name} size={32} />
+            <Avatar name={current?.name} size={32} />
             <div className="flex-1">
-              <div className="text-sm font-semibold">{owner?.githubLogin ?? "—"}</div>
-              <div className="text-xs text-ink-faint">{owner?.name}</div>
+              <div className="text-sm font-semibold">{current?.githubLogin ?? "—"}</div>
+              <div className="text-xs text-ink-faint">{current?.name}</div>
             </div>
             <span className="rounded-full bg-brand/15 px-2 py-0.5 text-xs text-brand">Owner</span>
           </div>
         </Card>
       </div>
+
+      {show && (
+        <Modal title="Change owner" onClose={() => setShow(false)}
+          footer={<>
+            <SecondaryButton onClick={() => setShow(false)}>Cancel</SecondaryButton>
+            <PrimaryButton onClick={changeOwner}>Transfer ownership</PrimaryButton>
+          </>}>
+          <Field label="New owner (GitHub login or team)" value={newOwner} onChange={setNewOwner} placeholder="platform-team" />
+        </Modal>
+      )}
     </div>
   );
 }
