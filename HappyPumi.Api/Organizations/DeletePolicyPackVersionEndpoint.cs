@@ -7,14 +7,16 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// DeletePolicyPackVersion
 /// </summary>
-public sealed class DeletePolicyPackVersionEndpoint : Endpoint<DeletePolicyPackVersionRequest>
+public sealed class DeletePolicyPackVersionEndpoint(IPolicyStore policy) : Endpoint<DeletePolicyPackVersionRequest>
 {
     public override void Configure()
     {
@@ -28,10 +30,14 @@ public sealed class DeletePolicyPackVersionEndpoint : Endpoint<DeletePolicyPackV
         );
     }
 
-    public override Task HandleAsync(DeletePolicyPackVersionRequest req, CancellationToken ct)
+    public async override Task HandleAsync(DeletePolicyPackVersionRequest req, CancellationToken ct)
     {
-        // TODO: implement DeletePolicyPackVersion
-        // HTTP: DELETE /api/orgs/{orgName}/policypacks/{policyPackName}/versions/{version}
-        throw new NotImplementedException("Endpoint DeletePolicyPackVersion not implemented.");
+        if (!long.TryParse(req.Version, out var v) || !policy.DeletePackVersion(req.OrgName, req.PolicyPackName, v))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

@@ -7,14 +7,16 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// NewPolicyGroup
 /// </summary>
-public sealed class NewPolicyGroupEndpoint : Endpoint<NewPolicyGroupRequest>
+public sealed class NewPolicyGroupEndpoint(IPolicyStore policy) : Endpoint<NewPolicyGroupRequest>
 {
     public override void Configure()
     {
@@ -28,10 +30,22 @@ public sealed class NewPolicyGroupEndpoint : Endpoint<NewPolicyGroupRequest>
         );
     }
 
-    public override Task HandleAsync(NewPolicyGroupRequest req, CancellationToken ct)
+    public async override Task HandleAsync(NewPolicyGroupRequest req, CancellationToken ct)
     {
-        // TODO: implement NewPolicyGroup
-        // HTTP: POST /api/orgs/{orgName}/policygroups
-        throw new NotImplementedException("Endpoint NewPolicyGroup not implemented.");
+        var name = req.Body is not null && req.Body.TryGetValue("name", out var n) ? n : null;
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            AddError("'name' is required.", "name");
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+
+        if (policy.NewGroup(req.OrgName, name) is null)
+        {
+            await Send.StringAsync("A policy group with that name already exists.", 409, cancellation: ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

@@ -29,8 +29,10 @@ public sealed class UpdatePolicyGroupRequest
     public string PolicyGroup { get; set; } = default!;
 
     /// <summary>
-    /// Request body.
+    /// Request body. The generator emitted a self-referential type; the real body is a single mutation
+    /// (rename / add-remove stack or policy pack). Bound loosely as a string map; we apply a rename when
+    /// <c>newName</c> is present and otherwise accept the (unmodeled) mutation.
     /// </summary>
     [FromBody]
-    public UpdatePolicyGroupRequest Body { get; set; } = default!;
+    public Dictionary<string, string> Body { get; set; } = default!;
 }

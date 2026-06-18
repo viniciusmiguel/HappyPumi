@@ -7,7 +7,9 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
@@ -28,11 +30,12 @@ public sealed class GetStackPolicyPacksEndpoint : Endpoint<GetStackPolicyPacksRe
         );
     }
 
-    public override Task HandleAsync(GetStackPolicyPacksRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetStackPolicyPacksRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStackPolicyPacks
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/policypacks
-        // Should produce: AppGetStackPolicyPacksResponse
-        throw new NotImplementedException("Endpoint GetStackPolicyPacks not implemented.");
+        // No policy packs are required on stacks yet (policy groups don't bind to stacks in this model).
+        await Send.OkAsync(new AppGetStackPolicyPacksResponse
+        {
+            RequiredPolicies = new List<AppRequiredPolicy>(),
+        }, ct);
     }
 }
