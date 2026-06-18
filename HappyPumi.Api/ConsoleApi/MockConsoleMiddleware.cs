@@ -26,7 +26,7 @@ public static class MockConsoleMiddleware
             // Known internal console endpoints: short-circuit with a canned mock.
             var mock = ProjectMock(path) ?? StackMetadataMock(path) ?? StackUpdatesMock(path)
                        ?? OrgDeploymentsMock(path) ?? DeploymentVersionMock(path) ?? DeploymentLogsMock(path)
-                       ?? DeploymentUpdatesMock(path) ?? Match(path);
+                       ?? DeploymentUpdatesMock(path) ?? ResourcesMock(path) ?? Match(path);
             if (mock is not null && HttpMethods.IsGet(ctx.Request.Method))
             {
                 await Write(ctx, mock);
@@ -251,6 +251,45 @@ public static class MockConsoleMiddleware
         var p = path.Split('/', StringSplitOptions.RemoveEmptyEntries);
         return p.Length == 8 && p[0] == "api" && p[1] == "stacks" && p[5] == "deployments" && p[7] == "updates"
             ? "[]" : null;
+    }
+
+    /// <summary>
+    /// GET /api/stacks/{org}/{project}/{stack}/resources/latest and .../resources/count — the stack Resources
+    /// tab. `latest` returns GetStackResourcesResponse {region, version, resources:[{resource:{…}}]} with a
+    /// realistic state (root Stack, provider, and custom resources); `count` returns {resourceCount, version}.
+    /// </summary>
+    private static string? ResourcesMock(string path)
+    {
+        var p = path.Split('/', StringSplitOptions.RemoveEmptyEntries); // api,stacks,org,project,stack,resources,(latest|count)
+        if (p.Length != 7 || p[0] != "api" || p[1] != "stacks" || p[5] != "resources")
+            return null;
+        var (project, stack) = (p[3], p[4]);
+        var now = DateTimeOffset.UtcNow.ToString("o");
+        string Urn(string type, string name) => $"urn:pulumi:{stack}::{project}::{type}::{name}";
+        var stackUrn = Urn("pulumi:pulumi:Stack", $"{project}-{stack}");
+        var provUrn = Urn("pulumi:providers:aws", "default_6_0_2");
+        object Res(string type, string name, bool custom, string? id, string parent, object? outputs) => new
+        {
+            urn = Urn(type, name), type, custom, id, parent,
+            provider = custom ? $"{provUrn}::uuid" : (string?)null,
+            created = now, modified = now, inputs = new { }, outputs = outputs ?? new { },
+            dependencies = Array.Empty<string>(), propertyDependencies = new { },
+        };
+        var resources = new[]
+        {
+            Res("pulumi:pulumi:Stack", $"{project}-{stack}", false, null, "", new { url = $"https://{stack}.webstore.dev" }),
+            Res("pulumi:providers:aws", "default_6_0_2", false, "uuid", stackUrn, null),
+            Res("aws:s3/bucketV2:BucketV2", "assets", true, "webstore-assets-7f3a1", stackUrn, new { arn = "arn:aws:s3:::webstore-assets-7f3a1", bucket = "webstore-assets-7f3a1" }),
+            Res("aws:dynamodb/table:Table", "orders", true, "webstore-orders", stackUrn, new { arn = "arn:aws:dynamodb:us-west-2:123:table/webstore-orders", name = "webstore-orders" }),
+            Res("aws:lambda/function:Function", "api", true, "webstore-api", stackUrn, new { arn = "arn:aws:lambda:us-west-2:123:function:webstore-api", runtime = "go1.x" }),
+            Res("aws:apigatewayv2/api:Api", "gateway", true, "abcd1234", stackUrn, new { apiEndpoint = "https://abcd1234.execute-api.us-west-2.amazonaws.com" }),
+        };
+        if (p[6] == "count")
+            return System.Text.Json.JsonSerializer.Serialize(new { resourceCount = resources.Length, version = 11 });
+        if (p[6] == "latest")
+            return System.Text.Json.JsonSerializer.Serialize(new
+            { region = "us-west-2", version = 11, resources = resources.Select(r => new { resource = r }) });
+        return null;
     }
 
     /// <summary>Best-effort empty shape: list-looking endpoints get a wrapped empty list, else an empty object.</summary>
