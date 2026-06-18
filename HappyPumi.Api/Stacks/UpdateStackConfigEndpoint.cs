@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// UpdateStackConfig
 /// </summary>
-public sealed class UpdateStackConfigEndpoint : Endpoint<UpdateStackConfigRequest, AppStackConfig>
+public sealed class UpdateStackConfigEndpoint(IStackStore stacks) : Endpoint<UpdateStackConfigRequest, AppStackConfig>
 {
     public override void Configure()
     {
@@ -28,11 +29,18 @@ public sealed class UpdateStackConfigEndpoint : Endpoint<UpdateStackConfigReques
         );
     }
 
-    public override Task HandleAsync(UpdateStackConfigRequest req, CancellationToken ct)
+    public async override Task HandleAsync(UpdateStackConfigRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateStackConfig
-        // HTTP: PUT /api/stacks/{orgName}/{projectName}/{stackName}/config
-        // Should produce: AppStackConfig
-        throw new NotImplementedException("Endpoint UpdateStackConfig not implemented.");
+        // Config can only be set on a stack that exists; 404 otherwise so the CLI does not silently
+        // persist config for a missing stack.
+        var updated = stacks.SetConfig(
+            new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), req.Body);
+        if (updated?.Config is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(updated.Config, ct);
     }
 }

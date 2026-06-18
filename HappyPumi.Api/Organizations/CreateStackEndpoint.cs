@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// CreateStack
 /// </summary>
-public sealed class CreateStackEndpoint : Endpoint<CreateStackRequest, AppCreateStackResponse>
+public sealed class CreateStackEndpoint(IStackStore stacks) : Endpoint<CreateStackRequest, AppCreateStackResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,30 @@ public sealed class CreateStackEndpoint : Endpoint<CreateStackRequest, AppCreate
         );
     }
 
-    public override Task HandleAsync(CreateStackRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CreateStackRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateStack
-        // HTTP: POST /api/stacks/{orgName}/{projectName}
-        // Should produce: AppCreateStackResponse
-        throw new NotImplementedException("Endpoint CreateStack not implemented.");
+        var body = req.Body;
+        if (body is null || string.IsNullOrWhiteSpace(body.StackName))
+        {
+            AddError("'stackName' is required and must be a non-empty string.", "stackName");
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+
+        // Projects are created implicitly with their first stack. TryCreate fails when a stack of the
+        // same name already exists, which the CLI surfaces as "stack already exists" — answer 409.
+        var stack = new StoredStack
+        {
+            Coordinates = new StackCoordinates(req.OrgName, req.ProjectName, body.StackName),
+            Config = body.Config,
+            Tags = body.Tags is null ? new() : new(body.Tags),
+        };
+        if (!stacks.TryCreate(stack))
+        {
+            await Send.ResponseAsync(new AppCreateStackResponse(), 409, ct);
+            return;
+        }
+
+        await Send.OkAsync(new AppCreateStackResponse { Messages = new List<AppMessage>() }, ct);
     }
 }

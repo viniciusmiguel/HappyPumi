@@ -28,11 +28,11 @@ public sealed class GetLatestStackUpdateEndpoint : Endpoint<GetLatestStackUpdate
         );
     }
 
-    public override Task HandleAsync(GetLatestStackUpdateRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetLatestStackUpdateRequest req, CancellationToken ct)
     {
-        // TODO: implement GetLatestStackUpdate
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/updates/latest
-        // Should produce: UpdateInfo
-        throw new NotImplementedException("Endpoint GetLatestStackUpdate not implemented.");
+        // 404 = "the stack has never been updated", which the CLI reads as a fresh stack. No update
+        // history is persisted until the update lifecycle lands (ENDPOINTS.md 1c), so every stack is
+        // currently update-less; this starts returning the real latest update once that store exists.
+        await Send.NotFoundAsync(ct);
     }
 }

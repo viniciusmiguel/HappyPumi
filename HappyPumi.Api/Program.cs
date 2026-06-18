@@ -1,11 +1,16 @@
 using FastEndpoints;
 using FastEndpoints.Swagger;
+using HappyPumi.Api.State;
 
 var bld = WebApplication.CreateBuilder(args);
 bld.AddServiceDefaults(); // OpenTelemetry + health + service discovery + resilience (ADR-0006)
 bld.Services
     .AddFastEndpoints()
     .SwaggerDocument();
+
+// Stack state persistence (ADR-0005). In-memory default; swap for a PostgreSQL-backed IStackStore
+// without touching endpoints. Singleton so state is shared across requests for the process lifetime.
+bld.Services.AddSingleton<IStackStore, InMemoryStackStore>();
 
 var app = bld.Build();
 app.MapDefaultEndpoints(); // /health and /alive

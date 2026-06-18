@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// ProjectExists
 /// </summary>
-public sealed class ProjectExistsEndpoint : Endpoint<ProjectExistsRequest, string>
+public sealed class ProjectExistsEndpoint(IStackStore stacks) : Endpoint<ProjectExistsRequest, string>
 {
     public override void Configure()
     {
@@ -28,11 +29,17 @@ public sealed class ProjectExistsEndpoint : Endpoint<ProjectExistsRequest, strin
         );
     }
 
-    public override Task HandleAsync(ProjectExistsRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ProjectExistsRequest req, CancellationToken ct)
     {
-        // TODO: implement ProjectExists
-        // HTTP: HEAD /api/stacks/{orgName}/{projectName}
-        // Should produce: string
-        throw new NotImplementedException("Endpoint ProjectExists not implemented.");
+        // The CLI does a HEAD here and treats 404 as "project absent", anything else as present.
+        // A project exists once it holds at least one stack (projects are created implicitly with
+        // their first stack — see CreateStack).
+        if (!stacks.ProjectExists(req.OrgName, req.ProjectName))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(req.ProjectName, ct);
     }
 }

@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// DeleteStack
 /// </summary>
-public sealed class DeleteStackEndpoint : Endpoint<DeleteStackRequest>
+public sealed class DeleteStackEndpoint(IStackStore stacks) : Endpoint<DeleteStackRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,17 @@ public sealed class DeleteStackEndpoint : Endpoint<DeleteStackRequest>
         );
     }
 
-    public override Task HandleAsync(DeleteStackRequest req, CancellationToken ct)
+    public async override Task HandleAsync(DeleteStackRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteStack
-        // HTTP: DELETE /api/stacks/{orgName}/{projectName}/{stackName}
-        throw new NotImplementedException("Endpoint DeleteStack not implemented.");
+        // The `force` flag guards deletion of a stack that still manages resources. Resource counts
+        // arrive with the checkpoint endpoints (ENDPOINTS.md 1b/1c); until then every stack is empty,
+        // so deletion always succeeds. 404 when there is nothing to delete.
+        if (!stacks.Delete(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName)))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }
