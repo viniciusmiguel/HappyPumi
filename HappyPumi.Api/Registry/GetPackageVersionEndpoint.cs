@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Registry;
 
 /// <summary>
 /// GetPackageVersion
 /// </summary>
-public sealed class GetPackageVersionEndpoint : Endpoint<GetPackageVersionRequest, PackageMetadata>
+public sealed class GetPackageVersionEndpoint(IPackageRegistry registry) : Endpoint<GetPackageVersionRequest, PackageMetadata>
 {
     public override void Configure()
     {
@@ -28,11 +29,15 @@ public sealed class GetPackageVersionEndpoint : Endpoint<GetPackageVersionReques
         );
     }
 
-    public override Task HandleAsync(GetPackageVersionRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetPackageVersionRequest req, CancellationToken ct)
     {
-        // TODO: implement GetPackageVersion
-        // HTTP: GET /api/registry/packages/{source}/{publisher}/{name}/versions/{version}
-        // Should produce: PackageMetadata
-        throw new NotImplementedException("Endpoint GetPackageVersion not implemented.");
+        var pkg = registry.Get(new PackageCoordinates(req.Source, req.Publisher, req.Name), req.Version);
+        if (pkg is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(RegistryMapper.ToMetadata(pkg), ct);
     }
 }

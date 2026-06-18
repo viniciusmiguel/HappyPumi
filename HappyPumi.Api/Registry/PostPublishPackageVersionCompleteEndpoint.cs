@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Registry;
 
 /// <summary>
 /// PostPublishPackageVersionComplete
 /// </summary>
-public sealed class PostPublishPackageVersionCompleteEndpoint : Endpoint<PostPublishPackageVersionCompleteRequest, PublishPackageVersionCompleteResponse>
+public sealed class PostPublishPackageVersionCompleteEndpoint(IPackageRegistry registry) : Endpoint<PostPublishPackageVersionCompleteRequest, PublishPackageVersionCompleteResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,15 @@ public sealed class PostPublishPackageVersionCompleteEndpoint : Endpoint<PostPub
         );
     }
 
-    public override Task HandleAsync(PostPublishPackageVersionCompleteRequest req, CancellationToken ct)
+    public async override Task HandleAsync(PostPublishPackageVersionCompleteRequest req, CancellationToken ct)
     {
-        // TODO: implement PostPublishPackageVersionComplete
-        // HTTP: POST /api/registry/packages/{source}/{publisher}/{name}/versions/{version}/complete
-        // Should produce: PublishPackageVersionCompleteResponse
-        throw new NotImplementedException("Endpoint PostPublishPackageVersionComplete not implemented.");
+        // Phase two: finalize the started publish. 404 when there is no matching pending version.
+        if (!registry.CompletePublish(new PackageCoordinates(req.Source, req.Publisher, req.Name), req.Version))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(new PublishPackageVersionCompleteResponse(), ct);
     }
 }

@@ -31,6 +31,9 @@ bld.Services.AddScoped<UpdateLifecycle>();
 // stay anonymous for now — JWT/RBAC enforcement is a follow-up (the model lands first).
 bld.Services.AddSingleton<IIdentityStore, InMemoryIdentityStore>();
 
+// Package/template registry (ENDPOINTS.md 4). In-memory default (ADR-0005).
+bld.Services.AddSingleton<IPackageRegistry, InMemoryPackageRegistry>();
+
 var app = bld.Build();
 app.MapDefaultEndpoints(); // /health and /alive
 
