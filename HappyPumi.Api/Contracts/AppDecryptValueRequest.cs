@@ -14,8 +14,9 @@ namespace HappyPumi.Api.Contracts;
 public class AppDecryptValueRequest
 {
     /// <summary>
-    /// The value to decrypt.
+    /// The value to decrypt. Go <c>[]byte</c> on the wire (a single base64 string); the generator
+    /// mis-maps it to <c>List&lt;byte[]&gt;</c>. See AppEncryptValueResponse.
     /// </summary>
     [JsonPropertyName("ciphertext")]
-    public List<byte[]> Ciphertext { get; set; } = default!;
+    public byte[] Ciphertext { get; set; } = default!;
 }

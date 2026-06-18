@@ -6,15 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.Secrets;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// BatchEncryptValue
 /// </summary>
-public sealed class BatchEncryptValueEndpoint : Endpoint<BatchEncryptValueRequest, AppBatchEncryptResponse>
+public sealed class BatchEncryptValueEndpoint(IValueCrypter crypter) : Endpoint<BatchEncryptValueRequest, AppBatchEncryptResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,13 @@ public sealed class BatchEncryptValueEndpoint : Endpoint<BatchEncryptValueReques
         );
     }
 
-    public override Task HandleAsync(BatchEncryptValueRequest req, CancellationToken ct)
+    public async override Task HandleAsync(BatchEncryptValueRequest req, CancellationToken ct)
     {
-        // TODO: implement BatchEncryptValue
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/batch-encrypt
-        // Should produce: AppBatchEncryptResponse
-        throw new NotImplementedException("Endpoint BatchEncryptValue not implemented.");
+        // Ciphertexts are returned in the same order as the request's plaintexts (the CLI zips them
+        // back up by index).
+        await Send.OkAsync(new AppBatchEncryptResponse
+        {
+            Ciphertexts = req.Body.Plaintexts.Select(crypter.Encrypt).ToList()
+        }, ct);
     }
 }

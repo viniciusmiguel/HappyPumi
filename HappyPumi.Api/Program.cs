@@ -1,5 +1,6 @@
 using FastEndpoints;
 using FastEndpoints.Swagger;
+using HappyPumi.Api.Secrets;
 using HappyPumi.Api.State;
 
 var bld = WebApplication.CreateBuilder(args);
@@ -11,6 +12,10 @@ bld.Services
 // Stack state persistence (ADR-0005). In-memory default; swap for a PostgreSQL-backed IStackStore
 // without touching endpoints. Singleton so state is shared across requests for the process lifetime.
 bld.Services.AddSingleton<IStackStore, InMemoryStackStore>();
+
+// Service-managed secrets crypter for the /encrypt and /decrypt endpoints. Singleton so its
+// process-static key is stable across requests (ADR-0007 secrets follow-up: persist a per-stack key).
+bld.Services.AddSingleton<IValueCrypter, AesValueCrypter>();
 
 var app = bld.Build();
 app.MapDefaultEndpoints(); // /health and /alive

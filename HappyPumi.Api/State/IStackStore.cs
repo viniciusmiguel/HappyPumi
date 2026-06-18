@@ -28,4 +28,11 @@ public interface IStackStore
 
     /// <summary>Clears the stack's service-managed config. Returns false when the stack does not exist.</summary>
     bool ClearConfig(StackCoordinates coordinates);
+
+    /// <summary>
+    /// Replaces the stack's state checkpoint and bumps its version when <paramref name="bumpVersion"/>
+    /// is set (a completed update bumps; a raw state import does not). Returns the updated stack, or
+    /// null when it does not exist.
+    /// </summary>
+    StoredStack? SetDeployment(StackCoordinates coordinates, AppUntypedDeployment deployment, bool bumpVersion);
 }

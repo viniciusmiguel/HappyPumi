@@ -21,4 +21,10 @@ public sealed class StoredStack
 
     /// <summary>Service-managed config (secrets provider / ESC env), or null when none is set.</summary>
     public AppStackConfig? Config { get; set; }
+
+    /// <summary>
+    /// The current state checkpoint (the exported deployment), or null when the stack has never been
+    /// deployed. Set by a completed update or a state import; read by ExportStack.
+    /// </summary>
+    public AppUntypedDeployment? Deployment { get; set; }
 }

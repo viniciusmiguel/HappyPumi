@@ -46,4 +46,14 @@ public sealed class InMemoryStackStore : IStackStore
         stack.Config = null;
         return true;
     }
+
+    public StoredStack? SetDeployment(StackCoordinates coordinates, AppUntypedDeployment deployment, bool bumpVersion)
+    {
+        if (!_stacks.TryGetValue(coordinates, out var stack))
+            return null;
+        stack.Deployment = deployment;
+        if (bumpVersion)
+            stack.Version++;
+        return stack;
+    }
 }
