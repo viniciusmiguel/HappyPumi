@@ -149,6 +149,8 @@ public static class MockConsoleMiddleware
         ("/tags", "[]"),  // org tags collection the stacks page .map()s
         ("/invites", "[]"),                                   // access-management invites list
         ("/repos", """{"repositories":[],"continuationToken":null}"""),          // getOrganizationRepositories
+        ("/registry/publishers", "[]"),                                        // idp/registry publishers list
+        ("/registry/terraform-modules", """{"terraformModules":[],"continuationToken":null}"""),
         ("/auditlogs/v2", """{"auditLogEvents":[],"continuationToken":null}"""),
         ("/auditlogs/reader-kind", """{"readerKind":"standard"}"""),
         ("/auditlogs/export/config", """{"enabled":false}"""),
