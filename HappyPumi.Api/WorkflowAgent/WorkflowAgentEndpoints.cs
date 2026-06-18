@@ -144,8 +144,13 @@ public sealed class GetWorkflowJobEndpoint(IDeploymentQueue queue) : Endpoint<Jo
             Shell = "bash",
             Steps =
             {
-                // Smoke step proving the executor runs pulumi and reports back. A real deployment would
-                // clone the stack's source and run `pulumi <op> --yes` here (deployment settings phase).
+                // DIAGNOSTIC step: learn the executor's pulumi version, the PULUMI_* env the runner injects
+                // (backend url / access token), and whether it can reach HappyPumi — needed to wire a real
+                // `pulumi up`. Output flows back via the /logs endpoint.
+                // A real deployment runs `pulumi <op> --yes` here against HappyPumi as the backend (the
+                // step's pulumi CLI uses the Tier-1 update lifecycle, already implemented). The executor
+                // runs each step in a nested container it launches via the Docker socket, so wiring an
+                // actual `pulumi up` is a runtime-topology concern (see research/ notes), not an API gap.
                 new StepDefinition { Name = "pulumi " + row.Operation, Run = "pulumi version" },
             },
         }, ct);
@@ -213,8 +218,19 @@ public sealed class AppendStepLogsEndpoint(IDeploymentQueue queue) : EndpointWit
         var step = Route<int?>("stepIndex") ?? 0;
         using var reader = new StreamReader(HttpContext.Request.Body);
         var raw = await reader.ReadToEndAsync(ct);
+        // Body is apitype.AppendStepLogsRequest { offset, lines:[{ t, l }] }; store each line ("l").
         if (!string.IsNullOrWhiteSpace(raw))
-            queue.AppendLog(jobId, step, raw.Trim());
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(raw);
+                if (doc.RootElement.TryGetProperty("lines", out var lines) && lines.ValueKind == JsonValueKind.Array)
+                    foreach (var l in lines.EnumerateArray())
+                        if (l.TryGetProperty("l", out var line))
+                            queue.AppendLog(jobId, step, line.GetString() ?? "");
+            }
+            catch (JsonException) { queue.AppendLog(jobId, step, raw.Trim()); }
+        }
         await Send.OkAsync(new { }, ct);
     }
 }
