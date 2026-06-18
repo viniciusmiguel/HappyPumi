@@ -27,6 +27,7 @@ public sealed class UpdateLifecycle(IUpdateStore updates, IStackStore stacks)
         var update = updates.Create(stack, kind, dryRun: kind == PreviewKind);
         update.Config = program?.Config;
         update.Message = program?.Metadata?.Message ?? string.Empty;
+        updates.Save(update);
         return update;
     }
 
@@ -44,6 +45,7 @@ public sealed class UpdateLifecycle(IUpdateStore updates, IStackStore stacks)
         update.Token = $"lease-{Guid.NewGuid():N}";
         update.Version = stack.Version + 1;
         update.StartedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        updates.Save(update);
         return update;
     }
 
@@ -54,6 +56,7 @@ public sealed class UpdateLifecycle(IUpdateStore updates, IStackStore stacks)
         if (update is null)
             return null;
         update.Checkpoint = deployment;
+        updates.Save(update);
         return update;
     }
 
@@ -67,6 +70,7 @@ public sealed class UpdateLifecycle(IUpdateStore updates, IStackStore stacks)
         if (update is null)
             return null;
         update.Status = status;
+        updates.Save(update);
         if (status == UpdateStatuses.Succeeded && !update.DryRun && update.Checkpoint is not null)
             stacks.SetDeployment(update.Coordinates, update.Checkpoint, bumpVersion: true);
 
@@ -101,6 +105,7 @@ public sealed class UpdateLifecycle(IUpdateStore updates, IStackStore stacks)
         if (update is null)
             return null;
         update.Status = UpdateStatuses.Failed;
+        updates.Save(update);
         return update;
     }
 

@@ -30,6 +30,19 @@ Use **PostgreSQL** as the primary database.
 Choice of .NET data-access layer (e.g. EF Core with Npgsql vs. a lighter mapper) is **deferred to a later
 ADR**; this decision fixes only the database engine.
 
+### Data-access decision (resolved)
+
+The data-access layer is **EF Core + Npgsql**, code-first with `dotnet ef` migrations. The schema is a
+**relational + jsonb hybrid** derived from the wire contracts: a table per persisted aggregate
+(`Stacks`, `StackUpdates` history, `Updates`, `Members`, `Roles`, `TeamRoles`, `Packages`, `Templates`,
+`PolicyGroups`, `PolicyPackVersions`, `DeploymentSettings`, `Deployments`, `Schedules`, `Webhooks`) with
+scalar columns for the fields endpoints query/sort on and `jsonb` columns (via a System.Text.Json value
+converter — `Data/Jsonb.cs`) for nested contract payloads (configs, checkpoints, permission descriptors,
+deployment settings, webhooks, schedules). The persistence seam is the `I*Store` interfaces in
+`HappyPumi.Api/State`; the `Postgres*` implementations in `HappyPumi.Api/Data/Stores` replace the original
+in-memory ones (which remain as fast unit-test doubles). The migration is applied at startup
+(`Database.Migrate()`). Tests run against a throwaway Postgres via **Testcontainers** ([ADR-0003](0003-xunit-testing.md)).
+
 ## Consequences
 
 - **Positive:** One engine covers relational + document + append workloads, avoiding premature polyglot

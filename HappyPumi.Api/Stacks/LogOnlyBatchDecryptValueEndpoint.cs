@@ -28,10 +28,10 @@ public sealed class LogOnlyBatchDecryptValueEndpoint : Endpoint<LogOnlyBatchDecr
         );
     }
 
-    public override Task HandleAsync(LogOnlyBatchDecryptValueRequest req, CancellationToken ct)
+    public async override Task HandleAsync(LogOnlyBatchDecryptValueRequest req, CancellationToken ct)
     {
-        // TODO: implement LogOnlyBatchDecryptValue
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/decrypt/log-batch-decryption
-        throw new NotImplementedException("Endpoint LogOnlyBatchDecryptValue not implemented.");
+        // Best-effort batch "secrets were decrypted" audit signal from the CLI; acknowledged (see
+        // LogOnlyDecryptValue). Persisting these belongs with the audit store (ADR-0010).
+        await Send.NoContentAsync(ct);
     }
 }

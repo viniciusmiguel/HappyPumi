@@ -1,8 +1,11 @@
 using FastEndpoints;
 using FastEndpoints.Swagger;
 using HappyPumi.Api.Auth;
+using HappyPumi.Api.Data;
+using HappyPumi.Api.Data.Stores;
 using HappyPumi.Api.Secrets;
 using HappyPumi.Api.State;
+using Microsoft.EntityFrameworkCore;
 
 var bld = WebApplication.CreateBuilder(args);
 bld.AddServiceDefaults(); // OpenTelemetry + health + service discovery + resilience (ADR-0006)
@@ -15,32 +18,27 @@ bld.Services
 // this the handlers would receive raw gzip bytes instead of JSON.
 bld.Services.AddRequestDecompression();
 
-// Stack state persistence (ADR-0005). In-memory default; swap for a PostgreSQL-backed IStackStore
-// without touching endpoints. Singleton so state is shared across requests for the process lifetime.
-bld.Services.AddSingleton<IStackStore, InMemoryStackStore>();
+// PostgreSQL persistence (ADR-0005). Aspire injects ConnectionStrings__happypumidb (WithReference);
+// the connection is required — all state now lives in Postgres.
+var connectionString = bld.Configuration.GetConnectionString("happypumidb")
+    ?? throw new InvalidOperationException(
+        "Connection string 'happypumidb' is not configured. Run via `make dev` (Aspire) or set " +
+        "ConnectionStrings__happypumidb. HappyPumi persists all state to PostgreSQL (ADR-0005).");
+bld.Services.AddDbContext<HappyPumiDbContext>(o => o.UseNpgsql(connectionString));
+
+// Persistence seams (ADR-0005), now PostgreSQL-backed. Scoped to share the request's DbContext.
+bld.Services.AddScoped<IStackStore, PostgresStackStore>();
+bld.Services.AddScoped<IUpdateStore, PostgresUpdateStore>();
+bld.Services.AddScoped<IIdentityStore, PostgresIdentityStore>();
+bld.Services.AddScoped<IPackageRegistry, PostgresPackageRegistry>();
+bld.Services.AddScoped<ITemplateRegistry, PostgresTemplateRegistry>();
+bld.Services.AddScoped<IPolicyStore, PostgresPolicyStore>();
+bld.Services.AddScoped<IDeploymentStore, PostgresDeploymentStore>();
+bld.Services.AddScoped<UpdateLifecycle>();
 
 // Service-managed secrets crypter for the /encrypt and /decrypt endpoints. Singleton so its
 // process-static key is stable across requests (ADR-0007 secrets follow-up: persist a per-stack key).
 bld.Services.AddSingleton<IValueCrypter, AesValueCrypter>();
-
-// Update lifecycle (the up/preview/refresh/destroy state engine). The store is a singleton (shared
-// state); the lifecycle coordinator is stateless and reconciles updates with the stack store.
-bld.Services.AddSingleton<IUpdateStore, InMemoryUpdateStore>();
-bld.Services.AddScoped<UpdateLifecycle>();
-
-// Per-org IDP model: members, roles, team-role assignments (ADR-0007). In-memory default; endpoints
-// stay anonymous for now — JWT/RBAC enforcement is a follow-up (the model lands first).
-bld.Services.AddSingleton<IIdentityStore, InMemoryIdentityStore>();
-
-// Package/template registry (ENDPOINTS.md 4). In-memory default (ADR-0005).
-bld.Services.AddSingleton<IPackageRegistry, InMemoryPackageRegistry>();
-bld.Services.AddSingleton<ITemplateRegistry, InMemoryTemplateRegistry>();
-
-// CrossGuard policy: groups + versioned policy packs (ENDPOINTS.md 5). In-memory default (ADR-0005).
-bld.Services.AddSingleton<IPolicyStore, InMemoryPolicyStore>();
-
-// Managed deployments: settings, deployments, schedules, webhooks (ENDPOINTS.md 6). In-memory (ADR-0005).
-bld.Services.AddSingleton<IDeploymentStore, InMemoryDeploymentStore>();
 
 // Authentication + RBAC (ADR-0007). The CLI authenticates with its `token` scheme (PulumiTokenAuthHandler).
 // Endpoints opt in to enforcement by dropping AllowAnonymous() and (for org management) requiring the admin
@@ -54,6 +52,11 @@ bld.Services.AddAuthorizationBuilder()
     .AddPolicy(AuthPolicies.OrgAdmin, p => p.RequireRole("admin"));
 
 var app = bld.Build();
+
+// Apply the schema migration on startup so a fresh Postgres is ready to serve (dev + tests).
+using (var scope = app.Services.CreateScope())
+    scope.ServiceProvider.GetRequiredService<HappyPumiDbContext>().Database.Migrate();
+
 app.MapDefaultEndpoints(); // /health and /alive
 
 // The pulumi CLI sends `Content-Type: application/json` on bodyless GET/HEAD/DELETE requests. For an

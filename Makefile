@@ -3,7 +3,7 @@
 #   make build             build the whole solution
 #   make dev               run the full Aspire topology + dashboard locally
 #   make test              run everything (unit + CLI integration)
-#   make test-unit         fast in-process component tests (no CLI, no infra)
+#   make test-unit         in-process component tests (needs Docker: Postgres via Testcontainers)
 #   make test-integration  drive the REAL pulumi CLI against a live HappyPumi (HTTPS, self-signed)
 #   make pulumi            build the Apache-2.0 pulumi CLI + Go language host from ../pulumi
 #   make certs             create + trust the self-signed HTTPS dev certificate

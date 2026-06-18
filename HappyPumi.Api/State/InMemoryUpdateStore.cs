@@ -25,4 +25,7 @@ public sealed class InMemoryUpdateStore : IUpdateStore
 
     public StoredUpdate? Find(string updateId)
         => _updates.TryGetValue(updateId, out var update) ? update : null;
+
+    // The stored record is the live object, so mutations are already visible; nothing to persist.
+    public void Save(StoredUpdate update) { }
 }
