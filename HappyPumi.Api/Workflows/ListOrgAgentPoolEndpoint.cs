@@ -6,15 +6,18 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Workflows;
 
 /// <summary>
-/// ListOrgAgentPool
+/// ListOrgAgentPool — the org's agent pools (without their secret tokens; tokens are returned only at creation).
 /// </summary>
-public sealed class ListOrgAgentPoolEndpoint : Endpoint<ListOrgAgentPoolRequest, ListAgentPoolsResponse>
+public sealed class ListOrgAgentPoolEndpoint(IAgentPoolStore pools)
+    : Endpoint<ListOrgAgentPoolRequest, ListAgentPoolsResponse>
 {
     public override void Configure()
     {
@@ -28,11 +31,14 @@ public sealed class ListOrgAgentPoolEndpoint : Endpoint<ListOrgAgentPoolRequest,
         );
     }
 
-    public override Task HandleAsync(ListOrgAgentPoolRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ListOrgAgentPoolRequest req, CancellationToken ct)
     {
-        // TODO: implement ListOrgAgentPool
-        // HTTP: GET /api/orgs/{orgName}/agent-pools
-        // Should produce: ListAgentPoolsResponse
-        throw new NotImplementedException("Endpoint ListOrgAgentPool not implemented.");
+        var pools_ = pools.ListPools(req.OrgName).Select(p => new AgentPool
+        {
+            Id = p.Id,
+            Description = p.Description,
+            Created = new System.DateTimeOffset(p.Created, System.TimeSpan.Zero).ToUnixTimeSeconds(),
+        }).ToList();
+        await Send.OkAsync(new ListAgentPoolsResponse { AgentPools = pools_ }, ct);
     }
 }

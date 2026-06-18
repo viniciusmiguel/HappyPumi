@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using HappyPumi.Api.Contracts;
@@ -7,17 +8,46 @@ namespace HappyPumi.Api.Tests.Deployments;
 
 /// <summary>
 /// Component tests for the customer-managed workflow agent surface (reverse-engineered black-box from the
-/// prebuilt agent; see workspace research/, ADR-0008): the deployment poll/claim + job-definition + status
-/// callbacks, plus the background-activities bootstrap. These are the endpoints that let the real prebuilt
+/// prebuilt agent; see workspace research/, ADR-0008): agent-pool token mint + validation, the deployment
+/// poll/claim, job-definition, and status callbacks. These are the endpoints that let the real prebuilt
 /// agent run a deployment end-to-end against HappyPumi.
 /// </summary>
 [Collection(HappyPumiCollection.Name)]
 public sealed class WorkflowAgentTests(HappyPumiApp app)
 {
+    /// <summary>Creates an agent pool and returns a client that presents its token (as the agent does).</summary>
+    private async Task<HttpClient> PoolClientAsync()
+    {
+        using var admin = app.CreateClient();
+        using var created = await admin.PostAsJsonAsync("/api/orgs/happypumi/agent-pools",
+            new CreateOrgAgentPoolRequest { Name = "test", Description = "test pool" });
+        created.EnsureSuccessStatusCode();
+        var token = (await created.Content.ReadFromJsonAsync<CreateAccessTokenResponse>())!.TokenValue;
+        Assert.False(string.IsNullOrEmpty(token));
+
+        var client = app.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("token", token);
+        return client;
+    }
+
+    [Fact]
+    public async Task PoolScopedEndpointsRejectMissingOrInvalidToken()
+    {
+        using var anon = app.CreateClient();
+        // No token → 401 on a pool-scoped endpoint.
+        using var noTok = await anon.GetAsync("/api/background-activities/token");
+        Assert.Equal(HttpStatusCode.Unauthorized, noTok.StatusCode);
+
+        using var bad = app.CreateClient();
+        bad.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("token", "not-a-real-pool-token");
+        using var badPoll = await bad.GetAsync("/api/deployments/poll");
+        Assert.Equal(HttpStatusCode.Unauthorized, badPoll.StatusCode);
+    }
+
     [Fact]
     public async Task ConfigurationReturnsJsonArray()
     {
-        using var client = app.CreateClient();
+        using var client = await PoolClientAsync();
         // The agent unmarshals this into []BackgroundActivityConfiguration; an object would fail to parse.
         var configs = await client.GetFromJsonAsyncViaPost("/api/background-activities/configuration");
         Assert.NotNull(configs);
@@ -28,7 +58,7 @@ public sealed class WorkflowAgentTests(HappyPumiApp app)
     [Fact]
     public async Task TokenAndExecutorAndLeaseRespond()
     {
-        using var client = app.CreateClient();
+        using var client = await PoolClientAsync();
 
         using var token = await client.GetAsync("/api/background-activities/token");
         Assert.Equal(HttpStatusCode.OK, token.StatusCode);
@@ -44,16 +74,16 @@ public sealed class WorkflowAgentTests(HappyPumiApp app)
     [Fact]
     public async Task DeploymentDispatchLifecycle()
     {
-        using var client = app.CreateClient();
+        using var client = await PoolClientAsync();
         var stack = $"wf-{Guid.NewGuid():N}";
         var baseUrl = $"/api/stacks/happypumi/webapp/{stack}";
 
-        // 1) enqueue a deployment
+        // 1) enqueue a deployment (user action; not pool-scoped)
         using var created = await client.PostAsJsonAsync($"{baseUrl}/deployments",
             new CreateDeploymentRequest { Operation = "update" });
         Assert.Equal(HttpStatusCode.OK, created.StatusCode);
 
-        // 2) the agent poller claims the next queued deployment
+        // 2) the agent poller claims the next queued deployment (pool-scoped → needs the pool token)
         var def = await ClaimADeployment(client);
         Assert.False(string.IsNullOrEmpty(def.JobId));
         Assert.False(string.IsNullOrEmpty(def.TypeSpecificId));
@@ -81,7 +111,7 @@ public sealed class WorkflowAgentTests(HappyPumiApp app)
     [Fact]
     public async Task PollDrainsToNoContent()
     {
-        using var client = app.CreateClient();
+        using var client = await PoolClientAsync();
         // Drain whatever is queued, then assert the empty queue returns 204.
         for (var i = 0; i < 50; i++)
         {

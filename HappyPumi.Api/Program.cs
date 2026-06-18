@@ -35,6 +35,7 @@ bld.Services.AddScoped<ITemplateRegistry, PostgresTemplateRegistry>();
 bld.Services.AddScoped<IPolicyStore, PostgresPolicyStore>();
 bld.Services.AddScoped<IDeploymentStore, PostgresDeploymentStore>();
 bld.Services.AddScoped<IDeploymentQueue, PostgresDeploymentQueue>(); // runner work queue (agent poll/dispatch)
+bld.Services.AddScoped<IAgentPoolStore, PostgresAgentPoolStore>();   // workflow-runner pools + token validation
 bld.Services.AddScoped<UpdateLifecycle>();
 
 // Service-managed secrets crypter for the /encrypt and /decrypt endpoints. Singleton so its
@@ -90,6 +91,7 @@ if (app.Configuration.GetValue<bool>("LogRequests"))
     });
 
 app.UseRequestDecompression(); // decode gzipped request bodies before model binding
+app.UseAgentPoolTokenAuth();   // reject agent pool-scoped calls that lack a valid pool token (ADR-0007)
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseFastEndpoints()

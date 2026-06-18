@@ -29,8 +29,20 @@ public static class DatabaseSeeder
         SeedRegistry(db);
         SeedPolicy(db);
         SeedDeployments(db);
+        SeedAgentPool(db);
         db.SaveChanges();
     }
+
+    /// <summary>
+    /// A workflow-runner pool with a fixed, well-known token so the docker-compose demo's agent (configured
+    /// with this token) authenticates out of the box. Real pools mint a random token on creation.
+    /// </summary>
+    private static void SeedAgentPool(HappyPumiDbContext db)
+        => db.AgentPools.Add(new AgentPoolRow
+        {
+            Id = Guid.NewGuid().ToString(), Org = Org, Name = "demo", Description = "compose demo pool",
+            Token = "happypumi-demo-pool", Created = DateTime.UtcNow,
+        });
 
     private static void SeedIdentity(HappyPumiDbContext db)
     {

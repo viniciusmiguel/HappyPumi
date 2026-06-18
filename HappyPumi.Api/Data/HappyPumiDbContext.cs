@@ -25,6 +25,7 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
     public DbSet<DeploymentSettingsRow> DeploymentSettings => Set<DeploymentSettingsRow>();
     public DbSet<DeploymentRow> Deployments => Set<DeploymentRow>();
     public DbSet<DeploymentLogRow> DeploymentLogs => Set<DeploymentLogRow>();
+    public DbSet<AgentPoolRow> AgentPools => Set<AgentPoolRow>();
     public DbSet<ScheduleRow> Schedules => Set<ScheduleRow>();
     public DbSet<WebhookRow> Webhooks => Set<WebhookRow>();
 
@@ -98,6 +99,13 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedOnAdd();
             e.HasIndex(x => x.DeploymentId);
+        });
+
+        b.Entity<AgentPoolRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => x.Org);
+            e.HasIndex(x => x.Token).IsUnique();  // pool-token lookup on every agent request
         });
 
         b.Entity<ScheduleRow>(e =>
