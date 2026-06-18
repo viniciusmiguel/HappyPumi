@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams, useNavigate } from "react-router-dom";
-import { Layers, ChevronDown, ExternalLink, RefreshCw, Download, Trash2 } from "lucide-react";
+import { Layers, ChevronDown, ExternalLink, RefreshCw, Download, Trash2, Box, Boxes, Cloud, Database, Zap } from "lucide-react";
 import {
   api, timeAgo, type Stack, type UpdateInfo, type Resource, type Deployment,
 } from "../lib/api";
@@ -170,21 +170,52 @@ function Readme({ project }: { project: string }) {
   );
 }
 
+function changeCount(u: UpdateInfo): number {
+  if (u.resourceCount != null) return u.resourceCount;
+  const c = u.resourceChanges ?? u.info?.resourceChanges;
+  return c ? Object.values(c).reduce((a, b) => a + (b || 0), 0) : 0;
+}
+
+function updateDay(u: UpdateInfo): string {
+  const ms = (u.endTime ?? u.time ?? 0) * 1000;
+  if (!ms) return "Activity";
+  return "Activity on " + new Date(ms).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+}
+
 function Updates({ updates }: { updates: UpdateInfo[] }) {
   if (updates.length === 0) return <EmptyState icon={Layers} title="No updates" description="Run pulumi up to create an update." />;
+  // Group by calendar day, matching the real console's "Activity on <date>" sections.
+  const groups: { day: string; items: UpdateInfo[] }[] = [];
+  for (const u of updates) {
+    const day = updateDay(u);
+    const g = groups.find((x) => x.day === day) ?? (groups.push({ day, items: [] }), groups[groups.length - 1]);
+    g.items.push(u);
+  }
   return (
-    <div className="space-y-2">
-      {updates.map((u) => (
-        <div key={u.version} className="flex items-center gap-3 rounded-lg border border-line bg-panel px-4 py-3">
-          <StatusDot status={u.result} />
-          <div className="flex-1">
-            <div className="text-sm font-medium">{u.message || `${u.kind} #${u.version}`}</div>
-            <div className="text-xs text-ink-faint">version {u.version} · {u.result}</div>
+    <div className="space-y-5">
+      {groups.map((g) => (
+        <div key={g.day}>
+          <h3 className="mb-2 text-sm font-semibold text-ink-dim">{g.day}</h3>
+          <div className="space-y-2">
+            {g.items.map((u) => (
+              <div key={u.version} className="rounded-lg border border-line bg-panel">
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <StatusDot status={u.result} />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">{u.kind ?? "update"} #{u.version} {u.result}</div>
+                    <div className="flex items-center gap-1.5 text-xs text-ink-faint">
+                      <Avatar name={u.requestedBy?.name} size={14} />
+                      {u.requestedBy?.githubLogin ?? u.requestedBy?.name ?? "unknown"} updated {timeAgo(u.endTime ?? u.time)}
+                    </div>
+                  </div>
+                  <Badge>{changeCount(u)}</Badge>
+                </div>
+                <div className="flex justify-end border-t border-line px-4 py-1.5">
+                  <span className="text-xs text-brand">Details</span>
+                </div>
+              </div>
+            ))}
           </div>
-          <div className="flex items-center gap-2 text-xs text-ink-dim">
-            <Avatar name={u.requestedBy?.name} size={18} />{u.requestedBy?.name}
-          </div>
-          <span className="w-28 text-right text-xs text-ink-faint">{timeAgo(u.endTime ?? u.time)}</span>
         </div>
       ))}
     </div>
@@ -208,34 +239,88 @@ function Deployments({ deps, project, stack }: { deps: Deployment[]; project: st
   );
 }
 
+function resourceIcon(type: string) {
+  if (type === "pulumi:pulumi:Stack") return Layers;
+  if (type.startsWith("pulumi:providers:")) return Boxes;
+  const pkg = providerOf(type);
+  if (pkg === "aws" || pkg === "gcp" || pkg === "azure" || pkg === "azure-native") return Cloud;
+  if (type.includes("dynamodb") || type.includes("rds") || type.includes("sql") || type.includes("database")) return Database;
+  if (type.includes("lambda") || type.includes("function")) return Zap;
+  return Box;
+}
+
 function Resources({ resources }: { resources: Resource[] }) {
   const [q, setQ] = useState("");
-  const rows = useMemo(() => resources.filter((r) => `${r.type}${urnName(r.urn)}`.toLowerCase().includes(q.toLowerCase())), [resources, q]);
+  const [view, setView] = useState<"list" | "graph">("list");
+  const [typeFilter, setTypeFilter] = useState("");
+  const types = useMemo(() => [...new Set(resources.map((r) => r.type))].sort(), [resources]);
+  const rows = useMemo(() => resources.filter((r) =>
+    `${r.type}${urnName(r.urn)}`.toLowerCase().includes(q.toLowerCase()) && (!typeFilter || r.type === typeFilter)),
+    [resources, q, typeFilter]);
   if (resources.length === 0) return <EmptyState icon={Layers} title="No resources" description="This stack has no resources in its latest checkpoint." />;
+
   return (
     <div>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-wrap items-center gap-3">
+        <div className="inline-flex overflow-hidden rounded-md border border-line text-sm">
+          <button onClick={() => setView("list")} className={`px-3 py-1.5 ${view === "list" ? "bg-brand text-white" : "text-ink-dim hover:bg-hover"}`}>List view</button>
+          <button onClick={() => setView("graph")} className={`px-3 py-1.5 ${view === "graph" ? "bg-brand text-white" : "text-ink-dim hover:bg-hover"}`}>Graph view</button>
+        </div>
+        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
+          className="rounded-md border border-line bg-panel px-2.5 py-1.5 text-sm outline-none">
+          <option value="">All resources</option>
+          {types.map((t) => <option key={t} value={t}>{normalizeType(t)}</option>)}
+        </select>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search for resources"
-          className="w-72 rounded-md border border-line bg-panel px-2.5 py-1.5 text-sm outline-none placeholder:text-ink-faint" />
-        <span className="text-sm text-ink-dim">Resources: <Badge tone="brand">{resources.length}</Badge></span>
+          className="w-64 rounded-md border border-line bg-panel px-2.5 py-1.5 text-sm outline-none placeholder:text-ink-faint" />
+        <span className="ml-auto text-sm text-ink-dim">Resources: <Badge tone="brand">{resources.length}</Badge></span>
       </div>
-      <Table
-        rows={rows}
-        columns={[
-          { header: "Type", cell: (r) => <span className="font-mono text-xs">{normalizeType(r.type)}</span> },
-          { header: "Name", cell: (r) => <span className="font-medium">{urnName(r.urn)}</span> },
-          { header: "Status", cell: () => <span className="text-ink-faint">—</span> },
-          { header: "Provider link", cell: (r) => {
-            const prov = providerOf(r.type);
-            const link = CLOUD_LINKS[prov];
-            return link
-              ? <a className="inline-flex items-center gap-1 text-brand hover:underline" href={link} target="_blank" rel="noreferrer">{prov} <ExternalLink size={12} /></a>
-              : <span className="text-ink-faint">—</span>;
-          } },
-        ]}
-      />
+
+      {view === "list" ? (
+        <Table
+          rows={rows}
+          columns={[
+            { header: "Type", cell: (r) => {
+              const Icon = resourceIcon(r.type);
+              return <span className="flex items-center gap-2"><Icon size={15} className="text-ink-faint" /><span className="font-mono text-xs">{normalizeType(r.type)}</span></span>;
+            } },
+            { header: "Name", cell: (r) => <span className="font-medium">{urnName(r.urn)}</span> },
+            { header: "Status", cell: () => <span className="text-ink-faint">—</span> },
+            { header: "Provider link", cell: (r) => {
+              const prov = providerOf(r.type);
+              const link = CLOUD_LINKS[prov];
+              return link
+                ? <a className="inline-flex items-center gap-1 text-brand hover:underline" href={link} target="_blank" rel="noreferrer">{prov} <ExternalLink size={12} /></a>
+                : <span className="text-ink-faint">—</span>;
+            } },
+          ]}
+        />
+      ) : (
+        <ResourceGraph resources={rows} />
+      )}
     </div>
   );
+}
+
+// A simple parent→child resource graph derived from each resource's parent URN.
+function ResourceGraph({ resources }: { resources: Resource[] }) {
+  const byUrn = new Map(resources.map((r) => [r.urn, r]));
+  const childrenOf = (urn: string) => resources.filter((r) => r.parent === urn);
+  const roots = resources.filter((r) => !r.parent || !byUrn.has(r.parent));
+  const Node = ({ r, depth }: { r: Resource; depth: number }) => {
+    const Icon = resourceIcon(r.type);
+    return (
+      <div>
+        <div className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-hover" style={{ paddingLeft: depth * 20 + 8 }}>
+          <Icon size={15} className="text-ink-faint" />
+          <span className="font-medium">{urnName(r.urn)}</span>
+          <span className="font-mono text-xs text-ink-faint">{normalizeType(r.type)}</span>
+        </div>
+        {childrenOf(r.urn).map((c) => <Node key={c.urn} r={c} depth={depth + 1} />)}
+      </div>
+    );
+  };
+  return <div className="rounded-lg border border-line bg-panel p-2">{roots.map((r) => <Node key={r.urn} r={r} depth={0} />)}</div>;
 }
 
 function Settings({ meta, onDelete }: { meta: Stack | null; onDelete: () => void }) {
