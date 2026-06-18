@@ -5,24 +5,11 @@ namespace HappyPumi.Cli.IntegrationTests;
 /// the demo data seeded into Postgres (DatabaseSeeder, enabled on the integration server). Each test runs an
 /// actual <c>pulumi</c> command and asserts it returns the seeded data — i.e. genuine queries to a real DB.
 /// </summary>
-[Collection(HappyPumiServerCollection.Name)]
-public sealed class SeededDataTests(HappyPumiServer server)
+public sealed class SeededDataTests(HappyPumiServer server) : CliTestBase(server)
 {
     // The seeded org/project/stacks (see DatabaseSeeder).
     private const string SeededStack = "happypumi/webstore/prod";
     private const string SeededOrg = "happypumi";
-
-    private static string Fixture => RepoPaths.Fixture("empty-stack");
-
-    private PulumiCli LoggedIn()
-    {
-        var cli = new PulumiCli(RepoPaths.PulumiBinary ?? throw new InvalidOperationException("pulumi binary not found."));
-        cli.RunAsync(CancellationToken.None, "login", server.BaseUrl).GetAwaiter().GetResult().EnsureSucceeded();
-        return cli;
-    }
-
-    private async Task<CliResult> Run(PulumiCli cli, params string[] args)
-        => await cli.RunAsync(CancellationToken.None, new[] { "--cwd", Fixture }.Concat(args).ToArray());
 
     [Fact]
     public async Task StackLsShowsSeededStacks()
@@ -103,6 +90,29 @@ public sealed class SeededDataTests(HappyPumiServer server)
         var result = await Run(cli, "deployment", "list", "--stack", SeededStack);
         result.EnsureSucceeded();
         Assert.Contains("update", result.StdOut, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task StackTagSetThenListRoundTrips()
+    {
+        using var cli = LoggedIn();
+        var stack = $"organization/happypumi-empty-stack/tag-{Guid.NewGuid():N}";
+        (await Run(cli, "stack", "init", stack)).EnsureSucceeded();
+
+        (await Run(cli, "stack", "tag", "set", "owner", "platform", "--stack", stack)).EnsureSucceeded();
+        var list = await Run(cli, "stack", "tag", "ls", "--stack", stack);
+
+        list.EnsureSucceeded();
+        Assert.Contains("owner", list.StdOut, StringComparison.Ordinal);
+        Assert.Contains("platform", list.StdOut, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task OrgUsageGetSucceeds()
+    {
+        using var cli = LoggedIn();
+        var result = await Run(cli, "org", "usage", "get");
+        result.EnsureSucceeded(); // empty window is fine — the point is the endpoint answers the CLI
     }
 
     [Fact]

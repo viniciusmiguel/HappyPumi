@@ -4,19 +4,14 @@ namespace HappyPumi.Cli.IntegrationTests;
 /// Tier 0 (login) wire-compatibility: drives the real pulumi CLI against a running HappyPumi and
 /// asserts the CLI accepts our responses. Needs no Pulumi program and no infra at all.
 /// </summary>
-[Collection(HappyPumiServerCollection.Name)]
-public sealed class LoginTests(HappyPumiServer server)
+public sealed class LoginTests(HappyPumiServer server) : CliTestBase(server)
 {
-    private static PulumiCli NewCli() =>
-        new(RepoPaths.PulumiBinary ?? throw new InvalidOperationException(
-            "pulumi binary not found. Build it with `make pulumi` (tools/build-pulumi-cli.sh) or set PULUMI_BIN."));
-
     [Fact]
     public async Task LoginSucceeds()
     {
         using var cli = NewCli();
 
-        var result = await cli.RunAsync(CancellationToken.None, "login", server.BaseUrl);
+        var result = await cli.RunAsync(CancellationToken.None, "login", ServerBaseUrl);
 
         result.EnsureSucceeded();
     }
@@ -25,7 +20,7 @@ public sealed class LoginTests(HappyPumiServer server)
     public async Task WhoAmIReportsTheUserFromApiUser()
     {
         using var cli = NewCli();
-        (await cli.RunAsync(CancellationToken.None, "login", server.BaseUrl)).EnsureSucceeded();
+        (await cli.RunAsync(CancellationToken.None, "login", ServerBaseUrl)).EnsureSucceeded();
 
         var who = await cli.RunAsync(CancellationToken.None, "whoami");
 
