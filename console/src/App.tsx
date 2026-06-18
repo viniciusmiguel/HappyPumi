@@ -2,6 +2,13 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Stacks from "./pages/Stacks";
+import StackDetail from "./pages/StackDetail";
+import Environments from "./pages/Environments";
+import EnvironmentDetail from "./pages/EnvironmentDetail";
+import Deployments from "./pages/Deployments";
+import DeploymentDetail from "./pages/DeploymentDetail";
+import Components from "./pages/Components";
+import ComponentDetail from "./pages/ComponentDetail";
 import Registry from "./pages/Registry";
 import Templates from "./pages/Templates";
 import Members from "./pages/Members";
@@ -16,15 +23,21 @@ export default function App() {
       <Route element={<Layout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
+
         <Route path="/stacks" element={<Stacks />} />
-        <Route path="/deployments" element={<Empty.Deployments />} />
-        <Route path="/resources" element={<Empty.Resources />} />
-        <Route path="/environments" element={<Empty.Environments />} />
-        <Route path="/policies" element={<Policies />} />
-        <Route path="/neo" element={<Empty.Neo />} />
+        <Route path="/stacks/:project/:stack" element={<StackDetail />} />
+
+        <Route path="/environments" element={<Environments />} />
+        <Route path="/environments/:project/:name" element={<EnvironmentDetail />} />
+
+        <Route path="/deployments" element={<Deployments />} />
+        <Route path="/deployments/:project/:stack/:version" element={<DeploymentDetail />} />
+
+        <Route path="/policy-findings" element={<Policies />} />
 
         <Route path="/platform/services" element={<Empty.Services />} />
-        <Route path="/platform/components" element={<Empty.Components />} />
+        <Route path="/platform/components" element={<Components />} />
+        <Route path="/platform/components/:source/:publisher/:name" element={<ComponentDetail />} />
         <Route path="/platform/registry" element={<Registry />} />
         <Route path="/platform/templates" element={<Templates />} />
 

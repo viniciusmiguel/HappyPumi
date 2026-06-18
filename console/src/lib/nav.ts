@@ -2,8 +2,8 @@
 // sections (Platform / Management / Settings) reached via launchers and exited with "Back".
 import type { LucideIcon } from "lucide-react";
 import {
-  LayoutDashboard, Layers, Rocket, Search, Box, ShieldCheck, Bot,
-  Server, Package, LayoutTemplate,
+  LayoutDashboard, Layers, Rocket, ShieldCheck,
+  Server, Package, LayoutTemplate, Boxes,
   CheckSquare, Cloud, GitBranch, ClipboardList,
   Users, UsersRound, KeyRound, Fingerprint, Plug, CreditCard, Settings,
   ChevronRight,
@@ -16,11 +16,9 @@ export type SectionId = "platform" | "management" | "settings";
 export const homeItems: NavItem[] = [
   { label: "Dashboard", to: "/dashboard", icon: LayoutDashboard },
   { label: "Stacks", to: "/stacks", icon: Layers },
+  { label: "Environments", to: "/environments", icon: KeyRound },
   { label: "Deployments", to: "/deployments", icon: Rocket },
-  { label: "Resources", to: "/resources", icon: Search },
-  { label: "Environments", to: "/environments", icon: Box },
-  { label: "Policies", to: "/policies", icon: ShieldCheck },
-  { label: "Neo", to: "/neo", icon: Bot },
+  { label: "Policy findings", to: "/policy-findings", icon: ShieldCheck },
 ];
 
 export const sections: NavSection[] = [
@@ -28,7 +26,7 @@ export const sections: NavSection[] = [
     id: "platform", title: "Platform", icon: Server,
     items: [
       { label: "Services", to: "/platform/services", icon: Server },
-      { label: "Private components", to: "/platform/components", icon: Box },
+      { label: "Private components", to: "/platform/components", icon: Boxes },
       { label: "Registry", to: "/platform/registry", icon: Package },
       { label: "Templates", to: "/platform/templates", icon: LayoutTemplate },
     ],

@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Layers, Rocket, Star, GitBranch, ChevronRight } from "lucide-react";
-import { api, type StackSummary } from "../lib/api";
+import { api, timeAgo, type Stack, type Deployment } from "../lib/api";
+import { useOrg } from "../lib/useOrg";
+import { StatusDot } from "../components/ui";
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -34,8 +36,13 @@ function Onboard({ icon: Icon, title, body, to }: { icon: typeof Rocket; title: 
 }
 
 export default function Dashboard() {
-  const [stacks, setStacks] = useState<StackSummary[]>([]);
-  useEffect(() => { api.userStacks().then((r) => setStacks(r.stacks ?? [])); }, []);
+  const org = useOrg();
+  const [stacks, setStacks] = useState<Stack[]>([]);
+  const [deps, setDeps] = useState<Deployment[]>([]);
+  useEffect(() => {
+    api.userStacks().then((r) => setStacks(r.stacks ?? []));
+    api.orgDeployments(org).then((r) => setDeps(r.deployments ?? []));
+  }, [org]);
 
   return (
     <div className="px-6 py-6">
@@ -53,9 +60,9 @@ export default function Dashboard() {
             <ul className="space-y-1">
               {stacks.slice(0, 6).map((s, i) => (
                 <li key={i}>
-                  <Link to="/stacks" className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-hover">
-                    <span className="truncate">{s.projectName}/{s.stackName}</span>
-                    <span className="text-xs text-ink-faint">{s.orgName}</span>
+                  <Link to={`/stacks/${s.projectName}/${s.stackName}`} className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-hover">
+                    <span className="flex items-center gap-2 truncate"><StatusDot status={s.lastUpdate?.result} />{s.projectName}/{s.stackName}</span>
+                    <span className="text-xs text-ink-faint">{timeAgo(s.lastUpdate?.endTime ?? s.lastUpdate?.time ?? (s as { lastUpdate?: number }).lastUpdate)}</span>
                   </Link>
                 </li>
               ))}
@@ -63,7 +70,20 @@ export default function Dashboard() {
           )}
         </Card>
         <Card title="Favorite stacks"><EmptyMini icon={Star} text="Favorite stacks for quick access" /></Card>
-        <Card title="Latest deployments"><EmptyMini icon={Rocket} text="No deployments yet" /></Card>
+        <Card title="Latest deployments">
+          {deps.length === 0 ? <EmptyMini icon={Rocket} text="No deployments yet" /> : (
+            <ul className="space-y-1">
+              {deps.slice(0, 6).map((d) => (
+                <li key={d.id}>
+                  <Link to={`/deployments/${d.projectName}/${d.stackName}/${d.version}`} className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm hover:bg-hover">
+                    <span className="flex items-center gap-2 truncate"><StatusDot status={d.status} />{d.stackName} #{d.version}</span>
+                    <span className="text-xs text-ink-faint">{timeAgo(d.created)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
       </div>
     </div>
   );

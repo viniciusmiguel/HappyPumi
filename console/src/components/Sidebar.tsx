@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   ChevronLeft, ChevronDown, Plus, PanelLeftClose,
@@ -45,8 +45,14 @@ export default function Sidebar({ user, onCollapse }: { user: CurrentUser | null
   const [section, setSection] = useState<SectionId | null>(() => sectionForPath(location.pathname));
   const [menuOpen, setMenuOpen] = useState(false);
 
-  // Open the matching drill-in section when navigating directly to one of its routes.
-  useEffect(() => setSection(sectionForPath(location.pathname)), [location.pathname]);
+  // Open the matching drill-in section when navigating directly to one of its routes. Re-derived during
+  // render (React's "store info from previous render" pattern) rather than in an effect to avoid a
+  // cascading re-render on every navigation.
+  const [prevPath, setPrevPath] = useState(location.pathname);
+  if (prevPath !== location.pathname) {
+    setPrevPath(location.pathname);
+    setSection(sectionForPath(location.pathname));
+  }
 
   const orgs = user?.organizations ?? [{ githubLogin: user?.githubLogin ?? "happypumi" }];
   const org = orgs[0]?.name ?? orgs[0]?.githubLogin ?? "happypumi";
