@@ -1,0 +1,64 @@
+# Self-contained demo: HappyPumi + Postgres + Pulumi's prebuilt customer-managed workflow agent.
+#
+# The agent claims deployments from HappyPumi and runs them in executor containers it launches via the
+# host Docker socket. Topology notes (Linux):
+#   - The agent runs on the HOST network so the single service_url (http://172.17.0.1:<port>) is reachable
+#     from BOTH the agent and the nested executor/step containers it spawns on the default bridge.
+#   - shared_volume_directory is a HOST bind mount at the SAME path inside the agent, so the executor's
+#     bind-mount of each job workdir resolves on the host daemon.
+#   - The Docker socket is mounted so the agent can launch executor containers (deploy_target: docker).
+#
+# Usage:
+#   docker compose -f deploy/deployment-agent/docker-compose.yml up --build -d
+#   curl -s -X POST http://localhost:5118/api/stacks/happypumi/webstore/prod/deployments \
+#        -H 'Authorization: token t' -H 'Content-Type: application/json' -d '{"operation":"update"}'
+#   docker compose -f deploy/deployment-agent/docker-compose.yml logs -f agent
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: happypumidb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d happypumidb"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  happypumi:
+    build:
+      # The Dockerfile copies the whole solution, so the build context is the repo root.
+      context: ../..
+      dockerfile: HappyPumi.Api/Dockerfile
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      DOTNET_ENVIRONMENT: Development
+      ConnectionStrings__happypumidb: Host=postgres;Database=happypumidb;Username=postgres;Password=postgres
+      Seed__Enabled: "true"   # demo data: the happypumi/webstore/prod stack to deploy
+    ports:
+      - "5118:8080"           # published so the host-network agent + bridged executors reach it at 172.17.0.1:5118
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  agent:
+    image: pulumi/customer-managed-workflow-agent:latest
+    network_mode: host        # see topology notes above
+    # The shipped image has workflow-runner but not workflow-runner-embeddable; stage both, then run.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >-
+        mkdir -p /runners &&
+        cp /usr/local/bin/workflow-runner /runners/workflow-runner &&
+        cp /usr/local/bin/workflow-runner /runners/workflow-runner-embeddable &&
+        exec customer-managed-workflow-agent run
+    working_dir: /work
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/hp-shared:/tmp/hp-shared
+      - ./pulumi-workflow-agent.yaml:/work/pulumi-workflow-agent.yaml:ro
+    restart: on-failure
+    depends_on:
+      - happypumi
