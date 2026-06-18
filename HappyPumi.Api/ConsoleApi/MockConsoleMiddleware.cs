@@ -24,7 +24,8 @@ public static class MockConsoleMiddleware
             var path = ctx.Request.Path.Value ?? "";
 
             // Known internal console endpoints: short-circuit with a canned mock.
-            var mock = ProjectMock(path) ?? StackMetadataMock(path) ?? StackUpdatesMock(path) ?? Match(path);
+            var mock = ProjectMock(path) ?? StackMetadataMock(path) ?? StackUpdatesMock(path)
+                       ?? OrgDeploymentsMock(path) ?? Match(path);
             if (mock is not null && HttpMethods.IsGet(ctx.Request.Method))
             {
                 await Write(ctx, mock);
@@ -154,6 +155,41 @@ public static class MockConsoleMiddleware
         return System.Text.Json.JsonSerializer.Serialize(new { updates = new[] { Update(3, 7200), Update(2, 86400), Update(1, 172800) } });
     }
 
+    /// <summary>
+    /// GET /api/orgs/{org}/deployments — the org Deployments page list. Returns complete deployment records
+    /// (id/version/status/pulumiOperation/created/requestedBy/jobs) across the seeded stacks so the list and
+    /// its status filter render with data instead of an empty state.
+    /// </summary>
+    private static string? OrgDeploymentsMock(string path)
+    {
+        var parts = path.Split('/', StringSplitOptions.RemoveEmptyEntries); // api, orgs, {org}, deployments
+        if (parts.Length != 4 || parts[0] != "api" || parts[1] != "orgs" || parts[3] != "deployments")
+            return null;
+        var org = parts[2];
+        var now = DateTimeOffset.UtcNow;
+        string Iso(long secsAgo) => now.AddSeconds(-secsAgo).ToString("o");  // deployment times are RFC3339 strings
+        var by = new { githubLogin = "happypumi", name = "HappyPumi", avatarUrl = "" };
+        object Dep(string stack, int ver, long ago, string status, string op) => new
+        {
+            id = $"dep-{stack}-{ver}", version = ver, latestVersion = ver,
+            created = Iso(ago + 120), modified = Iso(ago), status, pulumiOperation = op,
+            projectName = "webstore", stackName = stack, orgName = org, requestedBy = by,
+            jobs = new[] { new { status, started = Iso(ago + 120), lastUpdated = Iso(ago), steps = Array.Empty<object>() } },
+            updates = Array.Empty<object>(),
+        };
+        var body = new
+        {
+            deployments = new[]
+            {
+                Dep("prod", 11, 3600, "succeeded", "update"),
+                Dep("staging", 7, 7200, "succeeded", "preview"),
+                Dep("dev", 4, 90000, "failed", "update"),
+            },
+            continuationToken = (string?)null,
+        };
+        return System.Text.Json.JsonSerializer.Serialize(body);
+    }
+
     /// <summary>Best-effort empty shape: list-looking endpoints get a wrapped empty list, else an empty object.</summary>
     private static string Default(string path)
     {
@@ -194,6 +230,9 @@ public static class MockConsoleMiddleware
         // console/orgs/{org}/permissions (GetUserPermissionsForResource) — the console does `new Set(resp)`,
         // so this MUST be a JSON array of permission strings. Return the full set so every UI surface unlocks.
         ("/permissions", AllPermissions),
+
+        // deployments/metadata: in-flight counts (NOT org features — must precede the "/metadata" needle).
+        ("/deployments/metadata", """{"running":0,"queued":0}"""),
 
         // orgs/{org}/metadata — the console reads `r.features.<flag>` and `r.subscriptionStatus`. Enable
         // every feature so all nav surfaces are reachable. (Field set mined from the bundle.)
