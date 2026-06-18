@@ -28,11 +28,13 @@ public sealed class GetEngineEventsDestroyEndpoint : Endpoint<GetEngineEventsDes
         );
     }
 
-    public override Task HandleAsync(GetEngineEventsDestroyRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetEngineEventsDestroyRequest req, CancellationToken ct)
     {
-        // TODO: implement GetEngineEventsDestroy
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/destroy/{updateID}/events
-        // Should produce: GetUpdateEventsResponse
-        throw new NotImplementedException("Endpoint GetEngineEventsDestroy not implemented.");
+        // Engine events are not persisted (see RecordEngineEvent); the read side is always empty.
+        await Send.OkAsync(new GetUpdateEventsResponse
+        {
+            Events = new List<EngineEvent>(),
+            ContinuationToken = string.Empty,
+        }, ct);
     }
 }

@@ -28,10 +28,10 @@ public sealed class CreateJournalEntriesDestroyEndpoint : Endpoint<CreateJournal
         );
     }
 
-    public override Task HandleAsync(CreateJournalEntriesDestroyRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CreateJournalEntriesDestroyRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateJournalEntriesDestroy
-        // HTTP: PATCH /api/stacks/{orgName}/{projectName}/{stackName}/destroy/{updateID}/journalentries
-        throw new NotImplementedException("Endpoint CreateJournalEntriesDestroy not implemented.");
+        // Accepted and acknowledged; not persisted in this in-memory backend (events/logs are rendered
+        // by the CLI locally, and journaling/delta protocols are not advertised in Capabilities).
+        await Send.NoContentAsync(ct);
     }
 }

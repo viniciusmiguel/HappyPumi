@@ -59,6 +59,26 @@ public sealed class UpdateLifecycleEndpointTests(HappyPumiApp app)
         Assert.Equal(1, fetched!.Version);
     }
 
+    // Preview is a dry run: completing it succeeds but must not change stack state or version.
+    [Fact]
+    public async Task PreviewDoesNotPromoteStateOrBumpVersion()
+    {
+        using var client = app.CreateClient();
+        var stack = await NewStack(client);
+
+        var created = await Post<AppUpdateProgramResponse>(client, $"{StackPath(stack)}/preview", new AppUpdateProgramRequest());
+        await Post<AppStartUpdateResponse>(client, $"{StackPath(stack)}/preview/{created.UpdateId}", new AppStartUpdateRequest());
+        using var completed = await client.PostAsJsonAsync(
+            $"{StackPath(stack)}/preview/{created.UpdateId}/complete", new AppCompleteUpdateRequest { Status = "succeeded" });
+        Assert.Equal(HttpStatusCode.NoContent, completed.StatusCode);
+
+        var fetched = await client.GetFromJsonAsync<AppStack>(StackPath(stack));
+        Assert.Equal(0, fetched!.Version);
+        using var export = await client.GetAsync($"{StackPath(stack)}/export");
+        var deployment = await export.Content.ReadFromJsonAsync<AppUntypedDeployment>();
+        Assert.Equal(3, deployment!.Version); // still the empty base, never updated
+    }
+
     [Fact]
     public async Task CreateUpdateForUnknownStackReturns404()
     {

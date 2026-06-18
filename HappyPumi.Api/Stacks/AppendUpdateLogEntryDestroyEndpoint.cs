@@ -28,10 +28,10 @@ public sealed class AppendUpdateLogEntryDestroyEndpoint : Endpoint<AppendUpdateL
         );
     }
 
-    public override Task HandleAsync(AppendUpdateLogEntryDestroyRequest req, CancellationToken ct)
+    public async override Task HandleAsync(AppendUpdateLogEntryDestroyRequest req, CancellationToken ct)
     {
-        // TODO: implement AppendUpdateLogEntryDestroy
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/destroy/{updateID}/log
-        throw new NotImplementedException("Endpoint AppendUpdateLogEntryDestroy not implemented.");
+        // Accepted and acknowledged; not persisted in this in-memory backend (events/logs are rendered
+        // by the CLI locally, and journaling/delta protocols are not advertised in Capabilities).
+        await Send.NoContentAsync(ct);
     }
 }

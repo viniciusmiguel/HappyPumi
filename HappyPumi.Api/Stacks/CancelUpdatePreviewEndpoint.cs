@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// CancelUpdate
 /// </summary>
-public sealed class CancelUpdatePreviewEndpoint : Endpoint<CancelUpdatePreviewRequest>
+public sealed class CancelUpdatePreviewEndpoint(UpdateLifecycle lifecycle) : Endpoint<CancelUpdatePreviewRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,14 @@ public sealed class CancelUpdatePreviewEndpoint : Endpoint<CancelUpdatePreviewRe
         );
     }
 
-    public override Task HandleAsync(CancelUpdatePreviewRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CancelUpdatePreviewRequest req, CancellationToken ct)
     {
-        // TODO: implement CancelUpdatePreview
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/preview/{updateID}/cancel
-        throw new NotImplementedException("Endpoint CancelUpdatePreview not implemented.");
+        if (lifecycle.Cancel(req.UpdateId) is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

@@ -28,11 +28,13 @@ public sealed class GetEngineEventsPreviewEndpoint : Endpoint<GetEngineEventsPre
         );
     }
 
-    public override Task HandleAsync(GetEngineEventsPreviewRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetEngineEventsPreviewRequest req, CancellationToken ct)
     {
-        // TODO: implement GetEngineEventsPreview
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/preview/{updateID}/events
-        // Should produce: GetUpdateEventsResponse
-        throw new NotImplementedException("Endpoint GetEngineEventsPreview not implemented.");
+        // Engine events are not persisted (see RecordEngineEvent); the read side is always empty.
+        await Send.OkAsync(new GetUpdateEventsResponse
+        {
+            Events = new List<EngineEvent>(),
+            ContinuationToken = string.Empty,
+        }, ct);
     }
 }

@@ -28,10 +28,10 @@ public sealed class PatchUpdateCheckpointDeltaDestroyEndpoint : Endpoint<PatchUp
         );
     }
 
-    public override Task HandleAsync(PatchUpdateCheckpointDeltaDestroyRequest req, CancellationToken ct)
+    public async override Task HandleAsync(PatchUpdateCheckpointDeltaDestroyRequest req, CancellationToken ct)
     {
-        // TODO: implement PatchUpdateCheckpointDeltaDestroy
-        // HTTP: PATCH /api/stacks/{orgName}/{projectName}/{stackName}/destroy/{updateID}/checkpointdelta
-        throw new NotImplementedException("Endpoint PatchUpdateCheckpointDeltaDestroy not implemented.");
+        // Accepted and acknowledged; not persisted in this in-memory backend (events/logs are rendered
+        // by the CLI locally, and journaling/delta protocols are not advertised in Capabilities).
+        await Send.NoContentAsync(ct);
     }
 }

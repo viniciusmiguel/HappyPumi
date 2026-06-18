@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// CreateUpdateForDestroy
 /// </summary>
-public sealed class CreateUpdateForDestroyEndpoint : Endpoint<CreateUpdateForDestroyRequest, AppUpdateProgramResponse>
+public sealed class CreateUpdateForDestroyEndpoint(UpdateLifecycle lifecycle) : Endpoint<CreateUpdateForDestroyRequest, AppUpdateProgramResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,16 @@ public sealed class CreateUpdateForDestroyEndpoint : Endpoint<CreateUpdateForDes
         );
     }
 
-    public override Task HandleAsync(CreateUpdateForDestroyRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CreateUpdateForDestroyRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateUpdateForDestroy
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/destroy
-        // Should produce: AppUpdateProgramResponse
-        throw new NotImplementedException("Endpoint CreateUpdateForDestroy not implemented.");
+        // Creates the destroy update record; the CLI starts it next. 404 if the stack is unknown.
+        var update = lifecycle.Create(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), "destroy");
+        if (update is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(new AppUpdateProgramResponse { UpdateId = update.UpdateId }, ct);
     }
 }

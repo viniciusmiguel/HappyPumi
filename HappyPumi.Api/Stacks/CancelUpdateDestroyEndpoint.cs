@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// CancelUpdate
 /// </summary>
-public sealed class CancelUpdateDestroyEndpoint : Endpoint<CancelUpdateDestroyRequest>
+public sealed class CancelUpdateDestroyEndpoint(UpdateLifecycle lifecycle) : Endpoint<CancelUpdateDestroyRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,14 @@ public sealed class CancelUpdateDestroyEndpoint : Endpoint<CancelUpdateDestroyRe
         );
     }
 
-    public override Task HandleAsync(CancelUpdateDestroyRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CancelUpdateDestroyRequest req, CancellationToken ct)
     {
-        // TODO: implement CancelUpdateDestroy
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/destroy/{updateID}/cancel
-        throw new NotImplementedException("Endpoint CancelUpdateDestroy not implemented.");
+        if (lifecycle.Cancel(req.UpdateId) is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

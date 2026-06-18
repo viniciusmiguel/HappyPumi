@@ -28,10 +28,10 @@ public sealed class CreateJournalEntriesPreviewEndpoint : Endpoint<CreateJournal
         );
     }
 
-    public override Task HandleAsync(CreateJournalEntriesPreviewRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CreateJournalEntriesPreviewRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateJournalEntriesPreview
-        // HTTP: PATCH /api/stacks/{orgName}/{projectName}/{stackName}/preview/{updateID}/journalentries
-        throw new NotImplementedException("Endpoint CreateJournalEntriesPreview not implemented.");
+        // Accepted and acknowledged; not persisted in this in-memory backend (events/logs are rendered
+        // by the CLI locally, and journaling/delta protocols are not advertised in Capabilities).
+        await Send.NoContentAsync(ct);
     }
 }

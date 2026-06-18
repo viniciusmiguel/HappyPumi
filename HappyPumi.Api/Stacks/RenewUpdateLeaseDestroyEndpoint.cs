@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// RenewUpdateLease
 /// </summary>
-public sealed class RenewUpdateLeaseDestroyEndpoint : Endpoint<RenewUpdateLeaseDestroyRequest, AppRenewUpdateLeaseResponse>
+public sealed class RenewUpdateLeaseDestroyEndpoint(UpdateLifecycle lifecycle) : Endpoint<RenewUpdateLeaseDestroyRequest, AppRenewUpdateLeaseResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,21 @@ public sealed class RenewUpdateLeaseDestroyEndpoint : Endpoint<RenewUpdateLeaseD
         );
     }
 
-    public override Task HandleAsync(RenewUpdateLeaseDestroyRequest req, CancellationToken ct)
+    public async override Task HandleAsync(RenewUpdateLeaseDestroyRequest req, CancellationToken ct)
     {
-        // TODO: implement RenewUpdateLeaseDestroy
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/destroy/{updateID}/renew_lease
-        // Should produce: AppRenewUpdateLeaseResponse
-        throw new NotImplementedException("Endpoint RenewUpdateLeaseDestroy not implemented.");
+        var update = lifecycle.Find(req.UpdateId);
+        if (update is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        // Leases never expire in this in-memory backend; hand back a 5-minute horizon to satisfy the
+        // CLI's renewal loop.
+        await Send.OkAsync(new AppRenewUpdateLeaseResponse
+        {
+            Token = update.Token,
+            TokenExpiration = DateTimeOffset.UtcNow.AddSeconds(300).ToUnixTimeSeconds(),
+        }, ct);
     }
 }
