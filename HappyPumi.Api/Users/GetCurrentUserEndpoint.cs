@@ -19,7 +19,8 @@ public sealed class GetCurrentUserEndpoint : EndpointWithoutRequest<User>
     public override void Configure()
     {
         Get("/api/user");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        // Requires an authenticated caller (any role). This is the endpoint `pulumi login` hits to
+        // validate a token, so dropping AllowAnonymous here enforces the access token end-to-end (ADR-0007).
         Description(b => b
             .WithTags("Users")
             .WithSummary("GetCurrentUser")

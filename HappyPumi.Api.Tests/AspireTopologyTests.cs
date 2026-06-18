@@ -36,6 +36,8 @@ public sealed class AspireTopologyTests
         // Hit the HTTPS endpoint: this exercises the self-signed dev cert (ADR-0007), which the test
         // process trusts via SSL_CERT_DIR (set by DevCertTrust at assembly load).
         using var http = app.CreateHttpClient("api", "https");
+        // /api/user now requires the access token (ADR-0007); the CLI sends the same `token` scheme.
+        http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("token", "dev");
         using var response = await http.GetAsync("/api/user");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);

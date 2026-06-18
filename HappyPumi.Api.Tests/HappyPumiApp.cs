@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using HappyPumi.Api;
 using Microsoft.AspNetCore.Mvc.Testing;
 
@@ -17,7 +18,19 @@ namespace HappyPumi.Api.Tests;
 /// </code>
 /// </example>
 /// </summary>
-public sealed class HappyPumiApp : WebApplicationFactory<ApiMarker>;
+public sealed class HappyPumiApp : WebApplicationFactory<ApiMarker>
+{
+    /// <summary>
+    /// A client that authenticates with the Pulumi <c>token</c> scheme (ADR-0007). The default token maps
+    /// to the seeded admin identity; pass <c>role:&lt;role&gt;:&lt;login&gt;</c> to exercise other roles.
+    /// </summary>
+    public HttpClient CreateAuthedClient(string token = "dev")
+    {
+        var client = CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("token", token);
+        return client;
+    }
+}
 
 /// <summary>
 /// Shares one <see cref="HappyPumiApp"/> across a test class so the host is built once.

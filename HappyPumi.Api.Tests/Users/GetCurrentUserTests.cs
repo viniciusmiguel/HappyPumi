@@ -10,13 +10,24 @@ namespace HappyPumi.Api.Tests.Users;
 public sealed class GetCurrentUserTests(HappyPumiApp app)
 {
     [Fact]
-    public async Task Returns200()
+    public async Task Returns200WhenAuthenticated()
+    {
+        using var client = app.CreateAuthedClient();
+
+        using var response = await client.GetAsync("/api/user");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    // /api/user now requires the access token (ADR-0007): an unauthenticated request is rejected.
+    [Fact]
+    public async Task Returns401WhenUnauthenticated()
     {
         using var client = app.CreateClient();
 
         using var response = await client.GetAsync("/api/user");
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
     // Regression guard for the login linchpin: the CLI's GetPulumiAccountDetails rejects the
@@ -25,7 +36,7 @@ public sealed class GetCurrentUserTests(HappyPumiApp app)
     [Fact]
     public async Task GithubLoginIsNonEmpty()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
 
         var user = await client.GetFromJsonAsync<User>("/api/user");
 

@@ -24,7 +24,7 @@ public sealed class GetDefaultOrganizationTests(HappyPumiApp app)
     [Fact]
     public async Task DefaultOrgMatchesTheCurrentUserLogin()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient(); // also calls /api/user, which now requires a token
 
         var defaultOrg = await client.GetFromJsonAsync<AppGetDefaultOrganizationResponse>(
             "/api/user/organizations/default");

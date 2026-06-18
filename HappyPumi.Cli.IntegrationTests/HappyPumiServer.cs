@@ -65,7 +65,9 @@ public sealed class HappyPumiServer : IAsyncLifetime
 
             try
             {
-                using var response = await client.GetAsync("/api/user", cts.Token);
+                // Probe an anonymous endpoint: /api/user now requires the access token (ADR-0007), so a
+                // tokenless readiness check would always see 401. /api/capabilities stays anonymous.
+                using var response = await client.GetAsync("/api/capabilities", cts.Token);
                 if (response.IsSuccessStatusCode)
                     return;
             }

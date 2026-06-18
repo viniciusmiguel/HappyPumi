@@ -5,8 +5,8 @@ namespace HappyPumi.Api.Tests.Organizations;
 
 /// <summary>
 /// Component tests for Tier 3 (ENDPOINTS.md): org members, custom roles, team-role assignment, and the
-/// audit-log listing. Endpoints are still anonymous (RBAC enforcement is a follow-up); this verifies the
-/// data model and wire contracts. Each test uses a unique org since the store is shared.
+/// audit-log listing. These endpoints require the org admin role (ADR-0007), so the tests authenticate;
+/// the enforcement tests cover the unauthenticated (401) and non-admin (403) paths. Unique org per test.
 /// </summary>
 [Collection(HappyPumiCollection.Name)]
 public sealed class OrgMembersRolesTests(HappyPumiApp app)
@@ -14,9 +14,30 @@ public sealed class OrgMembersRolesTests(HappyPumiApp app)
     private static string NewOrg() => $"org-{Guid.NewGuid():N}";
 
     [Fact]
-    public async Task MemberAddListUpdateDelete()
+    public async Task Returns401WhenUnauthenticated()
     {
         using var client = app.CreateClient();
+
+        using var response = await client.GetAsync($"/api/orgs/{NewOrg()}/members");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Returns403WhenNotAdmin()
+    {
+        // A non-admin caller (token convention role:member:bob) is authenticated but lacks the OrgAdmin role.
+        using var client = app.CreateAuthedClient("role:member:bob");
+
+        using var response = await client.GetAsync($"/api/orgs/{NewOrg()}/members");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task MemberAddListUpdateDelete()
+    {
+        using var client = app.CreateAuthedClient();
         var org = NewOrg();
 
         using var add = await client.PostAsJsonAsync($"/api/orgs/{org}/members/alice",
@@ -42,7 +63,7 @@ public sealed class OrgMembersRolesTests(HappyPumiApp app)
     [Fact]
     public async Task RoleCreateGetUpdateDelete()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var org = NewOrg();
 
         var created = await Post<PermissionDescriptorRecord>(client, $"/api/orgs/{org}/roles",
@@ -65,7 +86,7 @@ public sealed class OrgMembersRolesTests(HappyPumiApp app)
     [Fact]
     public async Task TeamRoleAssignmentRequiresAnExistingRole()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var org = NewOrg();
         var role = await Post<PermissionDescriptorRecord>(client, $"/api/orgs/{org}/roles",
             new PermissionDescriptorBase { Name = "deployer" });
@@ -85,7 +106,7 @@ public sealed class OrgMembersRolesTests(HappyPumiApp app)
     [Fact]
     public async Task AuditLogsAreAnEmptyPage()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
 
         var logs = await client.GetFromJsonAsync<ResponseAuditLogs>($"/api/orgs/{NewOrg()}/auditlogs");
 

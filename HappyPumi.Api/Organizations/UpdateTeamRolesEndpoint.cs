@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using HappyPumi.Api.Auth;
 using HappyPumi.Api.Contracts;
 using HappyPumi.Api.State;
 
@@ -20,7 +21,7 @@ public sealed class UpdateTeamRolesEndpoint(IIdentityStore identity) : Endpoint<
     public override void Configure()
     {
         Post("/api/orgs/{orgName}/teams/{teamName}/roles/{roleID}");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Policies(AuthPolicies.OrgAdmin); // org management requires the admin role (ADR-0007)
         Description(b => b
             .WithTags("Organizations")
             .WithSummary("UpdateTeamRoles")

@@ -1,5 +1,6 @@
 using FastEndpoints;
 using FastEndpoints.Swagger;
+using HappyPumi.Api.Auth;
 using HappyPumi.Api.Secrets;
 using HappyPumi.Api.State;
 
@@ -41,6 +42,17 @@ bld.Services.AddSingleton<IPolicyStore, InMemoryPolicyStore>();
 // Managed deployments: settings, deployments, schedules, webhooks (ENDPOINTS.md 6). In-memory (ADR-0005).
 bld.Services.AddSingleton<IDeploymentStore, InMemoryDeploymentStore>();
 
+// Authentication + RBAC (ADR-0007). The CLI authenticates with its `token` scheme (PulumiTokenAuthHandler).
+// Endpoints opt in to enforcement by dropping AllowAnonymous() and (for org management) requiring the admin
+// role. Interactive/console OIDC JWT Bearer against Dex is the follow-up half of this seam.
+bld.Services
+    .AddAuthentication(PulumiTokenAuthHandler.SchemeName)
+    .AddScheme<Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions, PulumiTokenAuthHandler>(
+        PulumiTokenAuthHandler.SchemeName, null);
+
+bld.Services.AddAuthorizationBuilder()
+    .AddPolicy(AuthPolicies.OrgAdmin, p => p.RequireRole("admin"));
+
 var app = bld.Build();
 app.MapDefaultEndpoints(); // /health and /alive
 
@@ -58,6 +70,8 @@ app.Use(async (ctx, next) =>
 });
 
 app.UseRequestDecompression(); // decode gzipped request bodies before model binding
+app.UseAuthentication();
+app.UseAuthorization();
 app.UseFastEndpoints()
     .UseSwaggerGen();
 await app.RunAsync();
