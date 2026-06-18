@@ -109,7 +109,8 @@ public static class MockConsoleMiddleware
         ("/neo/token-budget", """{"remaining":1000000,"limit":1000000,"used":0}"""),
         ("/tags", "[]"),  // org tags collection the stacks page .map()s
         ("/invites", "[]"),                                   // access-management invites list
-        ("/projects/services", """{"projects":[],"services":[],"stacks":[]}"""),  // services/registry read resp.*.stacks
+        ("/projects/services", """{"services":[],"continuationToken":null}"""),  // listServices: pipe maps e.services
+        ("/repos", """{"repositories":[],"continuationToken":null}"""),          // getOrganizationRepositories
         ("/auditlogs/v2", """{"auditLogEvents":[],"continuationToken":null}"""),
         ("/auditlogs/reader-kind", """{"readerKind":"standard"}"""),
         ("/auditlogs/export/config", """{"enabled":false}"""),
