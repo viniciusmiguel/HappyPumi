@@ -69,6 +69,53 @@ pack) lives in [`examples/idp-demo/`](examples/idp-demo).
 
 ---
 
+## Run the published container image
+
+Every release publishes the API image to GHCR. Bring up the API and its database
+with one command using [`compose.yaml`](compose.yaml) — no source build required:
+
+```bash
+docker compose up -d            # API → http://localhost:5118, seeded with demo data
+docker compose logs -f api      # watch startup (it applies the schema migration on boot)
+docker compose down -v          # stop everything and wipe the database volume
+```
+
+The image is public: `ghcr.io/<owner>/happypumi-api:latest` (or a pinned tag like
+`:0.1.0`). Demo data (orgs, stacks, registry, a policy pack) is seeded so there's
+something to query immediately.
+
+**Test it over REST.** Any non-empty token authenticates as the seeded admin in
+this dev image (ADR-0007):
+
+```bash
+curl -s -H "Authorization: token hp-dev" http://localhost:5118/api/user
+curl -s -H "Authorization: token hp-dev" http://localhost:5118/api/user/stacks
+```
+
+**Test it with the real pulumi CLI:**
+
+```bash
+export PULUMI_ACCESS_TOKEN=hp-dev
+pulumi login http://localhost:5118
+pulumi whoami        # → happypumi
+```
+
+**Use the console against it.** The console is a separate Vite app; point it at the
+container and open <http://localhost:5173>:
+
+```bash
+cd console && npm install
+HAPPYPUMI_URL=http://localhost:5118 npm run dev
+```
+
+Console sign-in uses Dex (OIDC), and Dex issues tokens for `http://localhost:5556`
+that an isolated API container can't reach — so for the **full console experience
+with login**, run the host-process topology with `make dev` (which wires Dex)
+rather than the container. The published image is the API tier; `compose.yaml`
+is the fastest way to exercise the API itself via REST or the pulumi CLI.
+
+---
+
 ## Architecture
 
 | Project | Purpose |

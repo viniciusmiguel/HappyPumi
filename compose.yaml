@@ -1,0 +1,41 @@
+# Quick-start: run the published HappyPumi API image against Postgres with one command, so anyone can
+# try the solution without building from source. See the README "Run the published container image".
+#
+#   docker compose up -d        # API at http://localhost:5118 with seeded demo data
+#   docker compose down -v       # stop and wipe the database volume
+#
+# This brings up the API tier (the published image) and its database. The React console uses Dex (OIDC)
+# for sign-in; the full console-with-login experience runs as a host process via `make dev` (see README),
+# because Dex issues tokens for http://localhost:5556 which an isolated API container can't reach.
+name: happypumi
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: happypumidb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d happypumidb"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - happypumi-db:/var/lib/postgresql/data
+
+  api:
+    image: ghcr.io/viniciusmiguel/happypumi-api:latest
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # All state lives in Postgres (ADR-0005); the API applies its EF migration on startup.
+      ConnectionStrings__happypumidb: "Host=db;Port=5432;Database=happypumidb;Username=postgres;Password=postgres"
+      Seed__Enabled: "true"   # load demo orgs/stacks/registry/policy so there is data to explore
+      AllowCorsAll: "true"    # dev-only: let a browser app on another origin call the API directly
+    ports:
+      - "5118:8080"           # API on http://localhost:5118 (matches the console's default HAPPYPUMI_URL)
+
+volumes:
+  happypumi-db:
