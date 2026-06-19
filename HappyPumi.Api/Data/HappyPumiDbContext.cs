@@ -38,6 +38,7 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
     public DbSet<WebhookRow> Webhooks => Set<WebhookRow>();
     public DbSet<EnvironmentRow> Environments => Set<EnvironmentRow>();
     public DbSet<EnvironmentRevisionRow> EnvironmentRevisions => Set<EnvironmentRevisionRow>();
+    public DbSet<EnvironmentWebhookRow> EnvironmentWebhooks => Set<EnvironmentWebhookRow>();
     public DbSet<RegistryArtifactRow> RegistryArtifacts => Set<RegistryArtifactRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -204,6 +205,14 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
                 .HasForeignKey(x => new { x.Org, x.Project, x.Name })
                 .OnDelete(DeleteBehavior.Cascade); // revisions die with their environment
             e.Property(x => x.Tags).AsJsonb();
+        });
+
+        b.Entity<EnvironmentWebhookRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.Org, x.Project, x.EnvName, x.Name }).IsUnique();
+            e.Property(x => x.Filters).AsJsonb();
+            e.Property(x => x.Groups).AsJsonb();
         });
 
         b.Entity<RegistryArtifactRow>(e => e.HasKey(x => x.Key));

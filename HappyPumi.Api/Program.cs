@@ -52,6 +52,7 @@ bld.Services.AddScoped<IDeploymentStore, PostgresDeploymentStore>();
 bld.Services.AddScoped<IDeploymentQueue, PostgresDeploymentQueue>(); // runner work queue (agent poll/dispatch)
 bld.Services.AddScoped<IAgentPoolStore, PostgresAgentPoolStore>();   // workflow-runner pools + token validation
 bld.Services.AddScoped<IEnvironmentStore, PostgresEnvironmentStore>(); // ESC environments + revisions
+bld.Services.AddScoped<IEnvironmentWebhookStore, PostgresEnvironmentWebhookStore>(); // ESC environment webhooks
 bld.Services.AddScoped<IArtifactStore, PostgresArtifactStore>();       // registry artifact blobs (publish)
 bld.Services.AddScoped<IPolicyFindingStore, PostgresPolicyFindingStore>(); // policy violations (events → findings)
 bld.Services.AddScoped<IAuditLog, PostgresAuditLog>();                 // audit events (ADR-0010)
