@@ -31,6 +31,21 @@ public interface IIdentityStore
     StoredRole? UpdateRole(string org, string roleId, PermissionDescriptorBase descriptor);
     bool DeleteRole(string org, string roleId);
 
+    // Teams -----------------------------------------------------------------
+    IReadOnlyCollection<StoredTeam> ListTeams(string org);
+    StoredTeam? GetTeam(string org, string teamName);
+
+    /// <summary>Creates a team. Returns null when one of that name already exists.</summary>
+    StoredTeam? CreateTeam(string org, string name, string displayName, string description, string kind);
+
+    bool DeleteTeam(string org, string teamName);
+
+    /// <summary>Adds a member to a team. Returns false when the team does not exist.</summary>
+    bool AddTeamMember(string org, string teamName, string userLogin);
+
+    /// <summary>Removes a member from a team. Returns false when the team or membership is absent.</summary>
+    bool RemoveTeamMember(string org, string teamName, string userLogin);
+
     // Team role assignments -------------------------------------------------
     /// <summary>Grants a role to a team. Returns false when the role does not exist in the org.</summary>
     bool AssignTeamRole(string org, string teamName, string roleId);

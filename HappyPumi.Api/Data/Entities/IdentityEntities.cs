@@ -37,3 +37,14 @@ public sealed class TeamRoleRow
     public string TeamName { get; set; } = default!;
     public string RoleId { get; set; } = default!;
 }
+
+/// <summary>An org team. Key: (Org, Name). Members are jsonb (a list of user logins).</summary>
+public sealed class TeamRow
+{
+    public string Org { get; set; } = default!;
+    public string Name { get; set; } = default!;
+    public string DisplayName { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public string Kind { get; set; } = "pulumi";
+    public System.Collections.Generic.List<string> Members { get; set; } = new();
+}

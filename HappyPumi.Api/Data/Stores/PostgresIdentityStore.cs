@@ -119,6 +119,65 @@ public sealed class PostgresIdentityStore(HappyPumiDbContext db) : IIdentityStor
         return true;
     }
 
+    public IReadOnlyCollection<StoredTeam> ListTeams(string org)
+        => db.Teams.AsNoTracking().Where(t => t.Org == org).ToList().Select(r => ToTeam(r, org)).ToList();
+
+    public StoredTeam? GetTeam(string org, string teamName)
+    {
+        var row = db.Teams.AsNoTracking().FirstOrDefault(t => t.Org == org && t.Name == teamName);
+        return row is null ? null : ToTeam(row, org);
+    }
+
+    public StoredTeam? CreateTeam(string org, string name, string displayName, string description, string kind)
+    {
+        if (db.Teams.Any(t => t.Org == org && t.Name == name))
+            return null;
+        db.Teams.Add(new TeamRow { Org = org, Name = name, DisplayName = displayName, Description = description, Kind = kind });
+        db.SaveChanges();
+        return new StoredTeam { Name = name, DisplayName = displayName, Description = description, Kind = kind };
+    }
+
+    public bool DeleteTeam(string org, string teamName)
+    {
+        var row = db.Teams.FirstOrDefault(t => t.Org == org && t.Name == teamName);
+        if (row is null)
+            return false;
+        db.TeamRoles.RemoveRange(db.TeamRoles.Where(t => t.Org == org && t.TeamName == teamName));
+        db.Teams.Remove(row);
+        db.SaveChanges();
+        return true;
+    }
+
+    public bool AddTeamMember(string org, string teamName, string userLogin)
+    {
+        var row = db.Teams.FirstOrDefault(t => t.Org == org && t.Name == teamName);
+        if (row is null)
+            return false;
+        if (!row.Members.Contains(userLogin))
+            row.Members = new List<string>(row.Members) { userLogin };
+        db.SaveChanges();
+        return true;
+    }
+
+    public bool RemoveTeamMember(string org, string teamName, string userLogin)
+    {
+        var row = db.Teams.FirstOrDefault(t => t.Org == org && t.Name == teamName);
+        if (row is null || !row.Members.Contains(userLogin))
+            return false;
+        row.Members = row.Members.Where(m => m != userLogin).ToList();
+        db.SaveChanges();
+        return true;
+    }
+
+    private StoredTeam ToTeam(TeamRow r, string org)
+    {
+        var team = new StoredTeam { Name = r.Name, DisplayName = r.DisplayName, Description = r.Description, Kind = r.Kind };
+        team.Members.AddRange(r.Members);
+        team.RoleIds.AddRange(db.TeamRoles.AsNoTracking()
+            .Where(t => t.Org == org && t.TeamName == r.Name).Select(t => t.RoleId));
+        return team;
+    }
+
     private static StoredMember ToMember(MemberRow r)
         => new() { UserLogin = r.UserLogin, Role = r.Role, Created = r.Created };
 

@@ -104,6 +104,46 @@ public sealed class OrgMembersRolesTests(HappyPumiApp app)
     }
 
     [Fact]
+    public async Task PulumiTeamCreateListGetWithRoleAssignment()
+    {
+        using var client = app.CreateAuthedClient();
+        var org = NewOrg();
+
+        // Create a Pulumi-managed team.
+        var created = await Post<Team>(client, $"/api/orgs/{org}/teams/pulumi",
+            new { name = "platform-eng", displayName = "Platform Engineering", description = "Owns platform stacks" });
+        Assert.Equal("platform-eng", created.Name);
+        Assert.Equal("Platform Engineering", created.DisplayName);
+        Assert.Equal("pulumi", created.Kind);
+
+        // A duplicate name conflicts.
+        using var dup = await client.PostAsJsonAsync($"/api/orgs/{org}/teams/pulumi", new { name = "platform-eng" });
+        Assert.Equal(HttpStatusCode.Conflict, dup.StatusCode);
+
+        // It appears in the org's team list.
+        var list = await client.GetFromJsonAsync<ListTeamsResponse>($"/api/orgs/{org}/teams");
+        Assert.Contains(list!.Teams, t => t.Name == "platform-eng");
+
+        // Assigning a role surfaces on the team's roleIds.
+        var role = await Post<PermissionDescriptorRecord>(client, $"/api/orgs/{org}/roles",
+            new PermissionDescriptorBase { Name = "deployer" });
+        using var assign = await client.PostAsJsonAsync(
+            $"/api/orgs/{org}/teams/platform-eng/roles/{role.Id}", new Dictionary<string, string>());
+        Assert.Equal(HttpStatusCode.NoContent, assign.StatusCode);
+
+        var team = await client.GetFromJsonAsync<Team>($"/api/orgs/{org}/teams/platform-eng");
+        Assert.Contains(role.Id, team!.RoleIds!);
+    }
+
+    [Fact]
+    public async Task GetUnknownTeamIs404()
+    {
+        using var client = app.CreateAuthedClient();
+        using var resp = await client.GetAsync($"/api/orgs/{NewOrg()}/teams/nope");
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
     public async Task AuditLogsAreAnEmptyPage()
     {
         using var client = app.CreateAuthedClient();
