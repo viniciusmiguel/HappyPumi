@@ -9,6 +9,7 @@ using HappyPumi.Api.Esc.Providers.AzureKeyVault;
 using HappyPumi.Api.Esc.Providers.AwsSecrets;
 using HappyPumi.Api.Esc.Providers.AwsParameterStore;
 using HappyPumi.Api.Esc.Providers.GcpSecrets;
+using HappyPumi.Api.Esc.Providers.PulumiStacks;
 using HappyPumi.Api.Esc.Providers.Vault;
 using HappyPumi.Api.Secrets;
 using HappyPumi.Api.State;
@@ -74,6 +75,8 @@ bld.Services.AddSingleton<IAwsParameterStoreClient, AwsParameterStoreClient>(); 
 bld.Services.AddSingleton<IEscProvider, AwsParameterStoreProvider>();
 bld.Services.AddSingleton<IGcpSecretsClient, GcpSecretsClient>();         // GCP Secret Manager (fn::open::gcp-secrets)
 bld.Services.AddSingleton<IEscProvider, GcpSecretsProvider>();
+bld.Services.AddScoped<IStackOutputsSource, StackOutputsSource>();        // cross-stack outputs (reads IStackStore)
+bld.Services.AddSingleton<IEscProvider, PulumiStacksProvider>();          // fn::open::pulumi-stacks
 bld.Services.AddSingleton<IEscProviderRegistry, EscProviderRegistry>();
 bld.Services.AddSingleton<IEscSessionStore, EscSessionStore>();
 bld.Services.AddScoped<EscOpener>();
