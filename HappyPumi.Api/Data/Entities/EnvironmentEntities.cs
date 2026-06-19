@@ -51,3 +51,23 @@ public sealed class EnvironmentRevisionRow
     /// <summary>Optional revision number recommended in place of the retracted one.</summary>
     public long? RetractReplacement { get; set; }
 }
+
+/// <summary>An environment webhook. Key: Id; unique per (Org, Project, EnvName, Name).</summary>
+public sealed class EnvironmentWebhookRow
+{
+    public string Id { get; set; } = default!;
+    public string Org { get; set; } = default!;
+    public string Project { get; set; } = default!;
+    public string EnvName { get; set; } = default!;
+    public string Name { get; set; } = default!;
+    public string DisplayName { get; set; } = "";
+    public string PayloadUrl { get; set; } = "";
+    public bool Active { get; set; } = true;
+    public string? Format { get; set; }
+    public string? Secret { get; set; }
+    /// <summary>Event filters (jsonb).</summary>
+    public List<string> Filters { get; set; } = new();
+    /// <summary>Permission groups the delivery runs as (jsonb).</summary>
+    public List<string> Groups { get; set; } = new();
+    public DateTime Created { get; set; } = DateTime.UtcNow;
+}
