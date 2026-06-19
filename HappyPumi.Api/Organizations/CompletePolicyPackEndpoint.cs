@@ -16,23 +16,27 @@ namespace HappyPumi.Api.Endpoints.Organizations;
 /// <summary>
 /// CompletePolicyPack
 /// </summary>
-public sealed class CompletePolicyPackEndpoint(IPolicyStore policy) : Endpoint<CompletePolicyPackRequest>
+// Bodyless: the `pulumi policy publish` CLI POSTs this with an empty body, so an Endpoint<TReq> would 400
+// trying to deserialize JSON. We read the route params manually instead.
+public sealed class CompletePolicyPackEndpoint(IPolicyStore policy) : EndpointWithoutRequest
 {
     public override void Configure()
     {
         Post("/api/orgs/{orgName}/policypacks/{policyPackName}/versions/{version}/complete");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        AllowAnonymous();
         Description(b => b
             .WithTags("Organizations")
             .WithSummary("CompletePolicyPack")
-            .WithDescription("Transitions the publish status of a specific Policy Pack version to 'complete', making it available for enforcement. Policy Packs go through a multi-step publish process: first the pack content is uploaded, then this endpoint is called to finalize publication. Returns 400 if the pack is already complete.")
+            .WithDescription("Transitions the publish status of a specific Policy Pack version to 'complete', making it available for enforcement.")
             .WithName("CompletePolicyPack")
         );
     }
 
-    public async override Task HandleAsync(CompletePolicyPackRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CancellationToken ct)
     {
-        if (!long.TryParse(req.Version, out var v) || !policy.CompletePack(req.OrgName, req.PolicyPackName, v))
+        // The CLI completes by the semver tag (e.g. "1.0.0"), not the numeric version it uploaded to.
+        var (org, name, versionSeg) = (Route<string>("orgName")!, Route<string>("policyPackName")!, Route<string>("version")!);
+        if (!policy.CompletePackVersion(org, name, versionSeg))
         {
             await Send.NotFoundAsync(ct);
             return;

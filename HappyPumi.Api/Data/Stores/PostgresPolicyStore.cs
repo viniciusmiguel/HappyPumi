@@ -55,17 +55,47 @@ public sealed class PostgresPolicyStore(HappyPumiDbContext db) : IPolicyStore
         return true;
     }
 
+    public bool AddPackToGroup(string org, string group, string packName)
+    {
+        var row = db.PolicyGroups.FirstOrDefault(g => g.Org == org && g.Name == group);
+        if (row is null)
+        {
+            row = new PolicyGroupRow
+            {
+                Org = org, Name = group, IsOrgDefault = group == "default-policy-group",
+                AppliedPolicyPacks = new List<string> { packName },
+            };
+            db.PolicyGroups.Add(row);
+        }
+        else if (!row.AppliedPolicyPacks.Contains(packName))
+        {
+            row.AppliedPolicyPacks = new List<string>(row.AppliedPolicyPacks) { packName };
+        }
+        db.SaveChanges();
+        return true;
+    }
+
+    public bool RemovePackFromGroup(string org, string group, string packName)
+    {
+        var row = db.PolicyGroups.FirstOrDefault(g => g.Org == org && g.Name == group);
+        if (row is null || !row.AppliedPolicyPacks.Contains(packName))
+            return false;
+        row.AppliedPolicyPacks = row.AppliedPolicyPacks.Where(p => p != packName).ToList();
+        db.SaveChanges();
+        return true;
+    }
+
     public IReadOnlyCollection<StoredPolicyPack> ListPacks(string org)
         => db.PolicyPackVersions.AsNoTracking().Where(p => p.Org == org).ToList()
             .GroupBy(p => p.Name).Select(ToPack).ToList();
 
-    public long CreatePackVersion(string org, string name, string displayName, List<AppPolicy>? policies)
+    public long CreatePackVersion(string org, string name, string displayName, List<AppPolicy>? policies, string? versionTag = null)
     {
         var existing = db.PolicyPackVersions.Where(p => p.Org == org && p.Name == name).Select(p => p.Version).ToList();
         var version = existing.Count == 0 ? 1 : existing.Max() + 1;
         db.PolicyPackVersions.Add(new PolicyPackVersionRow
         {
-            Org = org, Name = name, Version = version, DisplayName = displayName, Policies = policies,
+            Org = org, Name = name, Version = version, DisplayName = displayName, Policies = policies, VersionTag = versionTag,
         });
         db.SaveChanges();
         return version;

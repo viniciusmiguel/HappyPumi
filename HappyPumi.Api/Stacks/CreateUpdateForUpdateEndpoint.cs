@@ -15,7 +15,7 @@ namespace HappyPumi.Api.Endpoints.Stacks;
 /// <summary>
 /// CreateUpdateForUpdate
 /// </summary>
-public sealed class CreateUpdateForUpdateEndpoint(UpdateLifecycle lifecycle) : Endpoint<CreateUpdateForUpdateRequest, AppUpdateProgramResponse>
+public sealed class CreateUpdateForUpdateEndpoint(UpdateLifecycle lifecycle, IPolicyStore policy) : Endpoint<CreateUpdateForUpdateRequest, AppUpdateProgramResponse>
 {
     public override void Configure()
     {
@@ -33,13 +33,22 @@ public sealed class CreateUpdateForUpdateEndpoint(UpdateLifecycle lifecycle) : E
     {
         // Creates the update record only; the CLI then starts it via StartUpdateForUpdate. The stack
         // must already exist (the CLI creates it first), so an unknown stack is 404.
-        var update = lifecycle.Create(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), "update", req.Body);
+        var update = lifecycle.Create(
+            new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), "update", req.Body,
+            Auth.RequestActor.From(User));
         if (update is null)
         {
             await Send.NotFoundAsync(ct);
             return;
         }
 
-        await Send.OkAsync(new AppUpdateProgramResponse { UpdateId = update.UpdateId }, ct);
+        // Tell the engine which policy packs to download and enforce during this update (the org's enabled
+        // packs). The engine reads requiredPolicies from this response and applies each pack.
+        var baseUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}";
+        await Send.OkAsync(new AppUpdateProgramResponse
+        {
+            UpdateId = update.UpdateId,
+            RequiredPolicies = PolicyEnforcement.RequiredPolicies(policy, req.OrgName, baseUrl),
+        }, ct);
     }
 }

@@ -25,4 +25,7 @@ public static class ArtifactKeys
 
     public static string TemplateArchive(string source, string publisher, string name, string version)
         => $"templates/{source}/{publisher}/{name}/{version}/archive";
+
+    public static string PolicyPack(string org, string name, long version)
+        => $"policypacks/{org}/{name}/{version}/pack";
 }

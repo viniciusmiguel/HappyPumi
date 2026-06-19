@@ -15,7 +15,7 @@ namespace HappyPumi.Api.Endpoints.Stacks;
 /// <summary>
 /// CreateUpdateForPreview
 /// </summary>
-public sealed class CreateUpdateForPreviewEndpoint(UpdateLifecycle lifecycle) : Endpoint<CreateUpdateForPreviewRequest, AppUpdateProgramResponse>
+public sealed class CreateUpdateForPreviewEndpoint(UpdateLifecycle lifecycle, IPolicyStore policy) : Endpoint<CreateUpdateForPreviewRequest, AppUpdateProgramResponse>
 {
     public override void Configure()
     {
@@ -32,13 +32,20 @@ public sealed class CreateUpdateForPreviewEndpoint(UpdateLifecycle lifecycle) : 
     public async override Task HandleAsync(CreateUpdateForPreviewRequest req, CancellationToken ct)
     {
         // Creates the preview update record; the CLI starts it next. 404 if the stack is unknown.
-        var update = lifecycle.Create(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), "preview", req.Body);
+        var update = lifecycle.Create(
+            new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), "preview", req.Body,
+            Auth.RequestActor.From(User));
         if (update is null)
         {
             await Send.NotFoundAsync(ct);
             return;
         }
 
-        await Send.OkAsync(new AppUpdateProgramResponse { UpdateId = update.UpdateId }, ct);
+        var baseUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}";
+        await Send.OkAsync(new AppUpdateProgramResponse
+        {
+            UpdateId = update.UpdateId,
+            RequiredPolicies = PolicyEnforcement.RequiredPolicies(policy, req.OrgName, baseUrl),
+        }, ct);
     }
 }

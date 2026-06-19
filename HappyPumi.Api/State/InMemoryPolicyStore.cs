@@ -42,9 +42,27 @@ public sealed class InMemoryPolicyStore : IPolicyStore
 
     public bool DeleteGroup(string org, string name) => Org(org).Groups.TryRemove(name, out _);
 
+    public bool AddPackToGroup(string org, string group, string packName)
+    {
+        var g = Org(org).Groups.GetOrAdd(group,
+            n => new StoredPolicyGroup { Name = n, IsOrgDefault = n == "default-policy-group" });
+        lock (g.AppliedPolicyPacks)
+            if (!g.AppliedPolicyPacks.Contains(packName))
+                g.AppliedPolicyPacks.Add(packName);
+        return true;
+    }
+
+    public bool RemovePackFromGroup(string org, string group, string packName)
+    {
+        if (!Org(org).Groups.TryGetValue(group, out var g))
+            return false;
+        lock (g.AppliedPolicyPacks)
+            return g.AppliedPolicyPacks.Remove(packName);
+    }
+
     public IReadOnlyCollection<StoredPolicyPack> ListPacks(string org) => Org(org).Packs.Values.ToArray();
 
-    public long CreatePackVersion(string org, string name, string displayName, List<AppPolicy>? policies)
+    public long CreatePackVersion(string org, string name, string displayName, List<AppPolicy>? policies, string? versionTag = null)
     {
         var pack = Org(org).Packs.GetOrAdd(name, n => new StoredPolicyPack { Name = n });
         pack.DisplayName = displayName;
@@ -52,7 +70,7 @@ public sealed class InMemoryPolicyStore : IPolicyStore
         lock (pack.Versions)
         {
             version = pack.Versions.Count == 0 ? 1 : pack.Versions.Keys.Max() + 1;
-            pack.Versions[version] = new StoredPolicyPackVersion { Version = version, Policies = policies };
+            pack.Versions[version] = new StoredPolicyPackVersion { Version = version, Policies = policies, VersionTag = versionTag };
         }
         return version;
     }
