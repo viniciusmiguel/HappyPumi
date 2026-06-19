@@ -1,18 +1,24 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using HappyPumi.Api.Esc.Oidc;
 using HappyPumi.Api.Esc.Providers.Logins;
+using HappyPumi.Api.Esc.Providers.Logins.Aws;
 
 namespace HappyPumi.Api.Tests.Esc;
 
 /// <summary>Unit tests for the static-credential *-login providers.</summary>
 public sealed class LoginProvidersTests
 {
+    private static AwsLoginProvider NewAwsLogin()
+        => new(new EscOidcIssuer("https://test/oidc", RSA.Create(2048), "kid"), new FakeAwsStsExchanger());
+
     [Fact]
     public async Task AwsLoginExposesCredentialsWithSecretsMarked()
     {
-        var provider = new AwsLoginProvider();
+        var provider = NewAwsLogin();
         var inputs = new Dictionary<string, object?>
         {
             ["accessKeyId"] = "AKIA123",
@@ -31,7 +37,7 @@ public sealed class LoginProvidersTests
     [Fact]
     public async Task MissingRequiredCredentialThrows()
     {
-        var provider = new AwsLoginProvider();
+        var provider = NewAwsLogin();
         var inputs = new Dictionary<string, object?> { ["accessKeyId"] = "AKIA123" }; // no secretAccessKey
         var ex = await Assert.ThrowsAsync<ArgumentException>(() => provider.OpenAsync(inputs, CancellationToken.None));
         Assert.Contains("secretAccessKey", ex.Message);

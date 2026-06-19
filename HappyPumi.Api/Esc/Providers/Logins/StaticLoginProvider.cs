@@ -18,9 +18,10 @@ public readonly record struct LoginField(string Key, bool Secret, bool Required)
 /// secrets provider (e.g. <c>aws-secrets</c> <c>login: ${aws.login}</c>).
 /// </summary>
 /// <remarks>
-/// This is a <em>static credential</em> implementation: it passes through the credentials in the definition.
-/// True OIDC federation (vending short-lived credentials from a trusted token) requires cloud-side trust
-/// configuration and is a follow-up.
+/// This base implements the <em>static credential</em> mode: it passes through the credentials in the
+/// definition. Providers that support <em>OIDC federation</em> (vending short-lived credentials from a
+/// trusted token via the cloud's identity broker) override <see cref="OpenAsync"/> — see
+/// <c>AwsLoginProvider</c>.
 /// </remarks>
 public abstract class StaticLoginProvider : IEscProvider
 {
@@ -29,9 +30,9 @@ public abstract class StaticLoginProvider : IEscProvider
 
     public abstract string Name { get; }
 
-    public string Description => $"Provides {Cloud} credentials at open time (static credentials; OIDC federation is a follow-up).";
+    public virtual string Description => $"Provides {Cloud} credentials at open time (static credentials).";
 
-    public EscSchemaSchema Inputs => new()
+    public virtual EscSchemaSchema Inputs => new()
     {
         Type = "object",
         Required = Fields.Where(f => f.Required).Select(f => f.Key).ToList(),
@@ -45,7 +46,7 @@ public abstract class StaticLoginProvider : IEscProvider
         AdditionalProperties = new() { Type = "string", Secret = true },
     };
 
-    public Task<object?> OpenAsync(IReadOnlyDictionary<string, object?> inputs, CancellationToken ct)
+    public virtual Task<object?> OpenAsync(IReadOnlyDictionary<string, object?> inputs, CancellationToken ct)
     {
         var output = new Dictionary<string, object?>();
         foreach (var field in Fields)
