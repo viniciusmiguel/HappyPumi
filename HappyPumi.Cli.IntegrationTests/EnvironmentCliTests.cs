@@ -40,6 +40,19 @@ public sealed class EnvironmentCliTests(HappyPumiServer server) : CliTestBase(se
         (await Run(cli, "env", "rm", "--yes", env)).EnsureSucceeded();
     }
 
-    [Fact(Skip = "env get <path> needs the `exprs` AST in the CheckYAML response (esc env_get getEnvExpr); not yet built")]
-    public Task EnvGetByPath() => Task.CompletedTask;
+    [Fact]
+    public async Task EnvGetByPath()
+    {
+        using var cli = LoggedIn();
+        var env = UniqueEnv("getpath");
+        (await Run(cli, "env", "init", env)).EnsureSucceeded();
+        (await Run(cli, "env", "set", env, "myapp.region", "ap-south-1", "--plaintext")).EnsureSucceeded();
+
+        // get a single path: walks the exprs AST (CheckYAML response) to resolve myapp.region.
+        var get = await Run(cli, "env", "get", env, "myapp.region");
+        get.EnsureSucceeded();
+        Assert.Contains("ap-south-1", get.StdOut, StringComparison.Ordinal);
+
+        (await Run(cli, "env", "rm", "--yes", env)).EnsureSucceeded();
+    }
 }
