@@ -11,6 +11,7 @@ using HappyPumi.Api.Esc.Providers.AwsParameterStore;
 using HappyPumi.Api.Esc.Providers.GcpSecrets;
 using HappyPumi.Api.Esc.Providers.PulumiStacks;
 using HappyPumi.Api.Esc.Providers.Vault;
+using HappyPumi.Api.Esc.Rotators.AwsIam;
 using HappyPumi.Api.Secrets;
 using HappyPumi.Api.State;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -78,6 +79,10 @@ bld.Services.AddSingleton<IEscProvider, GcpSecretsProvider>();
 bld.Services.AddScoped<IStackOutputsSource, StackOutputsSource>();        // cross-stack outputs (reads IStackStore)
 bld.Services.AddSingleton<IEscProvider, PulumiStacksProvider>();          // fn::open::pulumi-stacks
 bld.Services.AddSingleton<IEscProviderRegistry, EscProviderRegistry>();
+// Secret rotators (fn::rotate) — same singleton seam as providers.
+bld.Services.AddSingleton<IAwsIamClient, AwsIamClient>();                 // AWS IAM access-key rotation (fn::rotate::aws-iam)
+bld.Services.AddSingleton<IEscRotator, AwsIamRotator>();
+bld.Services.AddSingleton<IEscRotatorRegistry, EscRotatorRegistry>();
 bld.Services.AddSingleton<IEscSessionStore, EscSessionStore>();
 bld.Services.AddScoped<EscOpener>();
 

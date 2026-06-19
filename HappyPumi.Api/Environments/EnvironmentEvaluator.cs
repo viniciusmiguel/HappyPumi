@@ -88,6 +88,10 @@ public static class EnvironmentEvaluator
             return new EscValue { Value = ResolvePlain(arg, root, depth + 1), Secret = true };
         if (fn.StartsWith("fn::open"))
             return new EscValue { Unknown = true }; // a live provider value, only resolvable by opening
+        if (fn.StartsWith("fn::rotate"))
+            return RotateCurrent(arg) is { } current
+                ? new EscValue { Value = ResolvePlain(current, root, depth + 1), Secret = true }
+                : new EscValue { Unknown = true }; // not yet rotated -> no current value to expose
         return new EscValue { Value = EscBuiltins.Apply(fn, ResolvePlain(arg, root, depth + 1)) };
     }
 
@@ -99,6 +103,8 @@ public static class EnvironmentEvaluator
         {
             if (fn == "fn::secret") return ResolvePlain(arg, rootValues, depth + 1);
             if (fn.StartsWith("fn::open")) return EscUnknown.Instance;
+            if (fn.StartsWith("fn::rotate"))
+                return RotateCurrent(arg) is { } current ? ResolvePlain(current, rootValues, depth + 1) : EscUnknown.Instance;
             return EscBuiltins.Apply(fn, ResolvePlain(arg, rootValues, depth + 1));
         }
         return node switch
@@ -151,6 +157,12 @@ public static class EnvironmentEvaluator
         arg = map[key];
         return true;
     }
+
+    // An fn::rotate node carries { inputs, state: { current, previous } }; opening exposes state.current.
+    private static object? RotateCurrent(object? arg)
+        => (arg as Dictionary<string, object?>)?.GetValueOrDefault("state") is Dictionary<string, object?> state
+            ? state.GetValueOrDefault("current")
+            : null;
 
     // YamlDotNet yields Dictionary<object,object> / List<object> / scalars; normalize keys to strings.
     private static object? Normalize(object? node) => node switch
