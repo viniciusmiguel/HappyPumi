@@ -116,6 +116,7 @@ bld.Services.AddScoped<EscRotationRunner>();                              // exe
 bld.Services.AddSingleton<IEscSessionStore, EscSessionStore>();
 bld.Services.AddScoped<IEscDraftStore, PostgresEscDraftStore>();          // environment drafts (Postgres)
 bld.Services.AddScoped<IEscOpenRequestStore, PostgresEscOpenRequestStore>(); // gated-open access requests (Postgres)
+bld.Services.AddScoped<EscOpenGate>();                                    // approval/grant gating for OpenEnvironment
 bld.Services.AddScoped<IEscScheduleStore, PostgresEscScheduleStore>();    // scheduled actions (Postgres)
 bld.Services.AddScoped<ScheduleExecutionService>();                       // one pass of due scheduled actions
 // Background loop firing due schedules (rotation/deletion); interval configurable, first run delayed one interval.
