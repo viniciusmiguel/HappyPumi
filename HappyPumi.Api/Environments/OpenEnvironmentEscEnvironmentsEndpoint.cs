@@ -30,7 +30,7 @@ public sealed class OpenEnvironmentInput : IPlainTextRequest
 /// OpenEnvironment — fully evaluates an environment (imports, interpolation, built-ins, <c>fn::open</c>
 /// providers, secret decryption) and stores the resolved tree under a short-lived session id.
 /// </summary>
-public sealed class OpenEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore environments, EscOpener opener, IEscSessionStore sessions)
+public sealed class OpenEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore environments, EscOpener opener, IEscSessionStore sessions, IAuditLog audit)
     : Endpoint<OpenEnvironmentInput, OpenEnvironmentResponse>
 {
     private static readonly TimeSpan DefaultDuration = TimeSpan.FromHours(2);
@@ -58,6 +58,9 @@ public sealed class OpenEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore env
 
         var properties = await opener.OpenAsync(coords, env.Yaml, ct);
         var id = sessions.Create(properties, GoDuration.Parse(req.Duration, DefaultDuration));
+        // Opening resolves and decrypts secrets, so it is an audit-worthy access (ADR-0010).
+        audit.Record(req.OrgName, "environment.open",
+            $"Opened environment '{req.ProjectName}/{req.EnvName}'", User.Identity?.Name ?? "happypumi");
         await Send.OkAsync(new OpenEnvironmentResponse { Id = id, Diagnostics = new List<EnvironmentDiagnostic>() }, ct);
     }
 }

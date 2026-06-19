@@ -14,7 +14,7 @@ namespace HappyPumi.Api.Esc;
 /// at or before <c>now</c>, it fires the action (rotation runs the rotators; deletion soft-deletes the
 /// environment) and advances the schedule. Separated from the background loop so it can be tested directly.
 /// </summary>
-public sealed class ScheduleExecutionService(IEscScheduleStore schedules, IEnvironmentStore environments, EscRotationRunner rotations)
+public sealed class ScheduleExecutionService(IEscScheduleStore schedules, IEnvironmentStore environments, EscRotationRunner rotations, IAuditLog audit)
 {
     /// <summary>Fires every due schedule across all environments; returns how many fired.</summary>
     public async Task<int> RunDueAsync(DateTime nowUtc, CancellationToken ct)
@@ -37,9 +37,17 @@ public sealed class ScheduleExecutionService(IEscScheduleStore schedules, IEnvir
     private async Task FireAsync(EnvCoordinates coords, ScheduledAction schedule, CancellationToken ct)
     {
         if (schedule.Kind.Contains("delet", StringComparison.OrdinalIgnoreCase))
+        {
             environments.Delete(coords);
+            audit.Record(coords.Org, "environment.delete",
+                $"Scheduled deletion of environment '{coords.Project}/{coords.Name}'", "scheduler");
+        }
         else
+        {
             await rotations.RotateAsync(coords, "scheduler", ct);
+            audit.Record(coords.Org, "environment.rotate",
+                $"Scheduled rotation of secrets in environment '{coords.Project}/{coords.Name}'", "scheduler");
+        }
     }
 
     // Cron fires when the next occurrence after the last run (or creation) is due; one-shot fires once.

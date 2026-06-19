@@ -12,7 +12,7 @@ namespace HappyPumi.Api.Endpoints.Environments;
 /// DeleteEnvironment — removes an environment and its revision history. Blocked (409) when deletion
 /// protection is enabled on the environment's settings.
 /// </summary>
-public sealed class DeleteEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore environments)
+public sealed class DeleteEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore environments, IAuditLog audit)
     : Endpoint<DeleteEnvironmentEscEnvironmentsRequest>
 {
     public override void Configure()
@@ -43,6 +43,8 @@ public sealed class DeleteEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore e
         }
 
         environments.Delete(coords);
+        audit.Record(req.OrgName, "environment.delete",
+            $"Deleted environment '{req.ProjectName}/{req.EnvName}'", User.Identity?.Name ?? "happypumi");
         await Send.NoContentAsync(ct);
     }
 }

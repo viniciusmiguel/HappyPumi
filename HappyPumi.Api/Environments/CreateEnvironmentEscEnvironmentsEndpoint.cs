@@ -15,7 +15,7 @@ namespace HappyPumi.Api.Endpoints.Environments;
 /// <summary>
 /// CreateEnvironment
 /// </summary>
-public sealed class CreateEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore environments) : Endpoint<CreateEnvironmentEscEnvironmentsRequest>
+public sealed class CreateEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore environments, IAuditLog audit) : Endpoint<CreateEnvironmentEscEnvironmentsRequest>
 {
     public override void Configure()
     {
@@ -42,6 +42,8 @@ public sealed class CreateEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore e
         // authenticated principal's name when present, else the seeded admin.)
         var login = User.Identity?.Name ?? "happypumi";
         var created = environments.Create(new EnvCoordinates(req.OrgName, body.Project, body.Name), login, login);
+        if (created is not null)
+            audit.Record(req.OrgName, "environment.create", $"Created environment '{body.Project}/{body.Name}'", login);
         await Send.ResultAsync(created is null
             ? Microsoft.AspNetCore.Http.Results.Conflict()
             : Microsoft.AspNetCore.Http.Results.Created(

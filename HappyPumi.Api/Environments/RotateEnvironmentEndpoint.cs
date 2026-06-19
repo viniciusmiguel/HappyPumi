@@ -15,7 +15,7 @@ namespace HappyPumi.Api.Endpoints.Environments;
 /// RotateEnvironment — executes every <c>fn::rotate</c> declaration, persists the rotated state as a new
 /// revision, and returns the rotation event.
 /// </summary>
-public sealed class RotateEnvironmentEndpoint(EscRotationRunner runner)
+public sealed class RotateEnvironmentEndpoint(EscRotationRunner runner, IAuditLog audit)
     : Endpoint<RotateEnvironmentRequest, RotateEnvironmentResponse>
 {
     public override void Configure()
@@ -40,6 +40,8 @@ public sealed class RotateEnvironmentEndpoint(EscRotationRunner runner)
             await Send.NotFoundAsync(ct);
             return;
         }
+        audit.Record(req.OrgName, "environment.rotate",
+            $"Rotated secrets in environment '{req.ProjectName}/{req.EnvName}'", login);
         await Send.OkAsync(new RotateEnvironmentResponse
         {
             Id = rotationEvent.Id,

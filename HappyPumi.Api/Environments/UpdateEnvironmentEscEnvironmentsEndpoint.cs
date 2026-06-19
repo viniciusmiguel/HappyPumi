@@ -28,7 +28,7 @@ public sealed class UpdateEnvironmentInput : IPlainTextRequest
 /// UpdateEnvironment — replaces the definition YAML (recording a new revision). The body is raw YAML; an
 /// unparseable definition is rejected with an error diagnostic rather than persisted.
 /// </summary>
-public sealed class UpdateEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore environments)
+public sealed class UpdateEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore environments, IAuditLog audit)
     : Endpoint<UpdateEnvironmentInput, UpdateEnvironmentResponse>
 {
     public override void Configure()
@@ -62,6 +62,8 @@ public sealed class UpdateEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore e
 
         var login = User.Identity?.Name ?? "happypumi";
         var updated = environments.UpdateYaml(coords, yaml, login, login);
+        audit.Record(req.OrgName, "environment.update",
+            $"Updated environment '{req.ProjectName}/{req.EnvName}' (revision {updated?.CurrentRevision ?? 0})", login);
         EscHeaders.SetRevision(HttpContext, updated?.CurrentRevision ?? 0); // the CLI parses the new revision from the response
         await Send.OkAsync(new UpdateEnvironmentResponse { Diagnostics = new List<EnvironmentDiagnostic>() }, ct);
     }
