@@ -71,60 +71,45 @@ pack) lives in [`examples/idp-demo/`](examples/idp-demo).
 
 ## Run the published container image
 
-Every release publishes the API image to GHCR. Bring up the API and its database
-with one command using [`compose.yaml`](compose.yaml) — no source build required:
+[`compose.yaml`](compose.yaml) brings up the whole stack from containers — Postgres,
+**Dex (real OIDC)**, the published API image, and the React console — so you get
+OpenID sign-in and RBAC out of the box, no source build required:
 
 ```bash
-docker compose up -d            # API → http://localhost:5118, seeded with demo data
-docker compose logs -f api      # watch startup (it applies the schema migration on boot)
+docker compose up               # console → http://localhost:5173
 docker compose down -v          # stop everything and wipe the database volume
 ```
 
-The image is public: `ghcr.io/<owner>/happypumi-api:latest` (or a pinned tag like
-`:0.1.0`). Demo data (orgs, stacks, registry, a policy pack) is seeded so there's
-something to query immediately.
+Open <http://localhost:5173> and sign in with a seeded demo user:
 
-### Authentication
+| User | Password | Role |
+|---|---|---|
+| `admin@happypumi.dev` | `password` | admin |
+| `member@happypumi.dev` | `password` | member |
 
-The API accepts two credential types (ADR-0007), dispatched by the `Authorization`
-header:
+The API image is public (`ghcr.io/<owner>/happypumi-api:latest`, or a pinned tag
+like `:0.1.0`) and is seeded with demo orgs, stacks, registry, and a policy pack.
 
-- **`token <anything>`** — the Pulumi CLI scheme. In this dev image any non-empty
-  token authenticates as the seeded **admin**, so no IdP is needed. Use
-  `token role:member:alice` to act as a non-admin and exercise RBAC.
-- **`Bearer <jwt>`** — an OIDC id-token from Dex, used by the console's browser
-  sign-in. This is only wired when Dex is present (`compose.full.yaml` / `make dev`).
+> **Linux only.** Every service uses host networking so that `http://localhost:5556`
+> — the issuer + JWKS baked into Dex's tokens — resolves to the same Dex for both the
+> browser and the API container (the one way to satisfy OIDC reachability without code
+> changes). On **macOS / Windows** (Docker Desktop), `make dev` runs the same topology.
+> Host ports used: 5432, 5556, 8080 (API), 5173 (console).
 
-`compose.yaml` ships **only the token scheme**, which is all the CLI and REST need:
+### Authentication & RBAC
 
-```bash
-# REST — any token = seeded admin
-curl -s -H "Authorization: token hp-dev" http://localhost:5118/api/user
-curl -s -H "Authorization: token hp-dev" http://localhost:5118/api/user/stacks
+Sign-in is **real OIDC** (ADR-0007): the console does Authorization Code + PKCE
+against Dex, receives a signed id-token, and the API validates it against Dex's
+JWKS. The token's group decides the role — `happypumi-admins` → **admin**, otherwise
+**member** — so `admin@` can manage the org while `member@` is read-mostly.
 
-# pulumi CLI
-export PULUMI_ACCESS_TOKEN=hp-dev
-pulumi login http://localhost:5118
-pulumi whoami        # → happypumi
-```
-
-### Full topology with console login
-
-To use the console's interactive Dex sign-in from containers, bring up the whole
-stack (Postgres + Dex + the API image + the console) with
-[`compose.full.yaml`](compose.full.yaml):
+For scripting, the API also accepts the Pulumi **`token`** scheme against the same
+endpoint (`http://localhost:8080`) — any token is the seeded admin, no browser needed:
 
 ```bash
-docker compose -f compose.full.yaml up      # console → http://localhost:5173
-# sign in with admin@happypumi.dev / password
+curl -s -H "Authorization: token hp-dev" http://localhost:8080/api/user
+export PULUMI_ACCESS_TOKEN=hp-dev && pulumi login http://localhost:8080 && pulumi whoami
 ```
-
-**Linux only.** Every service uses host networking so that `http://localhost:5556`
-(the issuer + JWKS baked into Dex's tokens) resolves to the same Dex for both the
-browser and the API container — the one way to satisfy OIDC reachability without
-code changes. On **macOS / Windows** (Docker Desktop), use `make dev` for the full
-console experience; `compose.yaml` remains the cross-platform way to exercise the
-API via REST or the pulumi CLI.
 
 ---
 
