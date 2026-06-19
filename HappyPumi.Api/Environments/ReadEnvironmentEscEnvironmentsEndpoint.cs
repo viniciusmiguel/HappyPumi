@@ -37,7 +37,8 @@ public sealed class ReadEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore env
             await Send.NotFoundAsync(ct);
             return;
         }
-        // The definition is served as raw YAML (the editor loads it as text).
+        // The definition is served as raw YAML (the editor loads it as text); the CLI reads the revision header.
+        EscHeaders.SetRevision(HttpContext, env.CurrentRevision);
         await Send.StringAsync(env.Yaml, contentType: "application/x-yaml; charset=utf-8", cancellation: ct);
     }
 }

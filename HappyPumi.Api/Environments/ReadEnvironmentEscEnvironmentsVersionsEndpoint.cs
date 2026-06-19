@@ -32,6 +32,7 @@ public sealed class ReadEnvironmentEscEnvironmentsVersionsEndpoint(IEnvironmentS
             await Send.NotFoundAsync(ct);
             return;
         }
+        EscHeaders.SetRevision(HttpContext, revision.Number);
         await Send.StringAsync(revision.Yaml, contentType: "application/x-yaml; charset=utf-8", cancellation: ct);
     }
 }

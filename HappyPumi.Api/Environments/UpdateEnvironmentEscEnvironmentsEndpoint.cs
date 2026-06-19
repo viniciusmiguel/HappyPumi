@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
@@ -13,26 +12,38 @@ using HappyPumi.Api.State;
 namespace HappyPumi.Api.Endpoints.Environments;
 
 /// <summary>
+/// Request for UpdateEnvironment. Implements <see cref="IPlainTextRequest"/> so the YAML body is read raw into
+/// <see cref="Content"/> instead of being JSON-deserialized — the CLI PATCHes the definition with an
+/// application/json content type, which would otherwise make FastEndpoints try to parse the YAML as JSON.
+/// </summary>
+public sealed class UpdateEnvironmentInput : IPlainTextRequest
+{
+    [BindFrom("orgName")] public string OrgName { get; set; } = default!;
+    [BindFrom("projectName")] public string ProjectName { get; set; } = default!;
+    [BindFrom("envName")] public string EnvName { get; set; } = default!;
+    public string Content { get; set; } = default!;
+}
+
+/// <summary>
 /// UpdateEnvironment — replaces the definition YAML (recording a new revision). The body is raw YAML; an
 /// unparseable definition is rejected with an error diagnostic rather than persisted.
 /// </summary>
 public sealed class UpdateEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore environments)
-    : Endpoint<UpdateEnvironmentEscEnvironmentsRequest, UpdateEnvironmentResponse>
+    : Endpoint<UpdateEnvironmentInput, UpdateEnvironmentResponse>
 {
     public override void Configure()
     {
         Patch("/api/esc/environments/{orgName}/{projectName}/{envName}");
         Permissions("environment:write");
-        // The definition is posted as raw YAML; read the body directly (see CheckYaml).
         Description(b => b
-            .Accepts<UpdateEnvironmentEscEnvironmentsRequest>("application/x-yaml", "text/yaml", "text/plain", "application/json")
+            .Accepts<UpdateEnvironmentInput>("application/x-yaml", "text/yaml", "text/plain", "application/json")
             .WithTags("Environments")
             .WithSummary("UpdateEnvironment")
             .WithName("UpdateEnvironmentEscEnvironments")
         );
     }
 
-    public override async Task HandleAsync(UpdateEnvironmentEscEnvironmentsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(UpdateEnvironmentInput req, CancellationToken ct)
     {
         var coords = new EnvCoordinates(req.OrgName, req.ProjectName, req.EnvName);
         if (environments.Get(coords) is null)
@@ -41,9 +52,7 @@ public sealed class UpdateEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore e
             return;
         }
 
-        using var reader = new StreamReader(HttpContext.Request.Body);
-        var yaml = await reader.ReadToEndAsync(ct);
-
+        var yaml = req.Content ?? "";
         var diagnostic = ValidationError(yaml);
         if (diagnostic is not null)
         {
@@ -52,7 +61,8 @@ public sealed class UpdateEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore e
         }
 
         var login = User.Identity?.Name ?? "happypumi";
-        environments.UpdateYaml(coords, yaml, login, login);
+        var updated = environments.UpdateYaml(coords, yaml, login, login);
+        EscHeaders.SetRevision(HttpContext, updated?.CurrentRevision ?? 0); // the CLI parses the new revision from the response
         await Send.OkAsync(new UpdateEnvironmentResponse { Diagnostics = new List<EnvironmentDiagnostic>() }, ct);
     }
 

@@ -12,6 +12,8 @@ public interface IEnvironmentStore
 {
     /// <summary>All environments in an org (the ESC Environments list).</summary>
     IReadOnlyList<StoredEnvironment> ListByOrg(string org);
+    /// <summary>All environments across every org (the `env ls` surface).</summary>
+    IReadOnlyList<StoredEnvironment> ListAll();
     StoredEnvironment? Get(EnvCoordinates coordinates);
     /// <summary>Creates an environment with an initial empty definition + revision 1. Null when it already exists.</summary>
     StoredEnvironment? Create(EnvCoordinates coordinates, string ownerLogin, string ownerName);
