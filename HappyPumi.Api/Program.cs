@@ -11,7 +11,11 @@ using HappyPumi.Api.Esc.Providers.AwsParameterStore;
 using HappyPumi.Api.Esc.Providers.GcpSecrets;
 using HappyPumi.Api.Esc.Providers.Logins;
 using HappyPumi.Api.Esc.Providers.Logins.Aws;
+using HappyPumi.Api.Esc.Providers.Logins.Azure;
+using HappyPumi.Api.Esc.Providers.Logins.Gcp;
+using HappyPumi.Api.Esc.Providers.Logins.Vault;
 using HappyPumi.Api.Esc.Oidc;
+using System.Net.Http;
 using HappyPumi.Api.Esc.Providers.PulumiStacks;
 using HappyPumi.Api.Esc.Providers.Vault;
 using HappyPumi.Api.Esc.Rotators.AwsIam;
@@ -91,10 +95,13 @@ bld.Services.AddSingleton<IEscProvider, PulumiStacksProvider>();          // fn:
 bld.Services.AddSingleton<IEscOidcIssuer>(sp =>
     EscOidcIssuer.FromConfiguration(sp.GetRequiredService<IConfiguration>()));
 bld.Services.AddSingleton<IAwsStsExchanger, AwsStsExchanger>();           // STS AssumeRoleWithWebIdentity
+bld.Services.AddSingleton<IAzureOidcExchanger>(_ => new AzureOidcExchanger(new HttpClient()));   // AAD client-assertion
+bld.Services.AddSingleton<IGcpOidcExchanger>(_ => new GcpOidcExchanger(new HttpClient()));       // GCP STS + impersonation
+bld.Services.AddSingleton<IVaultJwtExchanger>(_ => new VaultJwtExchanger(new HttpClient()));     // Vault JWT auth
 bld.Services.AddSingleton<IEscProvider, AwsLoginProvider>();              // fn::open::aws-login (OIDC + static)
-bld.Services.AddSingleton<IEscProvider, AzureLoginProvider>();            // fn::open::azure-login
-bld.Services.AddSingleton<IEscProvider, GcpLoginProvider>();             // fn::open::gcp-login
-bld.Services.AddSingleton<IEscProvider, VaultLoginProvider>();           // fn::open::vault-login
+bld.Services.AddSingleton<IEscProvider, AzureLoginProvider>();            // fn::open::azure-login (OIDC + static)
+bld.Services.AddSingleton<IEscProvider, GcpLoginProvider>();             // fn::open::gcp-login (OIDC + static)
+bld.Services.AddSingleton<IEscProvider, VaultLoginProvider>();           // fn::open::vault-login (OIDC + static)
 bld.Services.AddSingleton<IEscProviderRegistry, EscProviderRegistry>();
 // Secret rotators (fn::rotate) — same singleton seam as providers.
 bld.Services.AddSingleton<IAwsIamClient, AwsIamClient>();                 // AWS IAM access-key rotation (fn::rotate::aws-iam)

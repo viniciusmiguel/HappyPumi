@@ -6,14 +6,16 @@ using System.Threading.Tasks;
 using HappyPumi.Api.Esc.Oidc;
 using HappyPumi.Api.Esc.Providers.Logins;
 using HappyPumi.Api.Esc.Providers.Logins.Aws;
+using HappyPumi.Api.Esc.Providers.Logins.Vault;
 
 namespace HappyPumi.Api.Tests.Esc;
 
-/// <summary>Unit tests for the static-credential *-login providers.</summary>
+/// <summary>Unit tests for the static-credential pass-through of the *-login providers.</summary>
 public sealed class LoginProvidersTests
 {
-    private static AwsLoginProvider NewAwsLogin()
-        => new(new EscOidcIssuer("https://test/oidc", RSA.Create(2048), "kid"), new FakeAwsStsExchanger());
+    private static EscOidcIssuer Issuer() => new("https://test/oidc", RSA.Create(2048), "kid");
+
+    private static AwsLoginProvider NewAwsLogin() => new(Issuer(), new FakeAwsStsExchanger());
 
     [Fact]
     public async Task AwsLoginExposesCredentialsWithSecretsMarked()
@@ -46,7 +48,7 @@ public sealed class LoginProvidersTests
     [Fact]
     public async Task VaultLoginMarksTokenSecretAndAddressPlain()
     {
-        var provider = new VaultLoginProvider();
+        var provider = new VaultLoginProvider(Issuer(), new FakeVaultJwtExchanger());
         var inputs = new Dictionary<string, object?> { ["address"] = "https://vault", ["token"] = "t" };
 
         var output = (Dictionary<string, object?>)(await provider.OpenAsync(inputs, CancellationToken.None))!;
