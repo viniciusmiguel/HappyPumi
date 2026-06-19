@@ -1,0 +1,72 @@
+# Full topology from containers: Postgres + Dex (OIDC) + the published API image + the React console,
+# so the console's interactive sign-in works end-to-end — the piece the simple compose.yaml can't do.
+#
+#   docker compose -f compose.full.yaml up        # console → http://localhost:5173
+#   # sign in with admin@happypumi.dev / password
+#   docker compose -f compose.full.yaml down -v
+#
+# LINUX ONLY. Every service uses host networking on purpose: Dex mints tokens whose issuer + JWKS live at
+# http://localhost:5556, and the API must resolve that exact URL to the same Dex the browser used. Host
+# networking is the only way "localhost:5556" means one thing for both the browser and the API container
+# without code changes. On macOS / Windows (Docker Desktop), host networking doesn't bridge to the host
+# the same way — use `make dev` there for the full console experience.
+#
+# Ports bound on the host: 5432 (Postgres), 5556 (Dex), 8080 (API), 5173 (console). Stop anything already
+# using them first.
+name: happypumi-full
+
+services:
+  db:
+    image: postgres:17
+    network_mode: host
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: happypumidb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d happypumidb"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  dex:
+    image: ghcr.io/dexidp/dex:v2.41.1
+    network_mode: host
+    command: ["dex", "serve", "/etc/dex/config.yaml"]
+    volumes:
+      - ./HappyPumi.AppHost/dex/config.yaml:/etc/dex/config.yaml:ro
+
+  api:
+    image: ghcr.io/viniciusmiguel/happypumi-api:latest
+    network_mode: host
+    depends_on:
+      db:
+        condition: service_healthy
+      dex:
+        condition: service_started
+    environment:
+      ConnectionStrings__happypumidb: "Host=localhost;Port=5432;Database=happypumidb;Username=postgres;Password=postgres"
+      Seed__Enabled: "true"
+      # OIDC against Dex — same wiring as `make dev` (HappyPumi.AppHost). With host networking the API
+      # reaches Dex's issuer/JWKS at http://localhost:5556, exactly the URL baked into the tokens.
+      Authentication__Oidc__Authority: "http://localhost:5556/dex"
+      Authentication__Oidc__ClientId: "happypumi"
+      ASPNETCORE_HTTP_PORTS: "8080"
+
+  console:
+    image: node:22
+    network_mode: host
+    depends_on:
+      api:
+        condition: service_started
+      dex:
+        condition: service_started
+    working_dir: /app
+    # Anonymous volume for node_modules so the container installs its own (avoids host/platform clashes).
+    volumes:
+      - ./console:/app
+      - /app/node_modules
+    environment:
+      HAPPYPUMI_URL: "http://localhost:8080"  # vite proxies /api here (the host-networked API)
+      DEX_URL: "http://localhost:5556"        # vite proxies /dex here (token exchange)
+    command: ["sh", "-c", "npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0 --port 5173"]
