@@ -30,7 +30,7 @@ public sealed class OpenEnvironmentInput : IPlainTextRequest
 /// OpenEnvironment — fully evaluates an environment (imports, interpolation, built-ins, <c>fn::open</c>
 /// providers, secret decryption) and stores the resolved tree under a short-lived session id.
 /// </summary>
-public sealed class OpenEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore environments, EscOpener opener, IEscSessionStore sessions, IAuditLog audit)
+public sealed class OpenEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore environments, EscOpener opener, IEscSessionStore sessions, IAuditLog audit, EscOpenGate gate)
     : Endpoint<OpenEnvironmentInput, OpenEnvironmentResponse>
 {
     private static readonly TimeSpan DefaultDuration = TimeSpan.FromHours(2);
@@ -53,6 +53,16 @@ public sealed class OpenEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore env
         if (env is null)
         {
             await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        var requester = User.Identity?.Name ?? "happypumi";
+        if (!gate.Allows(coords, requester, DateTime.UtcNow))
+        {
+            // Gated environment with no active grant: the caller must request and obtain approval first.
+            await Send.ResultAsync(Microsoft.AspNetCore.Http.Results.Json(
+                new { code = 403, message = $"Opening '{req.ProjectName}/{req.EnvName}' requires an approved access request." },
+                statusCode: 403));
             return;
         }
 

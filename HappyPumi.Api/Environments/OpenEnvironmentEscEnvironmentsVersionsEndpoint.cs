@@ -13,7 +13,7 @@ using HappyPumi.Api.State;
 namespace HappyPumi.Api.Endpoints.Environments;
 
 /// <summary>OpenEnvironment (by version) — fully evaluates a specific revision and returns a session id.</summary>
-public sealed class OpenEnvironmentEscEnvironmentsVersionsEndpoint(IEnvironmentStore environments, EscOpener opener, IEscSessionStore sessions)
+public sealed class OpenEnvironmentEscEnvironmentsVersionsEndpoint(IEnvironmentStore environments, EscOpener opener, IEscSessionStore sessions, EscOpenGate gate)
     : Endpoint<OpenEnvironmentEscEnvironmentsVersionsRequest, OpenEnvironmentResponse>
 {
     private static readonly TimeSpan DefaultDuration = TimeSpan.FromHours(2);
@@ -36,6 +36,15 @@ public sealed class OpenEnvironmentEscEnvironmentsVersionsEndpoint(IEnvironmentS
         if (revision is null)
         {
             await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        var requester = User.Identity?.Name ?? "happypumi";
+        if (!gate.Allows(coords, requester, DateTime.UtcNow))
+        {
+            await Send.ResultAsync(Microsoft.AspNetCore.Http.Results.Json(
+                new { code = 403, message = $"Opening '{req.ProjectName}/{req.EnvName}' requires an approved access request." },
+                statusCode: 403));
             return;
         }
 

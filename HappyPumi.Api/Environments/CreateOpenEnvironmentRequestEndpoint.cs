@@ -36,7 +36,8 @@ public sealed class CreateOpenEnvironmentRequestEndpoint(IEnvironmentStore envir
             return;
         }
 
-        var request = requests.Create(coords, req.Body?.AccessDurationSeconds ?? 0, req.Body?.GrantExpirationSeconds ?? 0, env.CurrentRevision);
+        var requester = User.Identity?.Name ?? "happypumi";
+        var request = requests.Create(coords, req.Body?.AccessDurationSeconds ?? 0, req.Body?.GrantExpirationSeconds ?? 0, env.CurrentRevision, requester);
         var result = new CreateEnvironmentOpenRequestResult
         {
             ChangeRequestId = request.Id, EnvironmentName = env.Coordinates.Name, ProjectName = env.Coordinates.Project,
