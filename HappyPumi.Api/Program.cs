@@ -53,6 +53,9 @@ bld.Services.AddScoped<IDeploymentQueue, PostgresDeploymentQueue>(); // runner w
 bld.Services.AddScoped<IAgentPoolStore, PostgresAgentPoolStore>();   // workflow-runner pools + token validation
 bld.Services.AddScoped<IEnvironmentStore, PostgresEnvironmentStore>(); // ESC environments + revisions
 bld.Services.AddScoped<IEnvironmentWebhookStore, PostgresEnvironmentWebhookStore>(); // ESC environment webhooks
+bld.Services.AddSingleton<HappyPumi.Api.Webhooks.IWebhookSender, HappyPumi.Api.Webhooks.WebhookSender>();       // HTTP delivery
+bld.Services.AddSingleton<HappyPumi.Api.Webhooks.IWebhookDeliveryLog, HappyPumi.Api.Webhooks.WebhookDeliveryLog>(); // delivery log (in-memory)
+bld.Services.AddScoped<HappyPumi.Api.Webhooks.WebhookDeliveryService>();                                       // ping/redeliver orchestration
 bld.Services.AddScoped<IArtifactStore, PostgresArtifactStore>();       // registry artifact blobs (publish)
 bld.Services.AddScoped<IPolicyFindingStore, PostgresPolicyFindingStore>(); // policy violations (events → findings)
 bld.Services.AddScoped<IAuditLog, PostgresAuditLog>();                 // audit events (ADR-0010)
