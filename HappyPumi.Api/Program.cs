@@ -9,6 +9,7 @@ using HappyPumi.Api.Esc.Providers.AzureKeyVault;
 using HappyPumi.Api.Esc.Providers.AwsSecrets;
 using HappyPumi.Api.Esc.Providers.AwsParameterStore;
 using HappyPumi.Api.Esc.Providers.GcpSecrets;
+using HappyPumi.Api.Esc.Providers.Logins;
 using HappyPumi.Api.Esc.Providers.PulumiStacks;
 using HappyPumi.Api.Esc.Providers.Vault;
 using HappyPumi.Api.Esc.Rotators.AwsIam;
@@ -84,6 +85,10 @@ bld.Services.AddSingleton<IGcpSecretsClient, GcpSecretsClient>();         // GCP
 bld.Services.AddSingleton<IEscProvider, GcpSecretsProvider>();
 bld.Services.AddScoped<IStackOutputsSource, StackOutputsSource>();        // cross-stack outputs (reads IStackStore)
 bld.Services.AddSingleton<IEscProvider, PulumiStacksProvider>();          // fn::open::pulumi-stacks
+bld.Services.AddSingleton<IEscProvider, AwsLoginProvider>();              // fn::open::aws-login
+bld.Services.AddSingleton<IEscProvider, AzureLoginProvider>();            // fn::open::azure-login
+bld.Services.AddSingleton<IEscProvider, GcpLoginProvider>();             // fn::open::gcp-login
+bld.Services.AddSingleton<IEscProvider, VaultLoginProvider>();           // fn::open::vault-login
 bld.Services.AddSingleton<IEscProviderRegistry, EscProviderRegistry>();
 // Secret rotators (fn::rotate) — same singleton seam as providers.
 bld.Services.AddSingleton<IAwsIamClient, AwsIamClient>();                 // AWS IAM access-key rotation (fn::rotate::aws-iam)
