@@ -92,6 +92,7 @@ bld.Services.AddScoped<EscRotationRunner>();                              // exe
 bld.Services.AddSingleton<IEscSessionStore, EscSessionStore>();
 bld.Services.AddSingleton<IEscDraftStore, EscDraftStore>();               // environment drafts (in-memory)
 bld.Services.AddSingleton<IEscOpenRequestStore, EscOpenRequestStore>();   // gated-open access requests (in-memory)
+bld.Services.AddSingleton<IEscScheduleStore, EscScheduleStore>();         // scheduled actions (in-memory)
 bld.Services.AddScoped<EscOpener>();
 
 // Service-managed secrets crypter for the /encrypt and /decrypt endpoints. Singleton so its
