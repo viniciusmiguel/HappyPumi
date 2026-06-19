@@ -1,0 +1,25 @@
+HappyPumi
+Copyright the HappyPumi authors.
+
+This product is an independent, clean-room reimplementation of the Pulumi Cloud
+API (see docs/adr/0008-clean-room-implementation.md). It is not affiliated with
+or endorsed by Pulumi Corporation. "Pulumi", "Pulumi Cloud", "Pulumi ESC", and
+"CrossGuard" are trademarks of Pulumi Corporation.
+
+------------------------------------------------------------------------------
+Third-party attributions
+------------------------------------------------------------------------------
+
+Pulumi CLI — github.com/pulumi/pulumi (Apache License 2.0)
+  Used as a black-box reference client. HappyPumi's HTTP behavior is inferred
+  from the public Pulumi Cloud OpenAPI spec and the observable behavior of this
+  open-source CLI. No proprietary Pulumi server source is used.
+
+Pulumi ESC — github.com/pulumi/esc (Apache License 2.0)
+  The ESC environment evaluator in HappyPumi.Api/Environments and HappyPumi.Api/Esc
+  (imports/merge precedence, the fn:: built-in functions, and the fn::open provider
+  model) is an independent port of behavior described by the Apache-2.0 pulumi/esc
+  evaluator and the public ESC documentation.
+
+A copy of the Apache License 2.0 is in LICENSE.
+</content>
