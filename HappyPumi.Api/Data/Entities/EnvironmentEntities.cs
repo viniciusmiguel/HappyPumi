@@ -21,6 +21,10 @@ public sealed class EnvironmentRow
     public long CurrentRevision { get; set; } = 1;
     /// <summary>Environment-level tag map (jsonb).</summary>
     public Dictionary<string, string> Tags { get; set; } = new();
+
+    /// <summary>Soft-delete: a deleted environment is hidden but restorable within the retention window.</summary>
+    public bool Deleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
 }
 
 /// <summary>An immutable revision of an environment's definition. Key: Id; indexed by (Org, Project, Name).</summary>
@@ -37,4 +41,13 @@ public sealed class EnvironmentRevisionRow
     public string Yaml { get; set; } = "";
     /// <summary>Revision tags (e.g. "latest", "stable"); jsonb.</summary>
     public List<string> Tags { get; set; } = new();
+
+    /// <summary>Retraction marks a revision withdrawn (kept in history but no longer a valid version to use).</summary>
+    public bool Retracted { get; set; }
+    public DateTime? RetractedAt { get; set; }
+    public string? RetractedByLogin { get; set; }
+    public string? RetractedByName { get; set; }
+    public string? RetractReason { get; set; }
+    /// <summary>Optional revision number recommended in place of the retracted one.</summary>
+    public long? RetractReplacement { get; set; }
 }

@@ -20,6 +20,8 @@ public sealed class StoredEnvironment
     public string Yaml { get; set; } = "values: {}\n";
     public long CurrentRevision { get; set; } = 1;
     public Dictionary<string, string> Tags { get; set; } = new();
+    public bool Deleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
 }
 
 /// <summary>One revision of an environment's definition.</summary>
@@ -31,4 +33,12 @@ public sealed class StoredEnvRevision
     public string CreatorName { get; set; } = "";
     public string Yaml { get; set; } = "";
     public List<string> Tags { get; set; } = new();
+
+    /// <summary>Retraction state (null fields when not retracted).</summary>
+    public bool Retracted { get; set; }
+    public DateTime? RetractedAt { get; set; }
+    public string? RetractedByLogin { get; set; }
+    public string? RetractedByName { get; set; }
+    public string? RetractReason { get; set; }
+    public long? RetractReplacement { get; set; }
 }

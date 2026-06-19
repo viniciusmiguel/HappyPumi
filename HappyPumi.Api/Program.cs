@@ -4,6 +4,8 @@ using HappyPumi.Api.Auth;
 using HappyPumi.Api.ConsoleApi;
 using HappyPumi.Api.Data;
 using HappyPumi.Api.Data.Stores;
+using HappyPumi.Api.Esc;
+using HappyPumi.Api.Esc.Providers.AzureKeyVault;
 using HappyPumi.Api.Secrets;
 using HappyPumi.Api.State;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -53,6 +55,16 @@ bld.Services.AddScoped<IVcsConnectionStore, PostgresVcsConnectionStore>(); // VC
 bld.Services.AddScoped<IOidcIssuerStore, PostgresOidcIssuerStore>();   // identity providers (OIDC issuers)
 bld.Services.AddScoped<IApprovalRuleStore, PostgresApprovalRuleStore>(); // approval rules
 bld.Services.AddScoped<UpdateLifecycle>();
+
+// ESC engine: dynamic-value providers (fn::open) + the open-session lifecycle. Providers and their
+// registry are singletons (stateless wrappers over cloud SDKs); EscOpener is scoped because it reads
+// imported environments through the request-scoped IEnvironmentStore. Sessions hold decrypted/opened
+// values, so the store is an in-memory singleton — never persisted (ADR-0005).
+bld.Services.AddSingleton<IAzureKeyVaultClient, AzureKeyVaultClient>();   // Azure Key Vault (fn::open::azure-keyvault)
+bld.Services.AddSingleton<IEscProvider, AzureKeyVaultProvider>();
+bld.Services.AddSingleton<IEscProviderRegistry, EscProviderRegistry>();
+bld.Services.AddSingleton<IEscSessionStore, EscSessionStore>();
+bld.Services.AddScoped<EscOpener>();
 
 // Service-managed secrets crypter for the /encrypt and /decrypt endpoints. Singleton so its
 // process-static key is stable across requests (ADR-0007 secrets follow-up: persist a per-stack key).

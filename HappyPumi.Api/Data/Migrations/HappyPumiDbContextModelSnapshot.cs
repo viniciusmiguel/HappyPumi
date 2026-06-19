@@ -297,6 +297,24 @@ namespace HappyPumi.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("RetractReason")
+                        .HasColumnType("text");
+
+                    b.Property<long?>("RetractReplacement")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("Retracted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("RetractedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RetractedByLogin")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RetractedByName")
+                        .HasColumnType("text");
+
                     b.Property<string>("Tags")
                         .IsRequired()
                         .HasColumnType("jsonb");
@@ -329,6 +347,12 @@ namespace HappyPumi.Api.Data.Migrations
 
                     b.Property<long>("CurrentRevision")
                         .HasColumnType("bigint");
+
+                    b.Property<bool>("Deleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("DeletionProtected")
                         .HasColumnType("boolean");
