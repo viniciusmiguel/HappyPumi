@@ -19,7 +19,15 @@ public sealed class FakeEnvironmentStore : IEnvironmentStore
 
     public IReadOnlyList<StoredEnvironment> ListByOrg(string org) => throw new NotSupportedException();
     public StoredEnvironment? Create(EnvCoordinates coordinates, string ownerLogin, string ownerName) => throw new NotSupportedException();
-    public StoredEnvironment? UpdateYaml(EnvCoordinates coordinates, string yaml, string editorLogin, string editorName) => throw new NotSupportedException();
+    public StoredEnvironment? UpdateYaml(EnvCoordinates coordinates, string yaml, string editorLogin, string editorName)
+    {
+        if (!_envs.TryGetValue(coordinates, out var env))
+            return null;
+        env.Yaml = yaml;
+        env.CurrentRevision += 1;
+        return env;
+    }
+
     public IReadOnlyList<StoredEnvRevision> ListRevisions(EnvCoordinates coordinates) => throw new NotSupportedException();
     public bool Delete(EnvCoordinates coordinates) => throw new NotSupportedException();
     public StoredEnvironment? Restore(EnvCoordinates coordinates) => throw new NotSupportedException();

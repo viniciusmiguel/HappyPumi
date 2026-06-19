@@ -83,6 +83,8 @@ bld.Services.AddSingleton<IEscProviderRegistry, EscProviderRegistry>();
 bld.Services.AddSingleton<IAwsIamClient, AwsIamClient>();                 // AWS IAM access-key rotation (fn::rotate::aws-iam)
 bld.Services.AddSingleton<IEscRotator, AwsIamRotator>();
 bld.Services.AddSingleton<IEscRotatorRegistry, EscRotatorRegistry>();
+bld.Services.AddSingleton<IEscRotationHistory, EscRotationHistory>();     // rotation event history (in-memory)
+bld.Services.AddScoped<EscRotationRunner>();                              // executes fn::rotate (reads/writes env store)
 bld.Services.AddSingleton<IEscSessionStore, EscSessionStore>();
 bld.Services.AddScoped<EscOpener>();
 
