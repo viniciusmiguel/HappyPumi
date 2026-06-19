@@ -36,6 +36,14 @@ public sealed class ApproveEndpoint(IEscOpenRequestStore requests, EscOpenGate g
         }
 
         var approver = User.Identity?.Name ?? "happypumi";
+        if (approver == location.Request.Requester)
+        {
+            // Separation of duties: the requester cannot approve their own access request.
+            await Send.ResultAsync(Microsoft.AspNetCore.Http.Results.Json(
+                new { code = 403, message = "You cannot approve your own access request." }, statusCode: 403));
+            return;
+        }
+
         var approvers = location.Request.ApproverList.Contains(approver)
             ? location.Request.ApproverList
             : location.Request.ApproverList.Append(approver).ToList();

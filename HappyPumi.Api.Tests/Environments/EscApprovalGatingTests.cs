@@ -16,30 +16,38 @@ public sealed class EscApprovalGatingTests(HappyPumiApp app)
     private const string Project = "esc-gating";
 
     [Fact]
-    public async Task GatedEnvironmentRequiresAnApprovedGrantToOpen()
+    public async Task GatedEnvironmentRequiresAnApprovedGrantFromADistinctApprover()
     {
-        using var client = app.CreateAuthedClient();
-        var name = await CreateEnv(client);
+        // Two distinct admin identities: the requester and a separate approver.
+        using var requester = app.CreateAuthedClient("role:admin:alice");
+        using var approver = app.CreateAuthedClient("role:admin:bob");
+
+        var name = await CreateEnv(requester);
         var url = $"/api/esc/environments/{Org}/{Project}/{name}";
 
         // Ungated: opens immediately.
-        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync($"{url}/open", new { })).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await requester.PostAsJsonAsync($"{url}/open", new { })).StatusCode);
 
         // Gate this exact environment with an approval rule (scoped so other envs are unaffected).
-        await CreateApprovalRule(client, pattern: $"{Project}/{name}");
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync($"{url}/open", new { })).StatusCode);
+        await CreateApprovalRule(requester, pattern: $"{Project}/{name}");
+        Assert.Equal(HttpStatusCode.Forbidden, (await requester.PostAsJsonAsync($"{url}/open", new { })).StatusCode);
 
-        // Request access, approve it, then the open succeeds.
-        var id = await CreateOpenRequest(client, url);
-        var approve = await client.PostAsJsonAsync($"/api/change-requests/{Org}/{id}/approve", new { });
-        approve.EnsureSuccessStatusCode();
-        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync($"{url}/open", new { })).StatusCode);
+        var id = await CreateOpenRequest(requester, url);
+
+        // Separation of duties: the requester cannot approve their own request.
+        Assert.Equal(HttpStatusCode.Forbidden,
+            (await requester.PostAsJsonAsync($"/api/change-requests/{Org}/{id}/approve", new { })).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await requester.PostAsJsonAsync($"{url}/open", new { })).StatusCode);
+
+        // A distinct approver grants access, then the requester's open succeeds.
+        (await approver.PostAsJsonAsync($"/api/change-requests/{Org}/{id}/approve", new { })).EnsureSuccessStatusCode();
+        Assert.Equal(HttpStatusCode.OK, (await requester.PostAsJsonAsync($"{url}/open", new { })).StatusCode);
 
         // Withdrawing the approval revokes the grant: gated again.
-        (await client.DeleteAsync($"/api/change-requests/{Org}/{id}/approve")).EnsureSuccessStatusCode();
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync($"{url}/open", new { })).StatusCode);
+        (await approver.DeleteAsync($"/api/change-requests/{Org}/{id}/approve")).EnsureSuccessStatusCode();
+        Assert.Equal(HttpStatusCode.Forbidden, (await requester.PostAsJsonAsync($"{url}/open", new { })).StatusCode);
 
-        var audit = await client.GetFromJsonAsync<ResponseAuditLogs>($"/api/orgs/{Org}/auditlogs");
+        var audit = await approver.GetFromJsonAsync<ResponseAuditLogs>($"/api/orgs/{Org}/auditlogs");
         Assert.Contains(audit!.AuditLogEvents, e => e.Event == "changeRequest.approve" && e.Description!.Contains(name));
     }
 
