@@ -21,4 +21,12 @@ public class CreateDeploymentRequest : DeploymentSettingsRequest
     /// </summary>
     [JsonPropertyName("operation")]
     public string? Operation { get; set; }
+
+    /// <summary>
+    /// HappyPumi extension (not in the public spec): the registry template ref
+    /// ("source/publisher/name/version") the runner should fetch and deploy. Set by the console's
+    /// "Deploy" action so a UI-initiated deployment runs `pulumi up` of a published template.
+    /// </summary>
+    [JsonPropertyName("templateRef")]
+    public string? TemplateRef { get; set; }
 }

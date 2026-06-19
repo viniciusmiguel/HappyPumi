@@ -22,6 +22,7 @@ public sealed class StoredDeployment
     public DateTime Modified { get; set; }
     public string? RequestedByLogin { get; set; }
     public string? RequestedByName { get; set; }
+    public string? TemplateRef { get; set; }
     public List<DeploymentJob> Jobs { get; set; } = new();
     public List<DeploymentNestedUpdate> Updates { get; set; } = new();
 }

@@ -46,7 +46,9 @@ public sealed class JobDefinition
     [JsonPropertyName("timeout")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? Timeout { get; set; }
-    [JsonPropertyName("env")] public Dictionary<string, JobSecretValue> Env { get; set; } = new();
+    // The runner unmarshals env as map[string]string (confirmed live: a map of objects errors with
+    // "cannot unmarshal object into Go struct field JobDefinition.env of type string").
+    [JsonPropertyName("env")] public Dictionary<string, string> Env { get; set; } = new();
     [JsonPropertyName("steps")] public List<StepDefinition> Steps { get; set; } = new();
 }
 
@@ -54,13 +56,6 @@ public sealed class JobDefinition
 public sealed class JobImage
 {
     [JsonPropertyName("reference")] public string Reference { get; set; } = "pulumi/pulumi-base:latest";
-}
-
-/// <summary>A (possibly secret) job env value (apitype.SecretValue: value/ciphertext/secret).</summary>
-public sealed class JobSecretValue
-{
-    [JsonPropertyName("value")] public string Value { get; set; } = "";
-    [JsonPropertyName("secret")] public bool Secret { get; set; }
 }
 
 /// <summary>One step in a job definition. <c>Run</c> is the shell command the runner executes.</summary>

@@ -109,6 +109,77 @@ public sealed class WorkflowAgentTests(HappyPumiApp app)
     }
 
     [Fact]
+    public async Task TemplateDeploymentJobFetchesArchiveAndRunsPulumiUp()
+    {
+        using var client = await PoolClientAsync();
+        var stack = $"tpl-{Guid.NewGuid():N}";
+        var templateRef = "private/happypumi/widget-template/1.0.0";
+
+        using var created = await client.PostAsJsonAsync(
+            $"/api/stacks/happypumi/widget-app/{stack}/deployments",
+            new CreateDeploymentRequest { Operation = "update", TemplateRef = templateRef });
+        Assert.Equal(HttpStatusCode.OK, created.StatusCode);
+
+        // Claim jobs until we get ours (identified by our unique stack name in the pulumi step).
+        var (_, job) = await ClaimJobForStack(client, stack);
+
+        Assert.Equal("pulumi/pulumi:latest", job.Image.Reference);
+        Assert.Contains("PULUMI_BACKEND_URL", job.Env.Keys);
+
+        var deploy = job.Steps[^1].Run; // step 0 is the runner-skipped placeholder
+        Assert.Contains("widget-template/versions/1.0.0/archive", deploy, StringComparison.Ordinal);
+        Assert.Contains("tar -xzf", deploy, StringComparison.Ordinal);
+        Assert.Contains($"happypumi/widget-app/{stack}", deploy, StringComparison.Ordinal);
+        Assert.Contains("pulumi up --yes", deploy, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task JobStepTimelineIsRecordedFromRunnerCallbacks()
+    {
+        using var pool = await PoolClientAsync();
+        using var admin = app.CreateAuthedClient(); // deployment reads need deployments:read
+        var stack = $"steps-{Guid.NewGuid():N}";
+
+        using var created = await admin.PostAsJsonAsync(
+            $"/api/stacks/happypumi/widget-app/{stack}/deployments",
+            new CreateDeploymentRequest { Operation = "update", TemplateRef = "private/happypumi/widget-template/1.0.0" });
+        var version = (await created.Content.ReadFromJsonAsync<CreateDeploymentResponse>())!.Version;
+
+        // Claim + fetch the job (seeds the step timeline), then report per-step status as the runner does.
+        var (jobId, job) = await ClaimJobForStack(pool, stack);
+        for (var i = 0; i < job.Steps.Count; i++)
+            using (await PatchNoContentType(pool, $"/api/workflow/jobs/{jobId}/{i}/status", "{\"status\":\"succeeded\"}")) { }
+
+        // The deployment read now exposes the step timeline for the console's "Steps" panel.
+        using var read = await admin.GetAsync($"/api/stacks/happypumi/widget-app/{stack}/deployments/version/{version}");
+        read.EnsureSuccessStatusCode();
+        using var doc = System.Text.Json.JsonDocument.Parse(await read.Content.ReadAsStringAsync());
+        var steps = doc.RootElement.GetProperty("jobs")[0].GetProperty("steps");
+
+        var last = steps.GetArrayLength() - 1;
+        Assert.Equal(job.Steps.Count, steps.GetArrayLength());
+        Assert.Equal("prepare", steps[0].GetProperty("name").GetString());
+        Assert.Equal("pulumi update", steps[last].GetProperty("name").GetString());
+        Assert.All(steps.EnumerateArray(), s => Assert.Equal("succeeded", s.GetProperty("status").GetString()));
+        Assert.False(string.IsNullOrEmpty(steps[last].GetProperty("started").GetString()));
+    }
+
+    private static async Task<(string JobId, JobDefinition Job)> ClaimJobForStack(HttpClient client, string stack)
+    {
+        for (var i = 0; i < 50; i++)
+        {
+            using var r = await client.GetAsync("/api/deployments/poll");
+            if (r.StatusCode == HttpStatusCode.NoContent) continue;
+            var def = (await r.Content.ReadFromJsonAsync<AgentWorkflowDefinition>())!;
+            var job = await client.GetFromJsonAsync<JobDefinition>($"/api/workflow/jobs/{def.JobId}");
+            if (job!.Steps.Exists(s => s.Run.Contains(stack, StringComparison.Ordinal)))
+                return (def.JobId, job);
+        }
+
+        throw new Xunit.Sdk.XunitException($"no job for stack '{stack}' was claimable");
+    }
+
+    [Fact]
     public async Task PollDrainsToNoContent()
     {
         using var client = await PoolClientAsync();

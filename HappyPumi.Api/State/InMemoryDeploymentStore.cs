@@ -29,7 +29,7 @@ public sealed class InMemoryDeploymentStore : IDeploymentStore
         return true;
     }
 
-    public StoredDeployment CreateDeployment(StackCoordinates stack, string operation)
+    public StoredDeployment CreateDeployment(StackCoordinates stack, string operation, string? templateRef = null)
     {
         var state = State(stack);
         lock (state.Deployments)
@@ -39,6 +39,7 @@ public sealed class InMemoryDeploymentStore : IDeploymentStore
                 Id = Guid.NewGuid().ToString(),
                 Version = state.NextVersion++,
                 Operation = operation,
+                TemplateRef = templateRef,
             };
             state.Deployments.Add(deployment);
             return deployment;

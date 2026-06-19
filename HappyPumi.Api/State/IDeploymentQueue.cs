@@ -25,6 +25,13 @@ public interface IDeploymentQueue
     /// <summary>Moves a job to a new status (running/succeeded/failed). Returns false if the job is unknown.</summary>
     bool SetStatusByJobId(string jobId, string status);
 
+    /// <summary>Seeds the deployment's job/step timeline from the job definition's step names (idempotent —
+    /// called when the runner first fetches the job). Populates the console's deployment "Steps" panel.</summary>
+    void RecordJobSteps(string jobId, IReadOnlyList<string> stepNames);
+
+    /// <summary>Updates one step's status and timestamps as the runner reports per-step progress.</summary>
+    void RecordStepStatus(string jobId, int stepIndex, string status);
+
     /// <summary>Appends a runner log line for a job step.</summary>
     void AppendLog(string jobId, int step, string line);
 

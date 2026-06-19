@@ -15,8 +15,9 @@ public interface IDeploymentStore
     void SetSettings(StackCoordinates stack, DeploymentSettings settings);
     bool DeleteSettings(StackCoordinates stack);
 
-    /// <summary>Creates a deployment record, returning it (with an id and auto-incremented version).</summary>
-    StoredDeployment CreateDeployment(StackCoordinates stack, string operation);
+    /// <summary>Creates a deployment record, returning it (with an id and auto-incremented version). When
+    /// <paramref name="templateRef"/> is set, the runner deploys that template ("source/publisher/name/version").</summary>
+    StoredDeployment CreateDeployment(StackCoordinates stack, string operation, string? templateRef = null);
     IReadOnlyList<StoredDeployment> ListDeployments(StackCoordinates stack);
     /// <summary>All deployments across an org, newest first (the org Deployments console page).</summary>
     IReadOnlyList<StoredDeployment> ListByOrg(string org);

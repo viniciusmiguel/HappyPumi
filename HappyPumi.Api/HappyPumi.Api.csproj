@@ -8,6 +8,11 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <!-- Component tests assert on internal pure helpers (e.g. GetWorkflowJobEndpoint.BuildJob). -->
+      <InternalsVisibleTo Include="HappyPumi.Api.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
       <Content Include="..\.dockerignore">
         <Link>.dockerignore</Link>
       </Content>

@@ -3,11 +3,14 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using Microsoft.Extensions.Configuration;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.Data.Entities;
 using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.WorkflowAgent;
@@ -118,8 +121,15 @@ public sealed class JobIdRequest
 }
 
 /// <summary>GET /api/workflow/jobs/{jobID} — the job definition the workflow-runner executes.</summary>
-public sealed class GetWorkflowJobEndpoint(IDeploymentQueue queue) : Endpoint<JobIdRequest, JobDefinition>
+public sealed class GetWorkflowJobEndpoint(IDeploymentQueue queue, IConfiguration config)
+    : Endpoint<JobIdRequest, JobDefinition>
 {
+    // The backend URL the executor container uses to reach HappyPumi (registry archive + pulumi backend).
+    // Must be reachable from inside the runner's nested executor container — the docker-bridge gateway by
+    // default (same address the agent's service_url uses), overridable for other topologies.
+    private string ExecutorBackendUrl =>
+        config["WorkflowAgent:ExecutorBackendUrl"] ?? "http://172.17.0.1:5118";
+
     public override void Configure()
     {
         Get("/api/workflow/jobs/{jobID}");
@@ -136,24 +146,77 @@ public sealed class GetWorkflowJobEndpoint(IDeploymentQueue queue) : Endpoint<Jo
             return;
         }
 
-        await Send.OkAsync(new JobDefinition
+        var job = BuildJob(row, ExecutorBackendUrl);
+        // Seed the deployment's step timeline so the console's "Steps" panel reflects the runner's progress.
+        queue.RecordJobSteps(req.JobID, job.Steps.Select(s => s.Name).ToList());
+        await Send.OkAsync(job, ct);
+    }
+
+    /// <summary>
+    /// Builds the runner job. A template deploy (<see cref="DeploymentRow.TemplateRef"/> set) emits steps that
+    /// fetch the published template archive and run <c>pulumi up</c> against HappyPumi as the backend; otherwise
+    /// a diagnostic <c>pulumi version</c> step (e.g. an empty-stack operation with no source to materialize).
+    /// </summary>
+    internal static JobDefinition BuildJob(DeploymentRow row, string backendUrl)
+    {
+        var job = new JobDefinition
         {
-            Os = "linux",
-            Architecture = "amd64",
-            Image = new JobImage { Reference = "pulumi/pulumi-base:latest" },
-            Shell = "bash",
-            Steps =
+            Image = new JobImage { Reference = "pulumi/pulumi:latest" },
+            Env =
             {
-                // DIAGNOSTIC step: learn the executor's pulumi version, the PULUMI_* env the runner injects
-                // (backend url / access token), and whether it can reach HappyPumi — needed to wire a real
-                // `pulumi up`. Output flows back via the /logs endpoint.
-                // A real deployment runs `pulumi <op> --yes` here against HappyPumi as the backend (the
-                // step's pulumi CLI uses the Tier-1 update lifecycle, already implemented). The executor
-                // runs each step in a nested container it launches via the Docker socket, so wiring an
-                // actual `pulumi up` is a runtime-topology concern (see research/ notes), not an API gap.
-                new StepDefinition { Name = "pulumi " + row.Operation, Run = "pulumi version" },
+                ["PULUMI_BACKEND_URL"] = backendUrl,
+                // Dev: HappyPumi accepts any non-empty access token (PulumiTokenAuthHandler). Reuse the job
+                // token the agent already holds so logs trace back to this job.
+                ["PULUMI_ACCESS_TOKEN"] = row.JobToken ?? "hp-runner",
+                ["PULUMI_CONFIG_PASSPHRASE"] = "hp-demo",
             },
-        }, ct);
+        };
+
+        // The runner SKIPS step index 0 (its reserved source-checkout slot) and runs steps 1..N in a single
+        // shared executor container (cwd "/", files persist across them). Verified live by probing the agent
+        // (see research/ notes). So our real work must start at step 1, behind a placeholder step 0.
+        job.Steps.Add(new StepDefinition { Name = "prepare", Run = "true" });
+
+        if (string.IsNullOrWhiteSpace(row.TemplateRef))
+        {
+            job.Steps.Add(new StepDefinition { Name = "pulumi " + row.Operation, Run = "pulumi version" });
+            return job;
+        }
+
+        job.Steps.Add(new StepDefinition { Name = "pulumi " + row.Operation, Run = DeployScript(row, backendUrl) });
+        return job;
+    }
+
+    /// <summary>Fetches the published template archive, extracts it, then runs the requested Pulumi operation
+    /// against the target stack — all in one step (see <see cref="BuildJob"/> for why it must be one step).</summary>
+    private static string DeployScript(DeploymentRow row, string backendUrl)
+    {
+        var (source, publisher, name, version) = SplitTemplateRef(row.TemplateRef!);
+        var url = $"{backendUrl}/api/registry/templates/{source}/{publisher}/{name}/versions/{version}/archive";
+        var stackRef = $"{row.Org}/{row.Project}/{row.Stack}";
+        var op = row.Operation is "preview" or "refresh" or "destroy" ? row.Operation : "up";
+        var apply = op == "preview" ? "pulumi preview" : $"pulumi {op} --yes --skip-preview";
+        // Use a fixed working dir (one container per step, so it is private) and avoid shell command
+        // substitution — the runner mangles "$( … )" when it builds the container command, which silently
+        // produced an empty no-op step (observed live).
+        return string.Join('\n',
+            "set -euo pipefail",
+            "rm -rf /tmp/hpwork && mkdir -p /tmp/hpwork && cd /tmp/hpwork",
+            $"curl -fsSL '{url}' -o template.tar.gz",
+            "tar -xzf template.tar.gz",
+            "ls -la",
+            $"pulumi stack select --create '{stackRef}'",
+            apply);
+    }
+
+    /// <summary>Splits a registry template ref "source/publisher/name/version" into its four parts.</summary>
+    private static (string Source, string Publisher, string Name, string Version) SplitTemplateRef(string templateRef)
+    {
+        var p = templateRef.Split('/');
+        if (p.Length != 4)
+            throw new ArgumentException(
+                $"template ref must be 'source/publisher/name/version', got '{templateRef}'", nameof(templateRef));
+        return (p[0], p[1], p[2], p[3]);
     }
 }
 
@@ -173,16 +236,24 @@ public sealed class UpdateStepStatusEndpoint(IDeploymentQueue queue) : EndpointW
     public override async Task HandleAsync(CancellationToken ct)
     {
         var jobId = Route<string>("jobID") ?? "";
+        var stepIndex = Route<int?>("stepIndex") ?? 0;
         var status = await ReadJsonStringFieldAsync(HttpContext, "status", ct);
         if (!string.IsNullOrWhiteSpace(status))
-            queue.SetStatusByJobId(jobId, status switch
-            {
-                "succeeded" => "succeeded",
-                "failed" => "failed",
-                _ => "running",
-            });
+        {
+            var normalized = NormalizeStatus(status);
+            queue.SetStatusByJobId(jobId, normalized);          // overall deployment status (failed sticky)
+            queue.RecordStepStatus(jobId, stepIndex, normalized); // per-step timeline for the console
+        }
         await Send.OkAsync(new { }, ct);
     }
+
+    /// <summary>Maps a runner step-status string (succeeded/failed/failure/success/… ) to a deployment status.</summary>
+    internal static string NormalizeStatus(string status) => status.Trim().ToLowerInvariant() switch
+    {
+        "succeeded" or "success" or "complete" or "completed" => "succeeded",
+        "failed" or "failure" or "error" or "errored" => "failed",
+        _ => "running",
+    };
 
     /// <summary>Reads one top-level string field from a JSON body that may arrive without a Content-Type.</summary>
     internal static async Task<string?> ReadJsonStringFieldAsync(HttpContext ctx, string field, CancellationToken ct)
@@ -235,8 +306,11 @@ public sealed class AppendStepLogsEndpoint(IDeploymentQueue queue) : EndpointWit
     }
 }
 
-/// <summary>POST /api/workflow/jobs/{jobID}/heartbeat — keep the job alive while the runner works.</summary>
-public sealed class WorkflowJobHeartbeatEndpoint : Endpoint<JobIdRequest>
+/// <summary>
+/// POST /api/workflow/jobs/{jobID}/heartbeat — keep the job alive while the runner works. The runner sends
+/// the heartbeat body WITHOUT a Content-Type, so this is bodyless (an <c>Endpoint&lt;TReq&gt;</c> would 415).
+/// </summary>
+public sealed class WorkflowJobHeartbeatEndpoint : EndpointWithoutRequest
 {
     public override void Configure()
     {
@@ -245,6 +319,6 @@ public sealed class WorkflowJobHeartbeatEndpoint : Endpoint<JobIdRequest>
         Description(b => b.WithTags("WorkflowAgent").WithName("WorkflowJobHeartbeat"));
     }
 
-    public override async Task HandleAsync(JobIdRequest req, CancellationToken ct)
+    public override async Task HandleAsync(CancellationToken ct)
         => await Send.OkAsync(new { }, ct);
 }

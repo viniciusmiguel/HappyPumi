@@ -39,6 +39,8 @@ public sealed class DeploymentRow
     // Console-facing detail. The user who requested the deployment (scalar for listing/sorting).
     public string? RequestedByLogin { get; set; }
     public string? RequestedByName { get; set; }
+    /// <summary>Template ref ("source/publisher/name/version") the runner deploys, when this is a template deploy.</summary>
+    public string? TemplateRef { get; set; }
     /// <summary>Job runs with their step timeline (jsonb — nested contract payload).</summary>
     public List<DeploymentJob> Jobs { get; set; } = new();
     /// <summary>Stack updates produced by this deployment (jsonb).</summary>
