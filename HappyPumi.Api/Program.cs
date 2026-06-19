@@ -13,6 +13,7 @@ using HappyPumi.Api.Esc.Providers.PulumiStacks;
 using HappyPumi.Api.Esc.Providers.Vault;
 using HappyPumi.Api.Esc.Rotators.AwsIam;
 using HappyPumi.Api.Esc.Rotators.Postgres;
+using HappyPumi.Api.Esc.Rotators.MySql;
 using HappyPumi.Api.Secrets;
 using HappyPumi.Api.State;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -89,6 +90,8 @@ bld.Services.AddSingleton<IAwsIamClient, AwsIamClient>();                 // AWS
 bld.Services.AddSingleton<IEscRotator, AwsIamRotator>();
 bld.Services.AddSingleton<IPostgresRotatorClient, PostgresRotatorClient>();   // PostgreSQL password rotation (fn::rotate::postgres)
 bld.Services.AddSingleton<IEscRotator, PostgresRotator>();
+bld.Services.AddSingleton<IMySqlRotatorClient, MySqlRotatorClient>();         // MySQL password rotation (fn::rotate::mysql)
+bld.Services.AddSingleton<IEscRotator, MySqlRotator>();
 bld.Services.AddSingleton<IEscRotatorRegistry, EscRotatorRegistry>();
 bld.Services.AddScoped<IEscRotationHistory, PostgresEscRotationHistory>(); // rotation event history (Postgres)
 bld.Services.AddScoped<EscRotationRunner>();                              // executes fn::rotate (reads/writes env store)
