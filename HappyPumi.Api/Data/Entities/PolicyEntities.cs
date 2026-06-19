@@ -26,3 +26,12 @@ public sealed class PolicyPackVersionRow
     public bool Published { get; set; }
     public List<AppPolicy>? Policies { get; set; }
 }
+
+/// <summary>A policy violation observed during an update (the console's "Policy findings"). Key: Id
+/// (sequence). The full violation payload is jsonb.</summary>
+public sealed class PolicyFindingRow
+{
+    public long Id { get; set; }
+    public string Org { get; set; } = default!;
+    public PolicyViolationV2 Finding { get; set; } = default!;
+}
