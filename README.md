@@ -84,35 +84,47 @@ The image is public: `ghcr.io/<owner>/happypumi-api:latest` (or a pinned tag lik
 `:0.1.0`). Demo data (orgs, stacks, registry, a policy pack) is seeded so there's
 something to query immediately.
 
-**Test it over REST.** Any non-empty token authenticates as the seeded admin in
-this dev image (ADR-0007):
+### Authentication
+
+The API accepts two credential types (ADR-0007), dispatched by the `Authorization`
+header:
+
+- **`token <anything>`** — the Pulumi CLI scheme. In this dev image any non-empty
+  token authenticates as the seeded **admin**, so no IdP is needed. Use
+  `token role:member:alice` to act as a non-admin and exercise RBAC.
+- **`Bearer <jwt>`** — an OIDC id-token from Dex, used by the console's browser
+  sign-in. This is only wired when Dex is present (`compose.full.yaml` / `make dev`).
+
+`compose.yaml` ships **only the token scheme**, which is all the CLI and REST need:
 
 ```bash
+# REST — any token = seeded admin
 curl -s -H "Authorization: token hp-dev" http://localhost:5118/api/user
 curl -s -H "Authorization: token hp-dev" http://localhost:5118/api/user/stacks
-```
 
-**Test it with the real pulumi CLI:**
-
-```bash
+# pulumi CLI
 export PULUMI_ACCESS_TOKEN=hp-dev
 pulumi login http://localhost:5118
 pulumi whoami        # → happypumi
 ```
 
-**Use the console against it.** The console is a separate Vite app; point it at the
-container and open <http://localhost:5173>:
+### Full topology with console login
+
+To use the console's interactive Dex sign-in from containers, bring up the whole
+stack (Postgres + Dex + the API image + the console) with
+[`compose.full.yaml`](compose.full.yaml):
 
 ```bash
-cd console && npm install
-HAPPYPUMI_URL=http://localhost:5118 npm run dev
+docker compose -f compose.full.yaml up      # console → http://localhost:5173
+# sign in with admin@happypumi.dev / password
 ```
 
-Console sign-in uses Dex (OIDC), and Dex issues tokens for `http://localhost:5556`
-that an isolated API container can't reach — so for the **full console experience
-with login**, run the host-process topology with `make dev` (which wires Dex)
-rather than the container. The published image is the API tier; `compose.yaml`
-is the fastest way to exercise the API itself via REST or the pulumi CLI.
+**Linux only.** Every service uses host networking so that `http://localhost:5556`
+(the issuer + JWKS baked into Dex's tokens) resolves to the same Dex for both the
+browser and the API container — the one way to satisfy OIDC reachability without
+code changes. On **macOS / Windows** (Docker Desktop), use `make dev` for the full
+console experience; `compose.yaml` remains the cross-platform way to exercise the
+API via REST or the pulumi CLI.
 
 ---
 

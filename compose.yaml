@@ -4,9 +4,11 @@
 #   docker compose up -d        # API at http://localhost:5118 with seeded demo data
 #   docker compose down -v       # stop and wipe the database volume
 #
-# This brings up the API tier (the published image) and its database. The React console uses Dex (OIDC)
-# for sign-in; the full console-with-login experience runs as a host process via `make dev` (see README),
-# because Dex issues tokens for http://localhost:5556 which an isolated API container can't reach.
+# This brings up the API tier (the published image) and its database. Authentication here uses the Pulumi
+# `token` scheme (ADR-0007): send `Authorization: token <anything>` and you are the seeded admin — that's
+# what `pulumi login` and the curl examples use. (Use `Authorization: token role:member:alice` to act as a
+# non-admin and test RBAC.) OIDC/Dex is NOT wired in this file; it's only needed for the console's browser
+# sign-in. For the full console-with-login experience use `compose.full.yaml` (Linux) or `make dev`.
 name: happypumi
 
 services:
