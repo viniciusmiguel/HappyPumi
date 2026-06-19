@@ -37,6 +37,13 @@ public sealed class ListEnvironmentRevisionsEscEnvironmentsEndpoint(IEnvironment
             {
                 Number = r.Number, Created = r.Created, CreatorLogin = r.CreatorLogin,
                 CreatorName = r.CreatorName, Tags = r.Tags,
+                Retracted = r.Retracted
+                    ? new EnvironmentRevisionRetracted
+                    {
+                        At = r.RetractedAt ?? r.Created, ByLogin = r.RetractedByLogin, ByName = r.RetractedByName,
+                        Reason = r.RetractReason, Replacement = r.RetractReplacement ?? 0,
+                    }
+                    : null,
             }).ToList();
         // The console calls .sort() on this, so it must be a bare JSON array.
         await Send.OkAsync(revisions, ct);
