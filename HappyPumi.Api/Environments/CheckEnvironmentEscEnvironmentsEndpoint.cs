@@ -37,13 +37,15 @@ public sealed class CheckEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore en
             return;
         }
 
-        var properties = EnvironmentEvaluator.Evaluate(env.Yaml);
+        var values = EnvironmentEvaluator.ValuesOf(EnvironmentEvaluator.ParseRoot(env.Yaml));
+        var properties = EnvironmentEvaluator.EvaluateValues(values);
         if (req.ShowSecrets != true)
             EscRedactor.Mask(properties);
 
         await Send.OkAsync(new CheckEnvironmentResponse
         {
             Properties = properties,
+            Exprs = EscExprBuilder.Build(values),
             Diagnostics = new List<EnvironmentDiagnostic>(),
         }, ct);
     }

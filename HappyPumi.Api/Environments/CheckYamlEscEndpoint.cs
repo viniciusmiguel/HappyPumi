@@ -38,12 +38,14 @@ public sealed class CheckYamlEscEndpoint : Endpoint<CheckYamlInput, EnvironmentR
 
     public override async Task HandleAsync(CheckYamlInput req, CancellationToken ct)
     {
-        var properties = EnvironmentEvaluator.Evaluate(req.Content ?? "");
+        var values = EnvironmentEvaluator.ValuesOf(EnvironmentEvaluator.ParseRoot(req.Content ?? ""));
+        var properties = EnvironmentEvaluator.EvaluateValues(values);
         if (req.ShowSecrets != true)
             EscRedactor.Mask(properties);
         await Send.OkAsync(new EnvironmentResponse
         {
             Properties = properties,
+            Exprs = EscExprBuilder.Build(values), // the CLI walks exprs to resolve `env get <path>`
             Diagnostics = new List<EnvironmentDiagnostic>(),
         }, ct);
     }
