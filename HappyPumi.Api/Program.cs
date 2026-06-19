@@ -45,6 +45,13 @@ bld.Services.AddScoped<IDeploymentQueue, PostgresDeploymentQueue>(); // runner w
 bld.Services.AddScoped<IAgentPoolStore, PostgresAgentPoolStore>();   // workflow-runner pools + token validation
 bld.Services.AddScoped<IEnvironmentStore, PostgresEnvironmentStore>(); // ESC environments + revisions
 bld.Services.AddScoped<IArtifactStore, PostgresArtifactStore>();       // registry artifact blobs (publish)
+bld.Services.AddScoped<IPolicyFindingStore, PostgresPolicyFindingStore>(); // policy violations (events → findings)
+bld.Services.AddScoped<IAuditLog, PostgresAuditLog>();                 // audit events (ADR-0010)
+bld.Services.AddScoped<IServiceStore, PostgresServiceStore>();         // IDP services
+bld.Services.AddScoped<ICloudAccountStore, PostgresCloudAccountStore>(); // Insights cloud accounts
+bld.Services.AddScoped<IVcsConnectionStore, PostgresVcsConnectionStore>(); // VCS connections (ADR-0009)
+bld.Services.AddScoped<IOidcIssuerStore, PostgresOidcIssuerStore>();   // identity providers (OIDC issuers)
+bld.Services.AddScoped<IApprovalRuleStore, PostgresApprovalRuleStore>(); // approval rules
 bld.Services.AddScoped<UpdateLifecycle>();
 
 // Service-managed secrets crypter for the /encrypt and /decrypt endpoints. Singleton so its

@@ -49,6 +49,17 @@ async function post<T>(path: string, body: string, fallback: T): Promise<T> {
   }
 }
 
+// JSON POST that surfaces failure (unlike the read fetchers, write actions must report errors to the user).
+async function postJson<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`/api${path}`, {
+    method: "POST",
+    headers: { Authorization: authHeader(), "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`POST ${path} failed: ${res.status} ${res.statusText}`);
+  return (await res.json()) as T;
+}
+
 // ── Shared shapes ────────────────────────────────────────────────────────────
 export interface Organization { githubLogin: string; name?: string; avatarUrl?: string; }
 export interface CurrentUser { githubLogin: string; name?: string; avatarUrl?: string; organizations?: Organization[]; }
@@ -88,16 +99,28 @@ export interface Deployment {
 }
 export interface DeploymentLogLine { header?: string; line: string; timestamp?: string; }
 
+export interface PackageUsageStats { onLatest?: number; onOlder?: number; totalStacks?: number; }
 export interface RegistryPackage {
-  name: string; publisher?: string; source?: string; version?: string; description?: string;
+  name: string; publisher?: string; source?: string; version?: string; description?: string; usageStats?: PackageUsageStats;
   createdAt?: string; isLatest?: boolean; readmeURL?: string;
 }
 export interface PackageNavItem { name: Record<string, string>; typeToken: string; }
 export interface PackageNavModule { name: Record<string, string>; resources?: PackageNavItem[]; functions?: PackageNavItem[]; }
 export interface PackageNav { name: string; publisher: string; version: string; modules: PackageNavModule[]; }
 
-export interface RegistryTemplate { name: string; publisher?: string; source?: string; language?: string; description?: string; }
+export interface RegistryTemplate { name: string; publisher?: string; source?: string; language?: string; description?: string; version?: string; }
 export interface PolicyPack { name: string; displayName?: string; versions?: unknown[]; }
+export interface Service { name: string; description?: string; organizationName?: string; created?: string; }
+export interface AuditEvent { event: string; description: string; actorName?: string; sourceIP?: string; timestamp?: number; }
+export interface CloudAccount { name: string; provider: string; description?: string; created?: string; }
+export interface VcsConnection { name: string; kind: string; created?: string; }
+export interface OidcIssuer { name: string; url: string; created?: string; }
+export interface ApprovalRule { name: string; stackPattern: string; requiredApprovals: number; enabled?: boolean; created?: string; }
+export interface PolicyViolation {
+  id: string; policyName: string; policyPack: string; policyPackTag?: string; level: string;
+  message: string; observedAt?: string; projectName?: string; stackName?: string;
+  resourceName?: string; resourceType?: string; resourceURN?: string;
+}
 
 export interface OrgEnvironment {
   id: string; organization: string; project?: string; name: string;
@@ -109,7 +132,11 @@ export interface CheckEnvResponse { properties?: Record<string, EscValue>; schem
 
 export interface Member { role?: string; user?: Actor; name?: string; githubLogin?: string; }
 export interface Role { id: string; name: string; description?: string; }
-export interface Team { name: string; displayName?: string; description?: string; userCount?: number; }
+export interface TeamMember { githubLogin?: string; name?: string; role?: string; }
+export interface Team {
+  name: string; displayName?: string; description?: string; kind?: string;
+  members?: TeamMember[]; roleIds?: string[];
+}
 
 // ── API ──────────────────────────────────────────────────────────────────────
 export const api = {
@@ -136,6 +163,11 @@ export const api = {
     get<Deployment>(`/stacks/${org}/${project}/${stack}/deployments/version/${version}`, { id: "", version: 0, status: "", pulumiOperation: "" }),
   deploymentLogs: (org: string, project: string, stack: string, id: string) =>
     get<{ lines?: DeploymentLogLine[] }>(`/stacks/${org}/${project}/${stack}/deployments/${id}/logs`, { lines: [] }),
+  // Initiates a managed deployment. templateRef ("source/publisher/name/version") makes the runner fetch and
+  // deploy a published template; omit it for an operation against the stack's existing program.
+  createDeployment: (org: string, project: string, stack: string, operation: string, templateRef?: string) =>
+    postJson<{ id: string; version: number; consoleUrl?: string }>(
+      `/stacks/${org}/${project}/${stack}/deployments`, { operation, templateRef }),
 
   // Registry / components / templates
   packages: () => get<{ packages?: RegistryPackage[] }>("/registry/packages", { packages: [] }),
@@ -163,7 +195,29 @@ export const api = {
   members: (org: string) => get<{ members?: Member[] }>(`/orgs/${org}/members`, { members: [] }),
   roles: (org: string) => get<{ roles?: Role[] }>(`/orgs/${org}/roles`, { roles: [] }),
   teams: (org: string) => get<{ teams?: Team[] }>(`/orgs/${org}/teams`, { teams: [] }),
+  createTeam: (org: string, name: string, displayName: string, description: string) =>
+    postJson<Team>(`/orgs/${org}/teams/pulumi`, { name, displayName, description }),
   policyPacks: (org: string) => get<{ policyPacks?: PolicyPack[] }>(`/orgs/${org}/policypacks`, { policyPacks: [] }),
+
+  // Platform / management surfaces
+  services: (org: string) => get<{ services?: Service[] }>(`/orgs/${org}/services`, { services: [] }),
+  createService: (org: string, name: string, description: string) =>
+    postJson<Service>(`/orgs/${org}/services`, { name, description }),
+  auditLogs: (org: string) => get<{ auditLogEvents?: AuditEvent[] }>(`/orgs/${org}/auditlogs`, { auditLogEvents: [] }),
+  cloudAccounts: (org: string) => get<{ accounts?: CloudAccount[] }>(`/orgs/${org}/cloud-accounts`, { accounts: [] }),
+  createCloudAccount: (org: string, name: string, provider: string, description: string) =>
+    postJson<unknown>(`/orgs/${org}/cloud-accounts`, { name, provider, description }),
+  vcsConnections: (org: string) => get<{ connections?: VcsConnection[] }>(`/orgs/${org}/vcs-connections`, { connections: [] }),
+  createVcsConnection: (org: string, name: string, kind: string) =>
+    postJson<unknown>(`/orgs/${org}/vcs-connections`, { name, kind }),
+  oidcIssuers: (org: string) => get<{ issuers?: OidcIssuer[] }>(`/orgs/${org}/oidc-issuers`, { issuers: [] }),
+  createOidcIssuer: (org: string, name: string, url: string) =>
+    postJson<unknown>(`/orgs/${org}/oidc-issuers`, { name, url }),
+  approvalRules: (org: string) => get<{ rules?: ApprovalRule[] }>(`/orgs/${org}/approval-rules`, { rules: [] }),
+  createApprovalRule: (org: string, name: string, stackPattern: string, requiredApprovals: number) =>
+    postJson<unknown>(`/orgs/${org}/approval-rules`, { name, stackPattern, requiredApprovals }),
+  policyViolations: (org: string) =>
+    get<{ policyViolations?: PolicyViolation[] }>(`/orgs/${org}/policyresults/violationsv2`, { policyViolations: [] }),
 };
 
 // Relative-time formatting matching the console's "Updated 2 days ago" style. Accepts unix seconds or ISO.

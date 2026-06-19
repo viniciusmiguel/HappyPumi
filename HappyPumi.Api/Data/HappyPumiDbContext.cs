@@ -18,10 +18,18 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
     public DbSet<MemberRow> Members => Set<MemberRow>();
     public DbSet<RoleRow> Roles => Set<RoleRow>();
     public DbSet<TeamRoleRow> TeamRoles => Set<TeamRoleRow>();
+    public DbSet<TeamRow> Teams => Set<TeamRow>();
     public DbSet<PackageVersionRow> Packages => Set<PackageVersionRow>();
     public DbSet<TemplateVersionRow> Templates => Set<TemplateVersionRow>();
     public DbSet<PolicyGroupRow> PolicyGroups => Set<PolicyGroupRow>();
     public DbSet<PolicyPackVersionRow> PolicyPackVersions => Set<PolicyPackVersionRow>();
+    public DbSet<PolicyFindingRow> PolicyFindings => Set<PolicyFindingRow>();
+    public DbSet<AuditLogRow> AuditLogs => Set<AuditLogRow>();
+    public DbSet<ServiceRow> Services => Set<ServiceRow>();
+    public DbSet<CloudAccountRow> CloudAccounts => Set<CloudAccountRow>();
+    public DbSet<VcsConnectionRow> VcsConnections => Set<VcsConnectionRow>();
+    public DbSet<OidcIssuerRow> OidcIssuers => Set<OidcIssuerRow>();
+    public DbSet<ApprovalRuleRow> ApprovalRules => Set<ApprovalRuleRow>();
     public DbSet<DeploymentSettingsRow> DeploymentSettings => Set<DeploymentSettingsRow>();
     public DbSet<DeploymentRow> Deployments => Set<DeploymentRow>();
     public DbSet<DeploymentLogRow> DeploymentLogs => Set<DeploymentLogRow>();
@@ -66,6 +74,11 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
         });
 
         b.Entity<TeamRoleRow>(e => e.HasKey(x => new { x.Org, x.TeamName, x.RoleId }));
+        b.Entity<TeamRow>(e =>
+        {
+            e.HasKey(x => new { x.Org, x.Name });
+            e.Property(x => x.Members).AsJsonb();
+        });
 
         b.Entity<PackageVersionRow>(e =>
         {
@@ -86,6 +99,23 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
             e.HasKey(x => new { x.Org, x.Name, x.Version });
             e.Property(x => x.Policies).AsJsonb();
         });
+
+        b.Entity<PolicyFindingRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Finding).AsJsonb();
+        });
+
+        b.Entity<AuditLogRow>(e => e.HasKey(x => x.Id));
+        b.Entity<ServiceRow>(e =>
+        {
+            e.HasKey(x => new { x.Org, x.Name });
+            e.Property(x => x.Items).AsJsonb();
+        });
+        b.Entity<CloudAccountRow>(e => e.HasKey(x => new { x.Org, x.Name }));
+        b.Entity<VcsConnectionRow>(e => e.HasKey(x => new { x.Org, x.Name }));
+        b.Entity<OidcIssuerRow>(e => e.HasKey(x => new { x.Org, x.Name }));
+        b.Entity<ApprovalRuleRow>(e => e.HasKey(x => new { x.Org, x.Name }));
 
         b.Entity<DeploymentSettingsRow>(e =>
         {

@@ -16,8 +16,17 @@ import Registry from "./pages/Registry";
 import Templates from "./pages/Templates";
 import Members from "./pages/Members";
 import Roles from "./pages/Roles";
+import Teams from "./pages/Teams";
 import Policies from "./pages/Policies";
+import PolicyFindings from "./pages/PolicyFindings";
 import Integrations from "./pages/Integrations";
+import Services from "./pages/Services";
+import Approvals from "./pages/Approvals";
+import Accounts from "./pages/Accounts";
+import VersionControl from "./pages/VersionControl";
+import AuditLogs from "./pages/AuditLogs";
+import Identity from "./pages/Identity";
+import Billing from "./pages/Billing";
 import * as Empty from "./pages/empties";
 
 /** Redirects to /login (remembering where you were) when there's no stored token. */
@@ -46,26 +55,26 @@ export default function App() {
         <Route path="/deployments" element={<Deployments />} />
         <Route path="/deployments/:project/:stack/:version" element={<DeploymentDetail />} />
 
-        <Route path="/policy-findings" element={<Policies />} />
+        <Route path="/policy-findings" element={<PolicyFindings />} />
 
-        <Route path="/platform/services" element={<Empty.Services />} />
+        <Route path="/platform/services" element={<Services />} />
         <Route path="/platform/components" element={<Components />} />
         <Route path="/platform/components/:source/:publisher/:name" element={<ComponentDetail />} />
         <Route path="/platform/registry" element={<Registry />} />
         <Route path="/platform/templates" element={<Templates />} />
 
-        <Route path="/management/approvals" element={<Empty.Approvals />} />
-        <Route path="/management/accounts" element={<Empty.Accounts />} />
-        <Route path="/management/version-control" element={<Empty.VersionControl />} />
+        <Route path="/management/approvals" element={<Approvals />} />
+        <Route path="/management/accounts" element={<Accounts />} />
+        <Route path="/management/version-control" element={<VersionControl />} />
         <Route path="/management/policies" element={<Policies />} />
-        <Route path="/management/audit-logs" element={<Empty.AuditLogs />} />
+        <Route path="/management/audit-logs" element={<AuditLogs />} />
 
         <Route path="/settings/members" element={<Members />} />
-        <Route path="/settings/teams" element={<Empty.Teams />} />
+        <Route path="/settings/teams" element={<Teams />} />
         <Route path="/settings/roles" element={<Roles />} />
-        <Route path="/settings/identity" element={<Empty.Identity />} />
+        <Route path="/settings/identity" element={<Identity />} />
         <Route path="/settings/integrations" element={<Integrations />} />
-        <Route path="/settings/billing" element={<Empty.Billing />} />
+        <Route path="/settings/billing" element={<Billing />} />
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Route>
