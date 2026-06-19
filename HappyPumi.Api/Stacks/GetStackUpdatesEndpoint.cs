@@ -39,9 +39,30 @@ public sealed class GetStackUpdatesEndpoint(IStackStore stacks) : Endpoint<GetSt
             return;
         }
 
-        // Shape matches the CLI's GetHistoryResponse { updates: []UpdateInfo }, most-recent first.
-        // AppUpdateInfo is exactly the lean history UpdateInfo the CLI deserializes.
-        var updates = stack.History.Select(e => e.Info).Reverse().ToList();
+        // Most-recent first. Each item is a SUPERSET of the CLI's lean UpdateInfo (which the CLI deserializes,
+        // ignoring extra fields) plus the fields the web console reads (updateKind/info/time/requestedBy).
+        var updates = stack.History.AsEnumerable().Reverse().Select(ToConsoleUpdate).ToList();
         await Send.OkAsync(new { updates }, ct);
+    }
+
+    /// <summary>Projects a stored history entry into the console-friendly update shape (a superset of the lean
+    /// CLI UpdateInfo) so both the CLI and the web console read the same real history, attributed to the user
+    /// who requested the update.</summary>
+    private static object ToConsoleUpdate(StoredHistoryEntry entry)
+    {
+        var info = entry.Info;
+        return new
+        {
+            // Lean CLI UpdateInfo fields (explicit camelCase to match the wire contract regardless of policy):
+            version = info.Version, kind = info.Kind, message = info.Message, result = info.Result,
+            startTime = info.StartTime, endTime = info.EndTime,
+            resourceChanges = info.ResourceChanges, resourceCount = info.ResourceCount,
+            environment = info.Environment, config = info.Config, deployment = info.Deployment,
+            // Web-console extensions:
+            time = info.EndTime,
+            updateKind = new { kind = info.Kind },
+            requestedBy = ConsoleActor.For(entry.RequestedByLogin, entry.RequestedByName),
+            info,
+        };
     }
 }

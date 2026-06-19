@@ -41,6 +41,8 @@ public sealed class PostgresUpdateStore(HappyPumiDbContext db) : IUpdateStore
         row.Version = update.Version;
         row.StartedAt = update.StartedAt;
         row.Message = update.Message;
+        row.RequestedByLogin = update.RequestedByLogin;
+        row.RequestedByName = update.RequestedByName;
         row.Config = update.Config;
         row.Checkpoint = update.Checkpoint;
         db.SaveChanges();
@@ -52,6 +54,7 @@ public sealed class PostgresUpdateStore(HappyPumiDbContext db) : IUpdateStore
         Org = u.Coordinates.Org, Project = u.Coordinates.Project, Stack = u.Coordinates.Stack,
         Kind = u.Kind, DryRun = u.DryRun, Status = u.Status, Token = u.Token,
         Version = u.Version, StartedAt = u.StartedAt, Message = u.Message,
+        RequestedByLogin = u.RequestedByLogin, RequestedByName = u.RequestedByName,
         Config = u.Config, Checkpoint = u.Checkpoint,
     };
 
@@ -61,6 +64,8 @@ public sealed class PostgresUpdateStore(HappyPumiDbContext db) : IUpdateStore
         Coordinates = new StackCoordinates(r.Org, r.Project, r.Stack),
         Kind = r.Kind, DryRun = r.DryRun,
         Status = r.Status, Token = r.Token, Version = r.Version,
-        StartedAt = r.StartedAt, Message = r.Message, Config = r.Config, Checkpoint = r.Checkpoint,
+        StartedAt = r.StartedAt, Message = r.Message,
+        RequestedByLogin = r.RequestedByLogin, RequestedByName = r.RequestedByName,
+        Config = r.Config, Checkpoint = r.Checkpoint,
     };
 }

@@ -20,13 +20,16 @@ public sealed class UpdateLifecycle(IUpdateStore updates, IStackStore stacks)
     /// Creates an update for an existing stack, capturing the program's config/message so the history
     /// and /updates/latest can replay them. Returns null when the stack does not exist.
     /// </summary>
-    public StoredUpdate? Create(StackCoordinates stack, string kind, AppUpdateProgramRequest? program = null)
+    public StoredUpdate? Create(
+        StackCoordinates stack, string kind, AppUpdateProgramRequest? program = null, UpdateActor? requestedBy = null)
     {
         if (stacks.Find(stack) is null)
             return null;
         var update = updates.Create(stack, kind, dryRun: kind == PreviewKind);
         update.Config = program?.Config;
         update.Message = program?.Metadata?.Message ?? string.Empty;
+        update.RequestedByLogin = requestedBy?.Login;
+        update.RequestedByName = requestedBy?.Name;
         updates.Save(update);
         return update;
     }
@@ -84,6 +87,8 @@ public sealed class UpdateLifecycle(IUpdateStore updates, IStackStore stacks)
     private static StoredHistoryEntry HistoryEntryFor(StoredUpdate update, string status) => new()
     {
         UpdateId = update.UpdateId,
+        RequestedByLogin = update.RequestedByLogin,
+        RequestedByName = update.RequestedByName,
         Info = new AppUpdateInfo
         {
             Kind = update.Kind,

@@ -43,4 +43,44 @@ public class StackMetadata
     /// </summary>
     [JsonPropertyName("stackName")]
     public string StackName { get; set; } = default!;
+
+    // ── HappyPumi console extensions (not in the public spec) ──────────────────────────────────────────
+    // The web console's stack-detail header reads these off /metadata to render the status line ("Update #N
+    // <result> <time ago>"), the resource count, and the version. They are not part of the CLI contract.
+
+    /// <summary>Stack display name (== stackName); the console reads <c>name</c> on the resolver result.</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = default!;
+
+    /// <summary>The stack's current version (monotonic, bumped per completed update).</summary>
+    [JsonPropertyName("version")]
+    public long Version { get; set; }
+
+    /// <summary>Resource count from the latest checkpoint (the console header badge).</summary>
+    [JsonPropertyName("resourceCount")]
+    public long ResourceCount { get; set; }
+
+    /// <summary>Free-form stack tags.</summary>
+    [JsonPropertyName("tags")]
+    public Dictionary<string, string> Tags { get; set; } = new();
+
+    /// <summary>The most recent update, or null when the stack has never been updated.</summary>
+    [JsonPropertyName("lastUpdate")]
+    public StackLastUpdate? LastUpdate { get; set; }
+}
+
+/// <summary>
+/// HappyPumi console extension: the summary of a stack's most recent update, read by the console's
+/// stack-detail status line. Mirrors the fields the console accesses (version/result/kind/timestamps/by).
+/// </summary>
+public sealed class StackLastUpdate
+{
+    [JsonPropertyName("version")] public long Version { get; set; }
+    [JsonPropertyName("result")] public string Result { get; set; } = default!;
+    [JsonPropertyName("kind")] public string Kind { get; set; } = default!;
+    [JsonPropertyName("startTime")] public long StartTime { get; set; }
+    [JsonPropertyName("endTime")] public long EndTime { get; set; }
+    /// <summary>Alias of endTime; the console reads either <c>endTime</c> or <c>time</c>.</summary>
+    [JsonPropertyName("time")] public long Time { get; set; }
+    [JsonPropertyName("requestedBy")] public UserInfo? RequestedBy { get; set; }
 }

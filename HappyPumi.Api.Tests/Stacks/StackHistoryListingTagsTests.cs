@@ -66,6 +66,56 @@ public sealed class StackHistoryListingTagsTests(HappyPumiApp app)
         Assert.Equal("update", updates[0].GetProperty("kind").GetString());
         Assert.Equal("succeeded", updates[0].GetProperty("result").GetString());
         Assert.Equal(1, updates[0].GetProperty("version").GetInt64());
+        // Console-extension fields are present alongside the lean CLI fields (same endpoint serves both).
+        Assert.Equal("update", updates[0].GetProperty("updateKind").GetProperty("kind").GetString());
+        Assert.True(updates[0].TryGetProperty("info", out _));
+    }
+
+    [Fact]
+    public async Task StackMetadataReportsRealLastUpdateAfterAnUpdate()
+    {
+        using var client = app.CreateClient();
+        var stack = await NewStack(client);
+
+        // Before any update there is no lastUpdate line.
+        var before = await client.GetFromJsonAsync<StackMetadata>($"{StackPath(stack)}/metadata");
+        Assert.Equal(stack, before!.StackName);
+        Assert.Null(before.LastUpdate);
+
+        await RunUpdate(client, stack);
+
+        var after = await client.GetFromJsonAsync<StackMetadata>($"{StackPath(stack)}/metadata");
+        Assert.NotNull(after!.LastUpdate);
+        Assert.Equal(1, after.LastUpdate!.Version);
+        Assert.Equal("succeeded", after.LastUpdate.Result);
+        Assert.Equal("update", after.LastUpdate.Kind);
+        Assert.Equal(after.LastUpdate.EndTime, after.LastUpdate.Time);
+    }
+
+    [Fact]
+    public async Task StackMetadataReturns404ForUnknownStack()
+    {
+        using var client = app.CreateClient();
+        using var resp = await client.GetAsync($"{StackPath("missing-" + Guid.NewGuid().ToString("N"))}/metadata");
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateHistoryAttributesTheRequestingUser()
+    {
+        // The "role:<role>:<login>" token convention authenticates as a specific login (PulumiTokenAuthHandler).
+        using var alice = app.CreateAuthedClient("role:admin:alice");
+        var stack = await NewStack(alice);
+        await RunUpdate(alice, stack);
+
+        using var response = await alice.GetAsync($"{StackPath(stack)}/updates");
+        response.EnsureSuccessStatusCode();
+        using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var by = doc.RootElement.GetProperty("updates")[0].GetProperty("requestedBy");
+        Assert.Equal("alice", by.GetProperty("githubLogin").GetString());
+
+        var meta = await alice.GetFromJsonAsync<StackMetadata>($"{StackPath(stack)}/metadata");
+        Assert.Equal("alice", meta!.LastUpdate!.RequestedBy!.GithubLogin);
     }
 
     [Fact]

@@ -13,4 +13,8 @@ public sealed class StoredHistoryEntry
 {
     public required string UpdateId { get; init; }
     public required AppUpdateInfo Info { get; init; }
+
+    /// <summary>The user who requested the update, or null for updates recorded before the actor was captured.</summary>
+    public string? RequestedByLogin { get; init; }
+    public string? RequestedByName { get; init; }
 }

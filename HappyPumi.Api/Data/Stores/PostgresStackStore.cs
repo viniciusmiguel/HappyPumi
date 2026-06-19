@@ -96,6 +96,7 @@ public sealed class PostgresStackStore(HappyPumiDbContext db) : IStackStore
             UpdateId = entry.UpdateId, Org = c.Org, Project = c.Project, Stack = c.Stack,
             Version = i.Version, Kind = i.Kind, Result = i.Result, Message = i.Message ?? string.Empty,
             StartTime = i.StartTime, EndTime = i.EndTime,
+            RequestedByLogin = entry.RequestedByLogin, RequestedByName = entry.RequestedByName,
             Config = i.Config ?? new Dictionary<string, AppConfigValue>(),
         });
         db.SaveChanges();
@@ -174,7 +175,11 @@ public sealed class PostgresStackStore(HappyPumiDbContext db) : IStackStore
         foreach (var (k, v) in row.Tags)
             stack.Tags[k] = v;
         foreach (var h in history)
-            stack.History.Add(new StoredHistoryEntry { UpdateId = h.UpdateId, Info = ToInfo(h) });
+            stack.History.Add(new StoredHistoryEntry
+            {
+                UpdateId = h.UpdateId, Info = ToInfo(h),
+                RequestedByLogin = h.RequestedByLogin, RequestedByName = h.RequestedByName,
+            });
         return stack;
     }
 

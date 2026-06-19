@@ -31,6 +31,9 @@ public sealed class StackUpdateRow
     public long StartTime { get; set; }
     public long EndTime { get; set; }
     public Dictionary<string, AppConfigValue> Config { get; set; } = new();
+    /// <summary>The user who requested the update (null for history recorded before the actor was captured).</summary>
+    public string? RequestedByLogin { get; set; }
+    public string? RequestedByName { get; set; }
 }
 
 /// <summary>An in-flight/finished update operation (the lifecycle state). Key: UpdateId.</summary>
@@ -47,6 +50,8 @@ public sealed class UpdateRow
     public long Version { get; set; }
     public long StartedAt { get; set; }
     public string Message { get; set; } = string.Empty;
+    public string? RequestedByLogin { get; set; }
+    public string? RequestedByName { get; set; }
     public Dictionary<string, AppConfigValue>? Config { get; set; }
     public AppUntypedDeployment? Checkpoint { get; set; }
 }
