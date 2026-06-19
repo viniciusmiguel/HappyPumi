@@ -12,6 +12,8 @@ public sealed class EscProviderCatalogTests(HappyPumiApp app)
     [InlineData("azure-keyvault")]
     [InlineData("aws-secrets")]
     [InlineData("vault-secrets")]
+    [InlineData("aws-parameter-store")]
+    [InlineData("gcp-secrets")]
     public async Task ListProvidersIncludesAllRegisteredProviders(string provider)
     {
         using var client = app.CreateAuthedClient();
@@ -22,6 +24,8 @@ public sealed class EscProviderCatalogTests(HappyPumiApp app)
     [Theory]
     [InlineData("aws-secrets", "region")]
     [InlineData("vault-secrets", "address")]
+    [InlineData("aws-parameter-store", "region")]
+    [InlineData("gcp-secrets", "project")]
     public async Task GetProviderSchemaReturnsRequiredInputs(string provider, string requiredInput)
     {
         using var client = app.CreateAuthedClient();
