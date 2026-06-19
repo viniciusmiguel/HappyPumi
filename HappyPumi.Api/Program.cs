@@ -55,7 +55,7 @@ bld.Services.AddScoped<IAgentPoolStore, PostgresAgentPoolStore>();   // workflow
 bld.Services.AddScoped<IEnvironmentStore, PostgresEnvironmentStore>(); // ESC environments + revisions
 bld.Services.AddScoped<IEnvironmentWebhookStore, PostgresEnvironmentWebhookStore>(); // ESC environment webhooks
 bld.Services.AddSingleton<HappyPumi.Api.Webhooks.IWebhookSender, HappyPumi.Api.Webhooks.WebhookSender>();       // HTTP delivery
-bld.Services.AddSingleton<HappyPumi.Api.Webhooks.IWebhookDeliveryLog, HappyPumi.Api.Webhooks.WebhookDeliveryLog>(); // delivery log (in-memory)
+bld.Services.AddScoped<HappyPumi.Api.Webhooks.IWebhookDeliveryLog, PostgresWebhookDeliveryLog>(); // delivery log (Postgres)
 bld.Services.AddScoped<HappyPumi.Api.Webhooks.WebhookDeliveryService>();                                       // ping/redeliver orchestration
 bld.Services.AddScoped<IArtifactStore, PostgresArtifactStore>();       // registry artifact blobs (publish)
 bld.Services.AddScoped<IPolicyFindingStore, PostgresPolicyFindingStore>(); // policy violations (events → findings)
@@ -90,12 +90,12 @@ bld.Services.AddSingleton<IEscRotator, AwsIamRotator>();
 bld.Services.AddSingleton<IPostgresRotatorClient, PostgresRotatorClient>();   // PostgreSQL password rotation (fn::rotate::postgres)
 bld.Services.AddSingleton<IEscRotator, PostgresRotator>();
 bld.Services.AddSingleton<IEscRotatorRegistry, EscRotatorRegistry>();
-bld.Services.AddSingleton<IEscRotationHistory, EscRotationHistory>();     // rotation event history (in-memory)
+bld.Services.AddScoped<IEscRotationHistory, PostgresEscRotationHistory>(); // rotation event history (Postgres)
 bld.Services.AddScoped<EscRotationRunner>();                              // executes fn::rotate (reads/writes env store)
 bld.Services.AddSingleton<IEscSessionStore, EscSessionStore>();
-bld.Services.AddSingleton<IEscDraftStore, EscDraftStore>();               // environment drafts (in-memory)
-bld.Services.AddSingleton<IEscOpenRequestStore, EscOpenRequestStore>();   // gated-open access requests (in-memory)
-bld.Services.AddSingleton<IEscScheduleStore, EscScheduleStore>();         // scheduled actions (in-memory)
+bld.Services.AddScoped<IEscDraftStore, PostgresEscDraftStore>();          // environment drafts (Postgres)
+bld.Services.AddScoped<IEscOpenRequestStore, PostgresEscOpenRequestStore>(); // gated-open access requests (Postgres)
+bld.Services.AddScoped<IEscScheduleStore, PostgresEscScheduleStore>();    // scheduled actions (Postgres)
 bld.Services.AddScoped<EscOpener>();
 
 // Service-managed secrets crypter for the /encrypt and /decrypt endpoints. Singleton so its

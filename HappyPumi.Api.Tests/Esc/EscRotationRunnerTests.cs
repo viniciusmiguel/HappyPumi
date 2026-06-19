@@ -23,7 +23,7 @@ public sealed class EscRotationRunnerTests
     """;
 
     private static EscRotationRunner Build(IEnvironmentStore store, FakeEscRotator rotator)
-        => new(store, new EscRotatorRegistry(new IEscRotator[] { rotator }), new EscRotationHistory());
+        => new(store, new EscRotatorRegistry(new IEscRotator[] { rotator }), new FakeEscRotationHistory());
 
     [Fact]
     public async Task RotatesWritesNewStateAndBumpsRevision()

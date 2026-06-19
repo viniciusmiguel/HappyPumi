@@ -11,12 +11,12 @@ public sealed class WebhookDeliveryServiceTests
 {
     private static readonly EnvCoordinates Env = new("happypumi", "proj", "app");
 
-    private static (WebhookDeliveryService Service, FakeWebhookSender Sender, WebhookDeliveryLog Log) Build()
+    private static (WebhookDeliveryService Service, FakeWebhookSender Sender, IWebhookDeliveryLog Log) Build()
     {
         var store = new FakeEnvironmentWebhookStore().With(Env,
             new StoredWebhook { Name = "ci", PayloadUrl = "https://hooks.example.com/ci", Secret = "s3cr3t" });
         var sender = new FakeWebhookSender();
-        var log = new WebhookDeliveryLog();
+        var log = new FakeWebhookDeliveryLog();
         return (new WebhookDeliveryService(store, sender, log), sender, log);
     }
 

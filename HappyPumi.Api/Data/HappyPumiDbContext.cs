@@ -39,6 +39,11 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
     public DbSet<EnvironmentRow> Environments => Set<EnvironmentRow>();
     public DbSet<EnvironmentRevisionRow> EnvironmentRevisions => Set<EnvironmentRevisionRow>();
     public DbSet<EnvironmentWebhookRow> EnvironmentWebhooks => Set<EnvironmentWebhookRow>();
+    public DbSet<EnvironmentScheduleRow> EnvironmentSchedules => Set<EnvironmentScheduleRow>();
+    public DbSet<EnvironmentDraftRow> EnvironmentDrafts => Set<EnvironmentDraftRow>();
+    public DbSet<EnvironmentOpenRequestRow> EnvironmentOpenRequests => Set<EnvironmentOpenRequestRow>();
+    public DbSet<EnvironmentRotationEventRow> EnvironmentRotationEvents => Set<EnvironmentRotationEventRow>();
+    public DbSet<EnvironmentWebhookDeliveryRow> EnvironmentWebhookDeliveries => Set<EnvironmentWebhookDeliveryRow>();
     public DbSet<RegistryArtifactRow> RegistryArtifacts => Set<RegistryArtifactRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -213,6 +218,38 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
             e.HasIndex(x => new { x.Org, x.Project, x.EnvName, x.Name }).IsUnique();
             e.Property(x => x.Filters).AsJsonb();
             e.Property(x => x.Groups).AsJsonb();
+        });
+
+        // ESC operational state (previously in-memory): keyed by Id, scoped by (Org, Project, Name), payload jsonb.
+        b.Entity<EnvironmentScheduleRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.Org, x.Project, x.Name });
+            e.Property(x => x.Action).AsJsonb();
+        });
+        b.Entity<EnvironmentDraftRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.Org, x.Project, x.Name });
+            e.Property(x => x.Draft).AsJsonb();
+        });
+        b.Entity<EnvironmentOpenRequestRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.Org, x.Project, x.Name });
+            e.Property(x => x.Request).AsJsonb();
+        });
+        b.Entity<EnvironmentRotationEventRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.Org, x.Project, x.Name });
+            e.Property(x => x.Event).AsJsonb();
+        });
+        b.Entity<EnvironmentWebhookDeliveryRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.Org, x.Project, x.Name, x.HookName });
+            e.Property(x => x.Delivery).AsJsonb();
         });
 
         b.Entity<RegistryArtifactRow>(e => e.HasKey(x => x.Key));
