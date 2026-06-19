@@ -60,6 +60,30 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
   return (await res.json()) as T;
 }
 
+// PATCH a raw body (e.g. the ESC definition YAML; HappyPumi reads the body verbatim). Surfaces failures.
+async function patchRaw(path: string, body: string): Promise<void> {
+  const res = await fetch(`/api${path}`, {
+    method: "PATCH",
+    headers: { Authorization: authHeader(), "Content-Type": "application/json" },
+    body,
+  });
+  if (!res.ok) throw new Error(`PATCH ${path} failed: ${res.status} ${res.statusText}`);
+}
+
+async function patchJson(path: string, body: unknown): Promise<void> {
+  const res = await fetch(`/api${path}`, {
+    method: "PATCH",
+    headers: { Authorization: authHeader(), "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`PATCH ${path} failed: ${res.status} ${res.statusText}`);
+}
+
+async function del(path: string): Promise<void> {
+  const res = await fetch(`/api${path}`, { method: "DELETE", headers: { Authorization: authHeader() } });
+  if (!res.ok) throw new Error(`DELETE ${path} failed: ${res.status} ${res.statusText}`);
+}
+
 // ── Shared shapes ────────────────────────────────────────────────────────────
 export interface Organization { githubLogin: string; name?: string; avatarUrl?: string; }
 export interface CurrentUser { githubLogin: string; name?: string; avatarUrl?: string; organizations?: Organization[]; }
@@ -129,6 +153,12 @@ export interface OrgEnvironment {
 export interface EnvRevision { number: number; created?: string; creatorLogin?: string; creatorName?: string; tags?: string[]; }
 export interface EscValue { value: unknown; secret?: boolean; }
 export interface CheckEnvResponse { properties?: Record<string, EscValue>; schema?: unknown; diagnostics?: unknown[]; }
+export interface EnvTag { name: string; value: string; editorLogin?: string; modified?: string; }
+export interface EnvWebhook { name: string; displayName?: string; payloadUrl: string; active?: boolean; format?: string; filters?: string[]; }
+export interface EnvSchedule { id: string; kind: string; scheduleCron?: string; nextExecution?: string; lastExecuted?: string; paused?: boolean; }
+export interface RotationEvent { id: string; created?: string; completed?: string; errorMessage?: string; preRotationRevision?: number; postRotationRevision?: number; }
+export interface EnvReferrer { environment?: { project?: string; name?: string }; stack?: { projectName?: string; stackName?: string }; insightsAccount?: { name?: string }; }
+export interface EnvSettings { deletionProtected?: boolean; }
 
 export interface Member { role?: string; user?: Actor; name?: string; githubLogin?: string; }
 export interface Role { id: string; name: string; description?: string; }
@@ -195,6 +225,44 @@ export const api = {
     get<EnvRevision[]>(`/esc/environments/${org}/${project}/${name}/versions`, []),
   checkEnvironment: (org: string, yaml: string) =>
     post<CheckEnvResponse>(`/esc/environments/${org}/yaml/check`, yaml, { properties: {} }),
+  updateEnvironment: (org: string, project: string, name: string, yaml: string) =>
+    patchRaw(`/esc/environments/${org}/${project}/${name}`, yaml),
+  // Environment tags (CRUD)
+  environmentTags: (org: string, project: string, name: string) =>
+    get<{ tags?: Record<string, EnvTag> }>(`/esc/environments/${org}/${project}/${name}/tags`, { tags: {} }),
+  createEnvironmentTag: (org: string, project: string, name: string, tag: string, value: string) =>
+    postJson<unknown>(`/esc/environments/${org}/${project}/${name}/tags`, { name: tag, value }),
+  deleteEnvironmentTag: (org: string, project: string, name: string, tag: string) =>
+    del(`/esc/environments/${org}/${project}/${name}/tags/${tag}`),
+  // Webhooks
+  environmentWebhooks: (org: string, project: string, name: string) =>
+    get<EnvWebhook[]>(`/esc/environments/${org}/${project}/${name}/hooks`, []),
+  createEnvironmentWebhook: (org: string, project: string, name: string, hook: { name: string; payloadUrl: string; displayName?: string; format?: string }) =>
+    postJson<unknown>(`/esc/environments/${org}/${project}/${name}/hooks`, { active: true, format: "raw", ...hook }),
+  deleteEnvironmentWebhook: (org: string, project: string, name: string, hook: string) =>
+    del(`/esc/environments/${org}/${project}/${name}/hooks/${hook}`),
+  // Scheduled actions (rotation / deletion)
+  environmentSchedules: (org: string, project: string, name: string) =>
+    get<{ schedules?: EnvSchedule[] }>(`/esc/environments/${org}/${project}/${name}/schedules`, { schedules: [] }),
+  createEnvironmentSchedule: (org: string, project: string, name: string, body: { kind: string; scheduleCron?: string; scheduleOnce?: string }) =>
+    postJson<unknown>(`/esc/environments/${org}/${project}/${name}/schedules`, body),
+  deleteEnvironmentSchedule: (org: string, project: string, name: string, id: string) =>
+    del(`/esc/environments/${org}/${project}/${name}/schedules/${id}`),
+  // Secret rotation
+  rotateEnvironment: (org: string, project: string, name: string) =>
+    postJson<unknown>(`/esc/environments/${org}/${project}/${name}/rotate`, {}),
+  rotationHistory: (org: string, project: string, name: string) =>
+    get<{ events?: RotationEvent[] }>(`/esc/environments/${org}/${project}/${name}/rotate/history`, { events: [] }),
+  // Referrers (imported by)
+  environmentReferrers: (org: string, project: string, name: string) =>
+    get<{ referrers?: Record<string, EnvReferrer[]> }>(`/esc/environments/${org}/${project}/${name}/referrers`, { referrers: {} }),
+  // Settings
+  environmentSettings: (org: string, project: string, name: string) =>
+    get<EnvSettings>(`/esc/environments/${org}/${project}/${name}/settings`, {}),
+  updateEnvironmentSettings: (org: string, project: string, name: string, deletionProtected: boolean) =>
+    patchJson(`/esc/environments/${org}/${project}/${name}/settings`, { deletionProtected }),
+  reassignEnvironmentOwner: (org: string, project: string, name: string, owner: string) =>
+    postJson<unknown>(`/esc/environments/${org}/${project}/${name}/ownership`, { githubLogin: owner, name: owner }),
 
   // Access management
   members: (org: string) => get<{ members?: Member[] }>(`/orgs/${org}/members`, { members: [] }),
