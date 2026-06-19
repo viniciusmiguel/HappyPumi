@@ -4,19 +4,8 @@ using System.Collections.Generic;
 
 namespace HappyPumi.Api.Esc.Providers.Logins;
 
-/// <summary>fn::open::aws-login — AWS credentials (access keys, optional session token + region).</summary>
-public sealed class AwsLoginProvider : StaticLoginProvider
-{
-    public override string Name => "aws-login";
-    protected override string Cloud => "AWS";
-    protected override IReadOnlyList<LoginField> Fields => new[]
-    {
-        new LoginField("accessKeyId", Secret: true, Required: true),
-        new LoginField("secretAccessKey", Secret: true, Required: true),
-        new LoginField("sessionToken", Secret: true, Required: false),
-        new LoginField("region", Secret: false, Required: false),
-    };
-}
+// fn::open::aws-login lives in Aws/AwsLoginProvider.cs — it supports OIDC federation (assume-role-with-web-
+// identity) in addition to the static-credential mode the providers below use.
 
 /// <summary>fn::open::azure-login — Azure service-principal credentials.</summary>
 public sealed class AzureLoginProvider : StaticLoginProvider

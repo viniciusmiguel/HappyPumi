@@ -10,6 +10,8 @@ using HappyPumi.Api.Esc.Providers.AwsSecrets;
 using HappyPumi.Api.Esc.Providers.AwsParameterStore;
 using HappyPumi.Api.Esc.Providers.GcpSecrets;
 using HappyPumi.Api.Esc.Providers.Logins;
+using HappyPumi.Api.Esc.Providers.Logins.Aws;
+using HappyPumi.Api.Esc.Oidc;
 using HappyPumi.Api.Esc.Providers.PulumiStacks;
 using HappyPumi.Api.Esc.Providers.Vault;
 using HappyPumi.Api.Esc.Rotators.AwsIam;
@@ -85,7 +87,11 @@ bld.Services.AddSingleton<IGcpSecretsClient, GcpSecretsClient>();         // GCP
 bld.Services.AddSingleton<IEscProvider, GcpSecretsProvider>();
 bld.Services.AddScoped<IStackOutputsSource, StackOutputsSource>();        // cross-stack outputs (reads IStackStore)
 bld.Services.AddSingleton<IEscProvider, PulumiStacksProvider>();          // fn::open::pulumi-stacks
-bld.Services.AddSingleton<IEscProvider, AwsLoginProvider>();              // fn::open::aws-login
+// OIDC federation for login providers: HappyPumi mints web-identity tokens the cloud brokers verify.
+bld.Services.AddSingleton<IEscOidcIssuer>(sp =>
+    EscOidcIssuer.FromConfiguration(sp.GetRequiredService<IConfiguration>()));
+bld.Services.AddSingleton<IAwsStsExchanger, AwsStsExchanger>();           // STS AssumeRoleWithWebIdentity
+bld.Services.AddSingleton<IEscProvider, AwsLoginProvider>();              // fn::open::aws-login (OIDC + static)
 bld.Services.AddSingleton<IEscProvider, AzureLoginProvider>();            // fn::open::azure-login
 bld.Services.AddSingleton<IEscProvider, GcpLoginProvider>();             // fn::open::gcp-login
 bld.Services.AddSingleton<IEscProvider, VaultLoginProvider>();           // fn::open::vault-login
