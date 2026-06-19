@@ -46,6 +46,8 @@
       <PackageReference Include="AWSSDK.SimpleSystemsManagement" Version="3.*" />
       <!-- ESC fn::open::gcp-secrets provider: read Google Cloud Secret Manager at open time. -->
       <PackageReference Include="Google.Cloud.SecretManager.V1" Version="2.*" />
+      <!-- ESC fn::rotate::aws-iam rotator: rotate AWS IAM access keys. -->
+      <PackageReference Include="AWSSDK.IdentityManagement" Version="3.*" />
     </ItemGroup>
 
     <ItemGroup>
