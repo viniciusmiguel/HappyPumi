@@ -18,8 +18,6 @@ concurrency:
 
 env:
   DOTNET_VERSION: '10.0.x'
-  # Pulumi CLI source revision built for the integration tests (clean-room black-box client, ADR-0008).
-  PULUMI_REF: 'v3.140.0'
 
 jobs:
   unit-tests:
@@ -30,6 +28,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+      # The Aspire topology test asserts the API over the self-signed HTTPS dev cert, so the cert must be
+      # created + trusted (DevCertTrust points SSL_CERT_DIR at the trust dir) before the suite runs.
+      - run: make certs
       # Docker is preinstalled on the runner; the component suite spins up Postgres via Testcontainers
       # and boots the full Aspire topology (Postgres + Dex + API).
       - run: make test-unit
@@ -37,32 +38,43 @@ jobs:
   integration-tests:
     name: CLI integration (real pulumi over HTTPS)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: HappyPumi
     steps:
-      - uses: actions/checkout@v4
-      - name: Checkout pulumi CLI source
+      - name: Checkout HappyPumi
+        uses: actions/checkout@v4
+        with:
+          path: HappyPumi
+      # Build the Apache-2.0 pulumi CLI from source (clean-room black-box client, ADR-0008). Resolve the
+      # latest release dynamically rather than pinning. The CLI must live as a SIBLING of the repo: the
+      # integration fixtures resolve the local SDK via a relative replace (../../../../pulumi/sdk).
+      - name: Resolve latest pulumi release tag
+        id: pulumi
+        run: echo "ref=$(gh api repos/pulumi/pulumi/releases/latest --jq .tag_name)" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Checkout pulumi CLI source (latest release, sibling of the repo)
         uses: actions/checkout@v4
         with:
           repository: pulumi/pulumi
-          ref: ${{ env.PULUMI_REF }}
-          path: .pulumi-src
+          ref: ${{ steps.pulumi.outputs.ref }}
+          path: pulumi
       - name: Set up Go (matched to the pulumi checkout)
         uses: actions/setup-go@v5
         with:
-          go-version-file: .pulumi-src/pkg/go.mod
-          cache-dependency-path: .pulumi-src/pkg/go.sum
+          go-version-file: pulumi/pkg/go.mod
+          cache-dependency-path: pulumi/pkg/go.sum
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+      # PULUMI_SRC defaults to ../pulumi relative to the repo, which now resolves to the sibling checkout.
       - name: Build pulumi CLI + Go language host
         run: make pulumi
-        env:
-          PULUMI_SRC: ${{ github.workspace }}/.pulumi-src
       - name: Trust the self-signed dev HTTPS certificate
         run: make certs
       - name: Integration tests
         run: make test-integration
-        env:
-          PULUMI_SRC: ${{ github.workspace }}/.pulumi-src
 
   publish:
     name: Publish container image
