@@ -12,6 +12,7 @@ public sealed class EscRotatorCatalogTests(HappyPumiApp app)
     [Theory]
     [InlineData("aws-iam")]
     [InlineData("postgres")]
+    [InlineData("mysql")]
     public async Task ListRotatorsIncludesRegisteredRotators(string rotator)
     {
         using var client = app.CreateAuthedClient();
@@ -22,6 +23,7 @@ public sealed class EscRotatorCatalogTests(HappyPumiApp app)
     [Theory]
     [InlineData("aws-iam", "region")]
     [InlineData("postgres", "host")]
+    [InlineData("mysql", "host")]
     public async Task GetRotatorSchemaReturnsRequiredInputs(string rotator, string requiredInput)
     {
         using var client = app.CreateAuthedClient();

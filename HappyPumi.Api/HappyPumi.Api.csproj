@@ -48,6 +48,8 @@
       <PackageReference Include="Google.Cloud.SecretManager.V1" Version="2.*" />
       <!-- ESC fn::rotate::aws-iam rotator: rotate AWS IAM access keys. -->
       <PackageReference Include="AWSSDK.IdentityManagement" Version="3.*" />
+      <!-- ESC fn::rotate::mysql rotator: rotate MySQL user passwords. -->
+      <PackageReference Include="MySqlConnector" Version="2.*" />
     </ItemGroup>
 
     <ItemGroup>
