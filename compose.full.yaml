@@ -69,4 +69,6 @@ services:
     environment:
       HAPPYPUMI_URL: "http://localhost:8080"  # vite proxies /api here (the host-networked API)
       DEX_URL: "http://localhost:5556"        # vite proxies /dex here (token exchange)
-    command: ["sh", "-c", "npm install --no-audit --no-fund && npm run dev -- --host 0.0.0.0 --port 5173"]
+    # `npm ci` installs exactly from the lockfile and never rewrites it, so the bind-mounted source tree
+    # is left untouched (a plain `npm install` would churn package-lock.json on the host).
+    command: ["sh", "-c", "npm ci --no-audit --no-fund && npm run dev -- --host 0.0.0.0 --port 5173"]
