@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, RefreshCw, Link2 } from "lucide-react";
+import { Plus, RefreshCw, Link2, ShieldCheck } from "lucide-react";
 import {
   api, timeAgo, type EnvRevision, type EscValue, type Actor,
   type EnvTag, type EnvWebhook, type EnvSchedule, type RotationEvent, type EnvReferrer,
@@ -8,13 +8,14 @@ import { Table, Card, Avatar, EmptyState, PrimaryButton, SecondaryButton, Modal,
 
 interface EnvProps { org: string; project: string; name: string; }
 
-// Recursively resolve an EscValue tree into plain JSON, masking secrets like the console's preview.
-function resolve(v: EscValue): unknown {
-  if (v?.secret) return "[secret]";
+// Recursively resolve an EscValue tree into plain JSON. Secrets are masked unless `reveal` is set (the
+// reveal path is fed by an opened session, whose values are already decrypted server-side).
+function resolve(v: EscValue, reveal = false): unknown {
+  if (v?.secret && !reveal) return "[secret]";
   const val = v?.value;
   if (val && typeof val === "object" && !Array.isArray(val)) {
     const out: Record<string, unknown> = {};
-    for (const [k, child] of Object.entries(val)) out[k] = resolve(child as EscValue);
+    for (const [k, child] of Object.entries(val)) out[k] = resolve(child as EscValue, reveal);
     return out;
   }
   return val;
@@ -23,9 +24,11 @@ function resolve(v: EscValue): unknown {
 export function Editor({ org, project, name }: EnvProps) {
   const [yaml, setYaml] = useState("");
   const [preview, setPreview] = useState("{}");
+  const [revealed, setRevealed] = useState(false); // true once an open session has resolved secrets
   const [status, setStatus] = useState<string | null>(null);
 
   function refreshPreview(y: string) {
+    setRevealed(false);
     api.checkEnvironment(org, y).then((r) => {
       const resolved: Record<string, unknown> = {};
       for (const [k, v] of Object.entries(r.properties ?? {})) resolved[k] = resolve(v);
@@ -46,6 +49,24 @@ export function Editor({ org, project, name }: EnvProps) {
     }
   }
 
+  // Open the environment (resolving fn::open providers + decrypting secrets) and show the values in plaintext.
+  // Gated environments return 403 until the caller holds an approved grant (see the Access tab).
+  async function reveal() {
+    setStatus("Opening…");
+    try {
+      const { id } = await api.openEnvironment(org, project, name);
+      const session = await api.openSession(org, project, name, id);
+      const resolved: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(session.properties ?? {})) resolved[k] = resolve(v, true);
+      setPreview(JSON.stringify(resolved, null, 2));
+      setRevealed(true);
+      setStatus(null);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setStatus(msg.includes("403") ? "Gated — request access in the Access tab, then have a distinct approver grant it." : msg);
+    }
+  }
+
   return (
     <div>
       <div className="mb-3 flex items-center justify-between">
@@ -62,7 +83,12 @@ export function Editor({ org, project, name }: EnvProps) {
             className="h-[60vh] w-full resize-none bg-transparent p-3 font-mono text-xs leading-relaxed outline-none" />
         </div>
         <div className="rounded-lg border border-line">
-          <div className="border-b border-line px-3 py-2 text-sm font-medium">Environment preview</div>
+          <div className="flex items-center justify-between border-b border-line px-3 py-2">
+            <span className="text-sm font-medium">Environment preview {revealed && <Badge tone="warn">secrets revealed</Badge>}</span>
+            {revealed
+              ? <button onClick={() => refreshPreview(yaml)} className="text-xs text-brand hover:underline">Hide secrets</button>
+              : <button onClick={reveal} className="text-xs text-brand hover:underline">Open &amp; reveal secrets</button>}
+          </div>
           <pre className="max-h-[60vh] overflow-auto p-3 font-mono text-xs leading-relaxed text-ink-dim">{preview}</pre>
         </div>
       </div>
@@ -272,6 +298,89 @@ export function ImportedByTab({ org, project, name }: EnvProps) {
             : r.insightsAccount?.name}</span> },
       ]}
     />
+  );
+}
+
+interface AccessRequest { id: string; status: string; }
+
+export function AccessTab({ org, project, name }: EnvProps) {
+  const [requests, setRequests] = useState<AccessRequest[]>([]);
+  const [approveId, setApproveId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  function setStatus(id: string, status: string) {
+    setRequests((rs) => rs.map((r) => (r.id === id ? { ...r, status } : r)));
+  }
+
+  async function request() {
+    setError(null);
+    try {
+      const res = await api.requestEnvironmentAccess(org, project, name);
+      const id = res.changeRequests?.[0]?.changeRequestId;
+      if (id) setRequests((rs) => [{ id, status: "pending approval" }, ...rs]);
+    } catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+  }
+
+  async function approve(id: string) {
+    try {
+      const r = await api.approveChangeRequest(org, id);
+      setStatus(id, r.granted ? `granted (${r.approvals}/${r.required})` : `approved (${r.approvals}/${r.required})`);
+      setError(null);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setStatus(id, msg.includes("403") ? "cannot approve your own request" : "approval failed");
+    }
+  }
+
+  async function withdraw(id: string) {
+    try { await api.unapproveChangeRequest(org, id); setStatus(id, "approval withdrawn — grant revoked"); }
+    catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+  }
+
+  async function approveById() {
+    if (!approveId) return;
+    setRequests((rs) => rs.some((r) => r.id === approveId) ? rs : [{ id: approveId, status: "—" }, ...rs]);
+    await approve(approveId);
+    setApproveId("");
+  }
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <Card>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm text-ink-dim">
+            <ShieldCheck size={16} className="text-brand" />
+            Gated environments require an approved access request before they can be opened. A request must be
+            approved by a <b>distinct</b> approver (you cannot approve your own).
+          </div>
+          <PrimaryButton icon={Plus} onClick={request}>Request access</PrimaryButton>
+        </div>
+      </Card>
+
+      <Table
+        rows={requests}
+        empty="No access requests yet. Request access above to open a gated environment."
+        columns={[
+          { header: "Change request", cell: (r) => <span className="font-mono text-xs">{r.id}</span> },
+          { header: "Status", cell: (r) => r.status },
+          { header: "", cell: (r) => (
+            <span className="flex gap-3">
+              <button onClick={() => approve(r.id)} className="text-xs text-brand hover:underline">Approve</button>
+              <button onClick={() => withdraw(r.id)} className="text-xs text-red-400 hover:underline">Withdraw</button>
+            </span>
+          ) },
+        ]}
+      />
+
+      <div>
+        <h3 className="mb-2 text-sm font-semibold">Approve a request by ID</h3>
+        <div className="flex items-end gap-3">
+          <div className="flex-1"><Field label="Change request ID" value={approveId} onChange={setApproveId} placeholder="abc123…" /></div>
+          <SecondaryButton onClick={approveById}>Approve</SecondaryButton>
+        </div>
+      </div>
+      {error && <p className="text-xs text-red-400">{error}</p>}
+    </div>
   );
 }
 

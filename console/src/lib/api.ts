@@ -253,6 +253,19 @@ export const api = {
     postJson<unknown>(`/esc/environments/${org}/${project}/${name}/rotate`, {}),
   rotationHistory: (org: string, project: string, name: string) =>
     get<{ events?: RotationEvent[] }>(`/esc/environments/${org}/${project}/${name}/rotate/history`, { events: [] }),
+  // Open (reveal resolved values, including decrypted secrets). Gated environments throw 403 until granted.
+  openEnvironment: (org: string, project: string, name: string) =>
+    postJson<{ id: string }>(`/esc/environments/${org}/${project}/${name}/open`, {}),
+  openSession: (org: string, project: string, name: string, id: string) =>
+    get<{ properties?: Record<string, EscValue> }>(`/esc/environments/${org}/${project}/${name}/open/${id}`, { properties: {} }),
+  // Open-request / approval workflow (separation of duties: requester ≠ approver)
+  requestEnvironmentAccess: (org: string, project: string, name: string) =>
+    postJson<{ changeRequests?: { changeRequestId?: string }[] }>(
+      `/esc/environments/${org}/${project}/${name}/open/request`, { accessDurationSeconds: 3600, grantExpirationSeconds: 7200 }),
+  approveChangeRequest: (org: string, id: string) =>
+    postJson<{ granted?: boolean; approvals?: number; required?: number }>(`/change-requests/${org}/${id}/approve`, {}),
+  unapproveChangeRequest: (org: string, id: string) =>
+    del(`/change-requests/${org}/${id}/approve`),
   // Referrers (imported by)
   environmentReferrers: (org: string, project: string, name: string) =>
     get<{ referrers?: Record<string, EnvReferrer[]> }>(`/esc/environments/${org}/${project}/${name}/referrers`, { referrers: {} }),
