@@ -33,8 +33,8 @@ export default function Components() {
           ) },
           { header: "Latest version", cell: (p) => <span className="text-ink-dim">{p.version}</span> },
           { header: "Publisher", cell: (p) => <span className="flex items-center gap-2"><Avatar name={p.publisher} size={18} />{p.publisher}</span> },
-          { header: "Stacks on latest", cell: () => <span className="text-ink-faint">—</span> },
-          { header: "Total stacks", cell: () => <span className="text-ink-faint">—</span> },
+          { header: "Stacks on latest", cell: (p) => <UsageCount value={p.usageStats?.onLatest} /> },
+          { header: "Total stacks", cell: (p) => <UsageCount value={p.usageStats?.totalStacks} /> },
           { header: "Last published", cell: (p) => <span className="text-ink-dim">{timeAgo(p.createdAt)}</span> },
         ]}
         empty={<EmptyState icon={Boxes} title="No components"
@@ -42,4 +42,10 @@ export default function Components() {
       />
     </div>
   );
+}
+
+// Renders a usage count, or an em dash when the stat is unavailable (e.g. a never-deployed component).
+function UsageCount({ value }: { value?: number }) {
+  if (value == null) return <span className="text-ink-faint">—</span>;
+  return <span className={value > 0 ? "text-ink" : "text-ink-faint"}>{value}</span>;
 }

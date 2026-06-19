@@ -16,7 +16,7 @@ namespace HappyPumi.Api.Endpoints.Registry;
 /// <summary>
 /// ListPackages
 /// </summary>
-public sealed class ListPackagesEndpoint(IPackageRegistry registry) : Endpoint<ListPackagesRequest, ListPackagesResponse>
+public sealed class ListPackagesEndpoint(IPackageRegistry registry, IStackStore stacks) : Endpoint<ListPackagesRequest, ListPackagesResponse>
 {
     public override void Configure()
     {
@@ -32,7 +32,17 @@ public sealed class ListPackagesEndpoint(IPackageRegistry registry) : Endpoint<L
 
     public async override Task HandleAsync(ListPackagesRequest req, CancellationToken ct)
     {
-        var packages = registry.ListLatest(req.Name).Select(RegistryMapper.ToMetadata).ToList();
+        // Attach real usage stats (how many stacks deploy each component) so the console's Private Components
+        // table shows live counts instead of placeholders. We only track one published version, so all usage
+        // is "on latest". Snapshot stacks once to avoid re-scanning per package.
+        var allStacks = stacks.All();
+        var packages = registry.ListLatest(req.Name).Select(pkg =>
+        {
+            var meta = RegistryMapper.ToMetadata(pkg);
+            var used = PackageUsage.StacksUsing(allStacks, pkg.Coordinates.Name);
+            meta.UsageStats = new PackageUsageStats { OnLatest = used, OnOlder = 0, TotalStacks = used, VersionUnresolved = 0 };
+            return meta;
+        }).ToList();
         await Send.OkAsync(new ListPackagesResponse { Packages = packages, ContinuationToken = null }, ct);
     }
 }
