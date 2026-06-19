@@ -53,13 +53,23 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
         b.Entity<StackUpdateRow>(e =>
         {
             e.HasKey(x => x.UpdateId);
-            e.HasIndex(x => new { x.Org, x.Project, x.Stack });
+            // At most one history entry per version per stack. The natural-key index leads with
+            // (Org,Project,Stack), so it also serves the FK lookup — no separate index needed.
+            e.HasIndex(x => new { x.Org, x.Project, x.Stack, x.Version }).IsUnique();
+            e.HasOne<StackRow>().WithMany()
+                .HasForeignKey(x => new { x.Org, x.Project, x.Stack })
+                .OnDelete(DeleteBehavior.Cascade);
             e.Property(x => x.Config).AsJsonb();
         });
 
         b.Entity<UpdateRow>(e =>
         {
             e.HasKey(x => x.UpdateId);
+            // FK to the owning stack (cascade cleans in-flight/finished updates when the stack is deleted);
+            // the FK also provides the (Org,Project,Stack) lookup index.
+            e.HasOne<StackRow>().WithMany()
+                .HasForeignKey(x => new { x.Org, x.Project, x.Stack })
+                .OnDelete(DeleteBehavior.Cascade);
             e.Property(x => x.Config).AsJsonb();
             e.Property(x => x.Checkpoint).AsJsonb();
         });
@@ -73,7 +83,11 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
             e.Property(x => x.Details).AsJsonb();
         });
 
-        b.Entity<TeamRoleRow>(e => e.HasKey(x => new { x.Org, x.TeamName, x.RoleId }));
+        b.Entity<TeamRoleRow>(e =>
+        {
+            e.HasKey(x => new { x.Org, x.TeamName, x.RoleId });
+            e.HasIndex(x => new { x.Org, x.RoleId }); // "which teams hold role X" (ListTeamsWithRole)
+        });
         b.Entity<TeamRow>(e =>
         {
             e.HasKey(x => new { x.Org, x.Name });
@@ -97,16 +111,25 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
         b.Entity<PolicyPackVersionRow>(e =>
         {
             e.HasKey(x => new { x.Org, x.Name, x.Version });
+            // A version tag (e.g. "1.0.0") resolves to exactly one version within a pack.
+            e.HasIndex(x => new { x.Org, x.Name, x.VersionTag })
+                .IsUnique()
+                .HasFilter("\"VersionTag\" IS NOT NULL");
             e.Property(x => x.Policies).AsJsonb();
         });
 
         b.Entity<PolicyFindingRow>(e =>
         {
             e.HasKey(x => x.Id);
+            e.HasIndex(x => x.Org); // findings are listed per org (ListPolicyViolationsV2)
             e.Property(x => x.Finding).AsJsonb();
         });
 
-        b.Entity<AuditLogRow>(e => e.HasKey(x => x.Id));
+        b.Entity<AuditLogRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.Org, x.Timestamp }); // listed per org, newest first
+        });
         b.Entity<ServiceRow>(e =>
         {
             e.HasKey(x => new { x.Org, x.Name });
@@ -127,8 +150,10 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
         {
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.Org, x.Project, x.Stack });
-            e.HasIndex(x => x.Status);       // poll claims the oldest not-started row
-            e.HasIndex(x => x.JobId);         // runner callbacks look up by job id
+            e.HasIndex(x => new { x.Status, x.Created }); // poll claims the OLDEST not-started row
+            // One deployment per claimed runner job. JobId is null until claimed, so the uniqueness is
+            // enforced only over claimed rows (partial index).
+            e.HasIndex(x => x.JobId).IsUnique().HasFilter("\"JobId\" IS NOT NULL");
             e.Property(x => x.Jobs).AsJsonb();
             e.Property(x => x.Updates).AsJsonb();
         });
@@ -138,6 +163,9 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).ValueGeneratedOnAdd();
             e.HasIndex(x => x.DeploymentId);
+            e.HasOne<DeploymentRow>().WithMany()
+                .HasForeignKey(x => x.DeploymentId)
+                .OnDelete(DeleteBehavior.Cascade); // logs die with their deployment
         });
 
         b.Entity<AgentPoolRow>(e =>
@@ -170,7 +198,11 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
         b.Entity<EnvironmentRevisionRow>(e =>
         {
             e.HasKey(x => x.Id);
-            e.HasIndex(x => new { x.Org, x.Project, x.Name });
+            // Revision numbers are unique within an environment; this natural-key index also serves the FK.
+            e.HasIndex(x => new { x.Org, x.Project, x.Name, x.Number }).IsUnique();
+            e.HasOne<EnvironmentRow>().WithMany()
+                .HasForeignKey(x => new { x.Org, x.Project, x.Name })
+                .OnDelete(DeleteBehavior.Cascade); // revisions die with their environment
             e.Property(x => x.Tags).AsJsonb();
         });
 

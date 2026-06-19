@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
@@ -191,9 +192,20 @@ public sealed class GetWorkflowJobEndpoint(IDeploymentQueue queue, IConfiguratio
     /// against the target stack — all in one step (see <see cref="BuildJob"/> for why it must be one step).</summary>
     private static string DeployScript(DeploymentRow row, string backendUrl)
     {
+        // OWASP A03: org/project/stack and the template-ref segments are user-controlled (the deploy form
+        // and the createDeployment body) and are interpolated into a shell script run by the runner. Pin
+        // each to a strict identifier allow-list so no quote-breakout or shell metacharacter can reach bash;
+        // single-quoting below is then belt-and-suspenders rather than the only defense.
         var (source, publisher, name, version) = SplitTemplateRef(row.TemplateRef!);
+        source = RequireSafeIdentifier(source, "templateRef.source");
+        publisher = RequireSafeIdentifier(publisher, "templateRef.publisher");
+        name = RequireSafeIdentifier(name, "templateRef.name");
+        version = RequireSafeIdentifier(version, "templateRef.version");
+        var org = RequireSafeIdentifier(row.Org, nameof(row.Org));
+        var project = RequireSafeIdentifier(row.Project, nameof(row.Project));
+        var stack = RequireSafeIdentifier(row.Stack, nameof(row.Stack));
         var url = $"{backendUrl}/api/registry/templates/{source}/{publisher}/{name}/versions/{version}/archive";
-        var stackRef = $"{row.Org}/{row.Project}/{row.Stack}";
+        var stackRef = $"{org}/{project}/{stack}";
         var op = row.Operation is "preview" or "refresh" or "destroy" ? row.Operation : "up";
         var apply = op == "preview" ? "pulumi preview" : $"pulumi {op} --yes --skip-preview";
         // Use a fixed working dir (one container per step, so it is private) and avoid shell command
@@ -207,6 +219,19 @@ public sealed class GetWorkflowJobEndpoint(IDeploymentQueue queue, IConfiguratio
             "ls -la",
             $"pulumi stack select --create '{stackRef}'",
             apply);
+    }
+
+    // Identifier allow-list for values interpolated into the runner's shell script (OWASP A03). Covers
+    // Pulumi org/project/stack names and registry/semver segments; excludes quotes, whitespace, '/', and
+    // every shell metacharacter, so a value matching this cannot break out of the surrounding single quotes.
+    private static readonly Regex SafeIdentifier = new(@"^[A-Za-z0-9._+-]+$", RegexOptions.CultureInvariant);
+
+    private static string RequireSafeIdentifier(string value, string field)
+    {
+        if (string.IsNullOrEmpty(value) || !SafeIdentifier.IsMatch(value))
+            throw new ArgumentException(
+                $"{field} '{value}' is not a safe identifier; expected non-empty [A-Za-z0-9._+-].", field);
+        return value;
     }
 
     /// <summary>Splits a registry template ref "source/publisher/name/version" into its four parts.</summary>

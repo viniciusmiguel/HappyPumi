@@ -145,6 +145,9 @@ export const api = {
 
   // Stacks / projects
   userStacks: () => get<{ stacks?: Stack[] }>("/user/stacks", { stacks: [] }),
+  // Creates an (empty) stack; the project is created implicitly on first stack (CreateStack).
+  createStack: (org: string, project: string, stackName: string) =>
+    postJson<unknown>(`/stacks/${org}/${project}`, { stackName }),
   project: (org: string, project: string) =>
     get<ProjectResponse>(`/console/orgs/${org}/projects/${project}`, { project: { name: project, orgName: org, stacks: [] } }),
   stackMetadata: (org: string, project: string, stack: string) =>
@@ -184,6 +187,8 @@ export const api = {
   // Environments (ESC)
   environments: (org: string) =>
     get<{ environments?: OrgEnvironment[] }>(`/esc/environments/${org}`, { environments: [] }),
+  createEnvironment: (org: string, project: string, name: string) =>
+    postJson<unknown>(`/esc/environments/${org}`, { project, name }),
   environmentYaml: (org: string, project: string, name: string) =>
     getText(`/esc/environments/${org}/${project}/${name}`),
   environmentRevisions: (org: string, project: string, name: string) =>
@@ -193,7 +198,12 @@ export const api = {
 
   // Access management
   members: (org: string) => get<{ members?: Member[] }>(`/orgs/${org}/members`, { members: [] }),
+  // Adds an existing user to the org with a built-in role (AddOrganizationMember).
+  addMember: (org: string, userLogin: string, role: string) =>
+    postJson<Member>(`/orgs/${org}/members/${userLogin}`, { role }),
   roles: (org: string) => get<{ roles?: Role[] }>(`/orgs/${org}/roles`, { roles: [] }),
+  createRole: (org: string, name: string, description: string) =>
+    postJson<Role>(`/orgs/${org}/roles`, { name, description, uxPurpose: "organization" }),
   teams: (org: string) => get<{ teams?: Team[] }>(`/orgs/${org}/teams`, { teams: [] }),
   createTeam: (org: string, name: string, displayName: string, description: string) =>
     postJson<Team>(`/orgs/${org}/teams/pulumi`, { name, displayName, description }),

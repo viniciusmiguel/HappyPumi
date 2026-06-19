@@ -104,6 +104,22 @@ using (var scope = app.Services.CreateScope())
 
 app.MapDefaultEndpoints(); // /health and /alive
 
+// Baseline security response headers on every response (OWASP A05). Set via OnStarting so they also
+// attach to error responses produced deeper in the pipeline. nosniff blocks MIME-confusion; DENY framing
+// stops clickjacking of the Swagger UI; no-referrer avoids leaking API URLs (which carry org/stack names).
+app.Use(async (ctx, next) =>
+{
+    ctx.Response.OnStarting(() =>
+    {
+        var h = ctx.Response.Headers;
+        h["X-Content-Type-Options"] = "nosniff";
+        h["X-Frame-Options"] = "DENY";
+        h["Referrer-Policy"] = "no-referrer";
+        return Task.CompletedTask;
+    });
+    await next();
+});
+
 // Dev-only permissive CORS so a browser-based console on another origin (e.g. the Pulumi console at
 // :3000) can call this API directly. Headers are applied via OnStarting so they survive error responses
 // (e.g. a stub endpoint that throws 500) — otherwise the browser sees a CORS failure instead of the body.

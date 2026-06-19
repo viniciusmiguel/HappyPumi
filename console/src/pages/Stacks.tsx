@@ -13,14 +13,20 @@ export default function Stacks() {
   const [searchParams] = useSearchParams();
   const [showNew, setShowNew] = useState(searchParams.get("new") === "1");
   const [form, setForm] = useState({ project: "", stack: "" });
+  const [error, setError] = useState<string | null>(null);
 
-  function createStack() {
+  async function createStack() {
     if (!form.project || !form.stack) return;
-    const created: Stack = { orgName: org, projectName: form.project, stackName: form.stack, resourceCount: 0 };
-    setStacks((s) => [created, ...s]);
-    setShowNew(false);
-    setForm({ project: "", stack: "" });
-    navigate(`/stacks/${created.projectName}/${created.stackName}`);
+    setError(null);
+    try {
+      await api.createStack(org, form.project, form.stack);
+      const dest = `/stacks/${form.project}/${form.stack}`;
+      setShowNew(false);
+      setForm({ project: "", stack: "" });
+      navigate(dest);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
   }
 
   useEffect(() => {
@@ -83,6 +89,7 @@ export default function Stacks() {
           </>}>
           <Field label="Project" value={form.project} onChange={(v) => setForm((f) => ({ ...f, project: v }))} placeholder="webstore" />
           <Field label="Stack name" value={form.stack} onChange={(v) => setForm((f) => ({ ...f, stack: v }))} placeholder="dev" />
+          {error && <p className="text-xs text-red-400">{error}</p>}
         </Modal>
       )}
     </div>

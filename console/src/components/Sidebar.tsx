@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   ChevronLeft, ChevronDown, Plus, PanelLeftClose, Layers, KeyRound, UserPlus,
-  Settings as SettingsIcon, LogOut, BookOpen, CreditCard,
+  Settings as SettingsIcon, LogOut, BookOpen, CreditCard, Building2,
 } from "lucide-react";
 import { homeItems, sections, sectionForPath, type NavItem, type SectionId } from "../lib/nav";
 import { type CurrentUser } from "../lib/api";
@@ -76,13 +76,24 @@ export default function Sidebar({ user, onCollapse }: { user: CurrentUser | null
 
       {/* org switcher */}
       <div className="px-3">
-        <button className="flex w-full items-center gap-2 rounded-md border border-line bg-panel px-2.5 py-2 text-sm hover:bg-hover">
-          <span className="grid size-5 place-items-center rounded-full bg-amber-400 text-[10px] font-bold text-black">
-            {org[0]?.toUpperCase()}
-          </span>
-          <span className="flex-1 truncate text-left">{org}</span>
-          <ChevronDown size={14} className="text-ink-faint" />
-        </button>
+        <Dropdown
+          trigger={
+            <button className="flex w-full items-center gap-2 rounded-md border border-line bg-panel px-2.5 py-2 text-sm hover:bg-hover">
+              <span className="grid size-5 place-items-center rounded-full bg-amber-400 text-[10px] font-bold text-black">
+                {org[0]?.toUpperCase()}
+              </span>
+              <span className="flex-1 truncate text-left">{org}</span>
+              <ChevronDown size={14} className="text-ink-faint" />
+            </button>
+          }
+          items={[
+            ...orgs.map((o) => ({
+              label: o.name ?? o.githubLogin,
+              icon: Building2,
+              onSelect: () => navigate("/dashboard"),
+            })),
+            { label: "Organization settings", icon: SettingsIcon, onSelect: () => navigate("/settings/members") },
+          ]} />
       </div>
 
       {/* primary action — create shortcuts */}

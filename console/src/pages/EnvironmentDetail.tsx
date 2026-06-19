@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { KeyRound, Play, Save, Plus } from "lucide-react";
+import { KeyRound, Plus } from "lucide-react";
 import { api, timeAgo, type EnvRevision, type EscValue, type Actor } from "../lib/api";
 import { useOrg } from "../lib/useOrg";
 import { Breadcrumb, Tabs, Table, Card, Avatar, EmptyState, PrimaryButton, SecondaryButton, Modal, Field } from "../components/ui";
@@ -77,18 +77,14 @@ export default function EnvironmentDetail() {
 }
 
 function Editor({ org, project, name, yaml, preview }: { org: string; project: string; name: string; yaml: string; preview: string }) {
-  const [toast, setToast] = useState("");
-  function flash(msg: string) { setToast(msg); setTimeout(() => setToast(""), 2500); }
+  // Read-only view: the definition and its resolved preview are shown side-by-side. Editing is via the CLI
+  // (the UpdateEnvironment write path isn't wired in HappyPumi yet), so we don't present a fake Save.
   return (
     <div>
-      <div className="mb-3 flex items-center justify-end gap-2">
-        <SecondaryButton icon={Play} onClick={() => flash("Environment opened — resolved values shown in the preview.")}>Open</SecondaryButton>
-        <PrimaryButton icon={Save} onClick={() => flash("Environment saved as a new revision.")}>Save</PrimaryButton>
-      </div>
-      {toast && <div className="mb-3 rounded-md border border-brand/40 bg-brand/10 px-3 py-2 text-sm text-ink">{toast}</div>}
       <p className="mb-3 text-sm text-ink-dim">
-        To view the resolved value of this environment, select <b>Open</b>, or run{" "}
-        <code className="rounded bg-bg px-1">pulumi env open {org}/{project}/{name}</code> on the command line.
+        Edit this environment with <code className="rounded bg-bg px-1">pulumi env edit {org}/{project}/{name}</code>,
+        or resolve its values with <code className="rounded bg-bg px-1">pulumi env open {org}/{project}/{name}</code> on
+        the command line. The resolved preview is shown on the right.
       </p>
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="rounded-lg border border-line">

@@ -13,14 +13,22 @@ export default function Members() {
   const [searchParams] = useSearchParams();
   const [showInvite, setShowInvite] = useState(searchParams.get("new") === "1");
   const [form, setForm] = useState({ login: "", role: "member" });
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { api.members(org).then((r) => setMembers(r.members ?? [])); }, [org]);
+  function load() { api.members(org).then((r) => setMembers(r.members ?? [])); }
+  useEffect(() => { load(); }, [org]);
 
-  function invite() {
+  async function invite() {
     if (!form.login) return;
-    setMembers((m) => [...m, { githubLogin: form.login, role: form.role, user: { githubLogin: form.login, name: form.login } }]);
-    setShowInvite(false);
-    setForm({ login: "", role: "member" });
+    setError(null);
+    try {
+      await api.addMember(org, form.login, form.role);
+      setShowInvite(false);
+      setForm({ login: "", role: "member" });
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
   }
 
   return (
@@ -50,6 +58,7 @@ export default function Members() {
           </>}>
           <Field label="GitHub login or email" value={form.login} onChange={(v) => setForm((f) => ({ ...f, login: v }))} placeholder="octocat" />
           <Field label="Role" value={form.role} onChange={(v) => setForm((f) => ({ ...f, role: v }))} options={["member", "admin"]} />
+          {error && <p className="text-xs text-red-400">{error}</p>}
         </Modal>
       )}
     </div>
