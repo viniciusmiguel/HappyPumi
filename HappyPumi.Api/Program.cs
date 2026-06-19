@@ -6,6 +6,8 @@ using HappyPumi.Api.Data;
 using HappyPumi.Api.Data.Stores;
 using HappyPumi.Api.Esc;
 using HappyPumi.Api.Esc.Providers.AzureKeyVault;
+using HappyPumi.Api.Esc.Providers.AwsSecrets;
+using HappyPumi.Api.Esc.Providers.Vault;
 using HappyPumi.Api.Secrets;
 using HappyPumi.Api.State;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -62,6 +64,10 @@ bld.Services.AddScoped<UpdateLifecycle>();
 // values, so the store is an in-memory singleton — never persisted (ADR-0005).
 bld.Services.AddSingleton<IAzureKeyVaultClient, AzureKeyVaultClient>();   // Azure Key Vault (fn::open::azure-keyvault)
 bld.Services.AddSingleton<IEscProvider, AzureKeyVaultProvider>();
+bld.Services.AddSingleton<IAwsSecretsClient, AwsSecretsClient>();         // AWS Secrets Manager (fn::open::aws-secrets)
+bld.Services.AddSingleton<IEscProvider, AwsSecretsProvider>();
+bld.Services.AddSingleton<IVaultClient, VaultClient>();                   // HashiCorp Vault KV v2 (fn::open::vault-secrets)
+bld.Services.AddSingleton<IEscProvider, VaultSecretsProvider>();
 bld.Services.AddSingleton<IEscProviderRegistry, EscProviderRegistry>();
 bld.Services.AddSingleton<IEscSessionStore, EscSessionStore>();
 bld.Services.AddScoped<EscOpener>();
