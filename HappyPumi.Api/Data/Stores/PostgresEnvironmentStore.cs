@@ -16,6 +16,10 @@ public sealed class PostgresEnvironmentStore(HappyPumiDbContext db) : IEnvironme
         => db.Environments.AsNoTracking().Where(e => e.Org == org && !e.Deleted)
             .ToList().OrderBy(e => e.Project).ThenBy(e => e.Name).Select(Map).ToList();
 
+    public IReadOnlyList<StoredEnvironment> ListAll()
+        => db.Environments.AsNoTracking().Where(e => !e.Deleted)
+            .ToList().OrderBy(e => e.Org).ThenBy(e => e.Project).ThenBy(e => e.Name).Select(Map).ToList();
+
     public StoredEnvironment? Get(EnvCoordinates c)
     {
         var row = Row(c);

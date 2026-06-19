@@ -36,6 +36,7 @@ public sealed class DecryptEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore 
             await Send.NotFoundAsync(ct);
             return;
         }
+        EscHeaders.SetRevision(HttpContext, env.CurrentRevision);
         await Send.StringAsync(env.Yaml, contentType: "application/x-yaml; charset=utf-8", cancellation: ct);
     }
 }
