@@ -1,0 +1,11 @@
+<Project>
+  <!--
+    Single source of truth for the project's Semantic Version (https://semver.org). Every assembly in
+    the solution inherits this. Releases are cut by pushing a `vMAJOR.MINOR.PATCH` git tag; the CI
+    release job overrides Version from the tag (e.g. `-p:Version=1.2.3`) so the published container
+    image and assemblies carry the tagged version. Keep VersionPrefix in step with the latest tag.
+  -->
+  <PropertyGroup>
+    <VersionPrefix>0.1.0</VersionPrefix>
+  </PropertyGroup>
+</Project>

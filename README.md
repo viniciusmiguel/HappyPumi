@@ -106,6 +106,26 @@ self-signed ASP.NET Core dev certificate (`make certs`).
 
 ---
 
+## Versioning & releases
+
+HappyPumi follows [Semantic Versioning](https://semver.org). The baseline version
+lives in [`Directory.Build.props`](Directory.Build.props) and every assembly inherits it.
+
+Releases are cut by tagging a commit on `main`:
+
+```bash
+git tag v0.1.0      # vMAJOR.MINOR.PATCH
+git push origin v0.1.0
+```
+
+Pushing a `v*` tag triggers the CI release job, which runs the unit + integration
+suites and then builds and publishes the API container image to GHCR
+(`ghcr.io/<owner>/happypumi-api`) tagged with the SemVer (`0.1.0`) and `latest`.
+Pushes to `main` publish a rolling `edge` image. CI is defined in
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+---
+
 ## Contributing
 
 1. Find the priority/tier of an endpoint in [`ENDPOINTS.md`](ENDPOINTS.md);
