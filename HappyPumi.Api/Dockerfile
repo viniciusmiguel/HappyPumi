@@ -6,16 +6,19 @@ EXPOSE 8081
 
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
+# SemVer of the build; CI passes the git-tag version (see .github/workflows/ci.yml), else the baseline.
+ARG VERSION=0.1.0
 WORKDIR /src
 COPY ["HappyPumi.Api/HappyPumi.Api.csproj", "HappyPumi.Api/"]
 RUN dotnet restore "HappyPumi.Api/HappyPumi.Api.csproj"
 COPY . .
 WORKDIR "/src/HappyPumi.Api"
-RUN dotnet build "./HappyPumi.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet build "./HappyPumi.Api.csproj" -c $BUILD_CONFIGURATION -p:Version=$VERSION -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./HappyPumi.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+ARG VERSION=0.1.0
+RUN dotnet publish "./HappyPumi.Api.csproj" -c $BUILD_CONFIGURATION -p:Version=$VERSION -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
