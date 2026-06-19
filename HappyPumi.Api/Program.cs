@@ -7,6 +7,8 @@ using HappyPumi.Api.Data.Stores;
 using HappyPumi.Api.Esc;
 using HappyPumi.Api.Esc.Providers.AzureKeyVault;
 using HappyPumi.Api.Esc.Providers.AwsSecrets;
+using HappyPumi.Api.Esc.Providers.AwsParameterStore;
+using HappyPumi.Api.Esc.Providers.GcpSecrets;
 using HappyPumi.Api.Esc.Providers.Vault;
 using HappyPumi.Api.Secrets;
 using HappyPumi.Api.State;
@@ -68,6 +70,10 @@ bld.Services.AddSingleton<IAwsSecretsClient, AwsSecretsClient>();         // AWS
 bld.Services.AddSingleton<IEscProvider, AwsSecretsProvider>();
 bld.Services.AddSingleton<IVaultClient, VaultClient>();                   // HashiCorp Vault KV v2 (fn::open::vault-secrets)
 bld.Services.AddSingleton<IEscProvider, VaultSecretsProvider>();
+bld.Services.AddSingleton<IAwsParameterStoreClient, AwsParameterStoreClient>(); // AWS SSM Parameter Store (fn::open::aws-parameter-store)
+bld.Services.AddSingleton<IEscProvider, AwsParameterStoreProvider>();
+bld.Services.AddSingleton<IGcpSecretsClient, GcpSecretsClient>();         // GCP Secret Manager (fn::open::gcp-secrets)
+bld.Services.AddSingleton<IEscProvider, GcpSecretsProvider>();
 bld.Services.AddSingleton<IEscProviderRegistry, EscProviderRegistry>();
 bld.Services.AddSingleton<IEscSessionStore, EscSessionStore>();
 bld.Services.AddScoped<EscOpener>();
