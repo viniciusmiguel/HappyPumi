@@ -5,7 +5,7 @@ import { api, type EnvRevision, type Actor } from "../lib/api";
 import { useOrg } from "../lib/useOrg";
 import { Breadcrumb, Tabs } from "../components/ui";
 import {
-  Editor, Versions, TagsTab, WebhooksTab, SchedulesTab, RotationTab, ImportedByTab, SettingsTab,
+  Editor, Versions, TagsTab, WebhooksTab, SchedulesTab, RotationTab, ImportedByTab, AccessTab, SettingsTab,
 } from "./environment/EnvironmentTabs";
 
 const TABS = [
@@ -16,6 +16,7 @@ const TABS = [
   { key: "schedules", label: "Scheduled Actions" },
   { key: "rotation", label: "Rotation" },
   { key: "imported", label: "Imported By" },
+  { key: "access", label: "Access" },
   { key: "settings", label: "Settings" },
 ];
 
@@ -55,6 +56,7 @@ export default function EnvironmentDetail() {
         {active === "schedules" && <SchedulesTab org={org} project={project} name={name} />}
         {active === "rotation" && <RotationTab org={org} project={project} name={name} />}
         {active === "imported" && <ImportedByTab org={org} project={project} name={name} />}
+        {active === "access" && <AccessTab org={org} project={project} name={name} />}
         {active === "settings" && <SettingsTab org={org} project={project} name={name} owner={owner} />}
       </div>
     </div>
