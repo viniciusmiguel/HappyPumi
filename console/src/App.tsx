@@ -8,6 +8,7 @@ import Stacks from "./pages/Stacks";
 import StackDetail from "./pages/StackDetail";
 import Environments from "./pages/Environments";
 import EnvironmentDetail from "./pages/EnvironmentDetail";
+import EscProviders from "./pages/EscProviders";
 import Deployments from "./pages/Deployments";
 import DeploymentDetail from "./pages/DeploymentDetail";
 import Components from "./pages/Components";
@@ -49,6 +50,7 @@ export default function App() {
         <Route path="/stacks/:project/:stack" element={<StackDetail />} />
 
         <Route path="/environments" element={<Environments />} />
+        <Route path="/environments/providers" element={<EscProviders />} />
         <Route path="/environments/:project/:name" element={<EnvironmentDetail />} />
 
         <Route path="/deployments" element={<Deployments />} />
