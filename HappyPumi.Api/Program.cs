@@ -91,6 +91,7 @@ bld.Services.AddSingleton<IEscRotationHistory, EscRotationHistory>();     // rot
 bld.Services.AddScoped<EscRotationRunner>();                              // executes fn::rotate (reads/writes env store)
 bld.Services.AddSingleton<IEscSessionStore, EscSessionStore>();
 bld.Services.AddSingleton<IEscDraftStore, EscDraftStore>();               // environment drafts (in-memory)
+bld.Services.AddSingleton<IEscOpenRequestStore, EscOpenRequestStore>();   // gated-open access requests (in-memory)
 bld.Services.AddScoped<EscOpener>();
 
 // Service-managed secrets crypter for the /encrypt and /decrypt endpoints. Singleton so its
