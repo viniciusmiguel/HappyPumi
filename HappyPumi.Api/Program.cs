@@ -104,6 +104,13 @@ bld.Services.AddSingleton<IEscSessionStore, EscSessionStore>();
 bld.Services.AddScoped<IEscDraftStore, PostgresEscDraftStore>();          // environment drafts (Postgres)
 bld.Services.AddScoped<IEscOpenRequestStore, PostgresEscOpenRequestStore>(); // gated-open access requests (Postgres)
 bld.Services.AddScoped<IEscScheduleStore, PostgresEscScheduleStore>();    // scheduled actions (Postgres)
+bld.Services.AddScoped<ScheduleExecutionService>();                       // one pass of due scheduled actions
+// Background loop firing due schedules (rotation/deletion); interval configurable, first run delayed one interval.
+var scheduleInterval = TimeSpan.FromSeconds(bld.Configuration.GetValue("Esc:ScheduleIntervalSeconds", 30));
+bld.Services.AddHostedService(sp => new HappyPumi.Api.Esc.EnvironmentScheduleExecutor(
+    sp.GetRequiredService<IServiceScopeFactory>(),
+    sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<HappyPumi.Api.Esc.EnvironmentScheduleExecutor>>(),
+    scheduleInterval));
 bld.Services.AddScoped<EscOpener>();
 
 // Service-managed secrets crypter for the /encrypt and /decrypt endpoints. Singleton so its
