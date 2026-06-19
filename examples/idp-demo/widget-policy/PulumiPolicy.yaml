@@ -1,0 +1,2 @@
+runtime: nodejs
+description: HappyPumi demo policy pack — governs Widget/RandomPet resources on the fake-cloud provider.

@@ -8,6 +8,11 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <!-- Component tests assert on internal pure helpers (e.g. GetWorkflowJobEndpoint.BuildJob). -->
+      <InternalsVisibleTo Include="HappyPumi.Api.Tests" />
+    </ItemGroup>
+
+    <ItemGroup>
       <Content Include="..\.dockerignore">
         <Link>.dockerignore</Link>
       </Content>
@@ -25,6 +30,13 @@
     <ItemGroup>
       <PackageReference Include="FastEndpoints" Version="8.*" />
       <PackageReference Include="FastEndpoints.Swagger" Version="8.*" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.*">
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        <PrivateAssets>all</PrivateAssets>
+      </PackageReference>
+      <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.*" />
+      <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.*" />
+      <PackageReference Include="YamlDotNet" Version="16.*" />
     </ItemGroup>
 
     <ItemGroup>

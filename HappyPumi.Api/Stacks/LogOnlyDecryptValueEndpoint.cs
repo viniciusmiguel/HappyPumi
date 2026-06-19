@@ -28,10 +28,10 @@ public sealed class LogOnlyDecryptValueEndpoint : Endpoint<LogOnlyDecryptValueRe
         );
     }
 
-    public override Task HandleAsync(LogOnlyDecryptValueRequest req, CancellationToken ct)
+    public async override Task HandleAsync(LogOnlyDecryptValueRequest req, CancellationToken ct)
     {
-        // TODO: implement LogOnlyDecryptValue
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/decrypt/log-decryption
-        throw new NotImplementedException("Endpoint LogOnlyDecryptValue not implemented.");
+        // The CLI posts a best-effort "a secret was decrypted" audit signal here (during stack export and
+        // 3rd-party secret reads). We acknowledge it; persisting these belongs with the audit store (ADR-0010).
+        await Send.NoContentAsync(ct);
     }
 }

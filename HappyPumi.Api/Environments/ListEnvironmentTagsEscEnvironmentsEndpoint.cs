@@ -4,22 +4,24 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Environments;
 
 /// <summary>
 /// ListEnvironmentTags
 /// </summary>
-public sealed class ListEnvironmentTagsEscEnvironmentsEndpoint : Endpoint<ListEnvironmentTagsEscEnvironmentsRequest, ListEnvironmentTagsResponse>
+public sealed class ListEnvironmentTagsEscEnvironmentsEndpoint(IEnvironmentStore environments) : Endpoint<ListEnvironmentTagsEscEnvironmentsRequest, ListEnvironmentTagsResponse>
 {
     public override void Configure()
     {
         Get("/api/esc/environments/{orgName}/{projectName}/{envName}/tags");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("environment:read");
         Description(b => b
             .WithTags("Environments")
             .WithSummary("ListEnvironmentTags")
@@ -28,11 +30,16 @@ public sealed class ListEnvironmentTagsEscEnvironmentsEndpoint : Endpoint<ListEn
         );
     }
 
-    public override Task HandleAsync(ListEnvironmentTagsEscEnvironmentsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ListEnvironmentTagsEscEnvironmentsRequest req, CancellationToken ct)
     {
-        // TODO: implement ListEnvironmentTagsEscEnvironments
-        // HTTP: GET /api/esc/environments/{orgName}/{projectName}/{envName}/tags
-        // Should produce: ListEnvironmentTagsResponse
-        throw new NotImplementedException("Endpoint ListEnvironmentTagsEscEnvironments not implemented.");
+        var env = environments.Get(new EnvCoordinates(req.OrgName, req.ProjectName, req.EnvName));
+        var tags = (env?.Tags ?? new Dictionary<string, string>()).ToDictionary(
+            kv => kv.Key,
+            kv => new EnvironmentTag
+            {
+                Name = kv.Key, Value = kv.Value, EditorLogin = env!.OwnerLogin, EditorName = env.OwnerName,
+                Created = env.Created, Modified = env.Modified,
+            });
+        await Send.OkAsync(new ListEnvironmentTagsResponse { Tags = tags, NextToken = "" }, ct);
     }
 }

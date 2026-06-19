@@ -38,6 +38,10 @@ public sealed class StoredUpdate
     /// <summary>Human update message from the create request's metadata.</summary>
     public string Message { get; set; } = string.Empty;
 
+    /// <summary>The user who requested the update (captured at create time), or null when anonymous.</summary>
+    public string? RequestedByLogin { get; set; }
+    public string? RequestedByName { get; set; }
+
     /// <summary>Latest checkpoint PATCHed during the update; promoted to the stack on success.</summary>
     public AppUntypedDeployment? Checkpoint { get; set; }
 }

@@ -15,7 +15,7 @@ namespace HappyPumi.Api.Endpoints.Stacks;
 /// <summary>
 /// CreateUpdateForRefresh
 /// </summary>
-public sealed class CreateUpdateForRefreshEndpoint(UpdateLifecycle lifecycle) : Endpoint<CreateUpdateForRefreshRequest, AppUpdateProgramResponse>
+public sealed class CreateUpdateForRefreshEndpoint(UpdateLifecycle lifecycle, IPolicyStore policy) : Endpoint<CreateUpdateForRefreshRequest, AppUpdateProgramResponse>
 {
     public override void Configure()
     {
@@ -32,13 +32,20 @@ public sealed class CreateUpdateForRefreshEndpoint(UpdateLifecycle lifecycle) : 
     public async override Task HandleAsync(CreateUpdateForRefreshRequest req, CancellationToken ct)
     {
         // Creates the refresh update record; the CLI starts it next. 404 if the stack is unknown.
-        var update = lifecycle.Create(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), "refresh", req.Body);
+        var update = lifecycle.Create(
+            new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), "refresh", req.Body,
+            Auth.RequestActor.From(User));
         if (update is null)
         {
             await Send.NotFoundAsync(ct);
             return;
         }
 
-        await Send.OkAsync(new AppUpdateProgramResponse { UpdateId = update.UpdateId }, ct);
+        var baseUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}";
+        await Send.OkAsync(new AppUpdateProgramResponse
+        {
+            UpdateId = update.UpdateId,
+            RequiredPolicies = PolicyEnforcement.RequiredPolicies(policy, req.OrgName, baseUrl),
+        }, ct);
     }
 }

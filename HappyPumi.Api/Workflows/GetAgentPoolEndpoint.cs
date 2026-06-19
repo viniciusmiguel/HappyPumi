@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Workflows;
 
 /// <summary>
 /// GetAgentPool
 /// </summary>
-public sealed class GetAgentPoolEndpoint : Endpoint<GetAgentPoolRequest, AgentPoolDetail>
+public sealed class GetAgentPoolEndpoint(IAgentPoolStore pools) : Endpoint<GetAgentPoolRequest, AgentPoolDetail>
 {
     public override void Configure()
     {
@@ -28,11 +29,22 @@ public sealed class GetAgentPoolEndpoint : Endpoint<GetAgentPoolRequest, AgentPo
         );
     }
 
-    public override Task HandleAsync(GetAgentPoolRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetAgentPoolRequest req, CancellationToken ct)
     {
-        // TODO: implement GetAgentPool
-        // HTTP: GET /api/orgs/{orgName}/agent-pools/{poolId}
-        // Should produce: AgentPoolDetail
-        throw new NotImplementedException("Endpoint GetAgentPool not implemented.");
+        var pool = pools.GetPool(req.OrgName, req.PoolId);
+        if (pool is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(new AgentPoolDetail
+        {
+            Id = pool.Id,
+            Name = pool.Name,
+            Description = pool.Description,
+            Created = new System.DateTimeOffset(pool.Created, System.TimeSpan.Zero).ToUnixTimeSeconds(),
+            Agents = new System.Collections.Generic.List<DeploymentAgentMetadata>(),
+        }, ct);
     }
 }

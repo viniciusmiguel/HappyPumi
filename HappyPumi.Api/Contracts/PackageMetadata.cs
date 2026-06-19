@@ -50,6 +50,13 @@ public class PackageMetadata
     public string Name { get; set; } = default!;
 
     /// <summary>
+    /// True when this is the newest version of the package. Set by the versions listing so the console's
+    /// version selector can flag the latest revision.
+    /// </summary>
+    [JsonPropertyName("isLatest")]
+    public bool IsLatest { get; set; }
+
+    /// <summary>
     /// The maturity level of the package, e.g. &quot;ga&quot;, &quot;public_preview&quot;
     /// </summary>
     [JsonPropertyName("packageStatus")]

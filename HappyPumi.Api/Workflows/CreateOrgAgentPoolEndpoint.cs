@@ -8,13 +8,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Workflows;
 
 /// <summary>
-/// CreateOrgAgentPool
+/// CreateOrgAgentPool — mints and persists a pool access token. Agents authenticate pool-scoped calls
+/// with this token; it is returned once here (cannot be retrieved later).
 /// </summary>
-public sealed class CreateOrgAgentPoolEndpoint : Endpoint<CreateOrgAgentPoolRequest, CreateAccessTokenResponse>
+public sealed class CreateOrgAgentPoolEndpoint(IAgentPoolStore pools)
+    : Endpoint<CreateOrgAgentPoolRequest, CreateAccessTokenResponse>
 {
     public override void Configure()
     {
@@ -28,11 +31,9 @@ public sealed class CreateOrgAgentPoolEndpoint : Endpoint<CreateOrgAgentPoolRequ
         );
     }
 
-    public override Task HandleAsync(CreateOrgAgentPoolRequest req, CancellationToken ct)
+    public override async Task HandleAsync(CreateOrgAgentPoolRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateOrgAgentPool
-        // HTTP: POST /api/orgs/{orgName}/agent-pools
-        // Should produce: CreateAccessTokenResponse
-        throw new NotImplementedException("Endpoint CreateOrgAgentPool not implemented.");
+        var pool = pools.CreatePool(req.OrgName, req.Body?.Name ?? "default", req.Body?.Description ?? "");
+        await Send.OkAsync(new CreateAccessTokenResponse { Id = pool.Id, TokenValue = pool.Token }, ct);
     }
 }

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net.Sockets;
 using System.Text;
+using Testcontainers.PostgreSql;
 
 namespace HappyPumi.Cli.IntegrationTests;
 
@@ -15,6 +16,7 @@ public sealed class HappyPumiServer : IAsyncLifetime
 
     private Process? _process;
     private readonly StringBuilder _serverLog = new();
+    private readonly PostgreSqlContainer _db = new PostgreSqlBuilder("postgres:16-alpine").Build();
 
     /// <summary>Base URL the CLI logs in against, e.g. http://127.0.0.1:5123.</summary>
     public string BaseUrl { get; private set; } = "";
@@ -24,6 +26,9 @@ public sealed class HappyPumiServer : IAsyncLifetime
         if (!File.Exists(RepoPaths.ApiDll))
             throw new InvalidOperationException(
                 $"API not built at '{RepoPaths.ApiDll}'. Build the solution first (e.g. `make build` or `dotnet build HappyPumi.slnx`).");
+
+        // All state persists to Postgres (ADR-0005); the subprocess applies the EF migration on startup.
+        await _db.StartAsync();
 
         var port = GetFreeLoopbackPort();
         // HTTPS with the self-signed dev cert (ADR-0007). Host is "localhost" to match the cert SAN;
@@ -40,6 +45,8 @@ public sealed class HappyPumiServer : IAsyncLifetime
         psi.ArgumentList.Add(RepoPaths.ApiDll);
         psi.Environment["ASPNETCORE_URLS"] = BaseUrl;
         psi.Environment["DOTNET_ENVIRONMENT"] = "Development";
+        psi.Environment["ConnectionStrings__happypumidb"] = _db.GetConnectionString();
+        psi.Environment["Seed__Enabled"] = "true"; // demo data so the CLI has real stacks/orgs/registry to query
 
         _process = new Process { StartInfo = psi };
         _process.OutputDataReceived += (_, e) => { if (e.Data is not null) lock (_serverLog) _serverLog.AppendLine(e.Data); };
@@ -95,19 +102,20 @@ public sealed class HappyPumiServer : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        if (_process is null)
-            return;
-
         try
         {
-            if (!_process.HasExited)
+            if (_process is { HasExited: false })
             {
                 _process.Kill(entireProcessTree: true);
                 await _process.WaitForExitAsync();
             }
         }
         catch (InvalidOperationException) { /* already gone */ }
-        finally { _process.Dispose(); }
+        finally
+        {
+            _process?.Dispose();
+            await _db.DisposeAsync();
+        }
     }
 }
 

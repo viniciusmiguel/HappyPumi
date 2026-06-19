@@ -15,7 +15,7 @@ namespace HappyPumi.Api.Endpoints.Stacks;
 /// <summary>
 /// CreateUpdateForDestroy
 /// </summary>
-public sealed class CreateUpdateForDestroyEndpoint(UpdateLifecycle lifecycle) : Endpoint<CreateUpdateForDestroyRequest, AppUpdateProgramResponse>
+public sealed class CreateUpdateForDestroyEndpoint(UpdateLifecycle lifecycle, IPolicyStore policy) : Endpoint<CreateUpdateForDestroyRequest, AppUpdateProgramResponse>
 {
     public override void Configure()
     {
@@ -32,13 +32,20 @@ public sealed class CreateUpdateForDestroyEndpoint(UpdateLifecycle lifecycle) : 
     public async override Task HandleAsync(CreateUpdateForDestroyRequest req, CancellationToken ct)
     {
         // Creates the destroy update record; the CLI starts it next. 404 if the stack is unknown.
-        var update = lifecycle.Create(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), "destroy", req.Body);
+        var update = lifecycle.Create(
+            new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), "destroy", req.Body,
+            Auth.RequestActor.From(User));
         if (update is null)
         {
             await Send.NotFoundAsync(ct);
             return;
         }
 
-        await Send.OkAsync(new AppUpdateProgramResponse { UpdateId = update.UpdateId }, ct);
+        var baseUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}";
+        await Send.OkAsync(new AppUpdateProgramResponse
+        {
+            UpdateId = update.UpdateId,
+            RequiredPolicies = PolicyEnforcement.RequiredPolicies(policy, req.OrgName, baseUrl),
+        }, ct);
     }
 }

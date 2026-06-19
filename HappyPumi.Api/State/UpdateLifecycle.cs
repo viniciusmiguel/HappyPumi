@@ -20,13 +20,17 @@ public sealed class UpdateLifecycle(IUpdateStore updates, IStackStore stacks)
     /// Creates an update for an existing stack, capturing the program's config/message so the history
     /// and /updates/latest can replay them. Returns null when the stack does not exist.
     /// </summary>
-    public StoredUpdate? Create(StackCoordinates stack, string kind, AppUpdateProgramRequest? program = null)
+    public StoredUpdate? Create(
+        StackCoordinates stack, string kind, AppUpdateProgramRequest? program = null, UpdateActor? requestedBy = null)
     {
         if (stacks.Find(stack) is null)
             return null;
         var update = updates.Create(stack, kind, dryRun: kind == PreviewKind);
         update.Config = program?.Config;
         update.Message = program?.Metadata?.Message ?? string.Empty;
+        update.RequestedByLogin = requestedBy?.Login;
+        update.RequestedByName = requestedBy?.Name;
+        updates.Save(update);
         return update;
     }
 
@@ -44,6 +48,7 @@ public sealed class UpdateLifecycle(IUpdateStore updates, IStackStore stacks)
         update.Token = $"lease-{Guid.NewGuid():N}";
         update.Version = stack.Version + 1;
         update.StartedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        updates.Save(update);
         return update;
     }
 
@@ -54,6 +59,7 @@ public sealed class UpdateLifecycle(IUpdateStore updates, IStackStore stacks)
         if (update is null)
             return null;
         update.Checkpoint = deployment;
+        updates.Save(update);
         return update;
     }
 
@@ -67,6 +73,7 @@ public sealed class UpdateLifecycle(IUpdateStore updates, IStackStore stacks)
         if (update is null)
             return null;
         update.Status = status;
+        updates.Save(update);
         if (status == UpdateStatuses.Succeeded && !update.DryRun && update.Checkpoint is not null)
             stacks.SetDeployment(update.Coordinates, update.Checkpoint, bumpVersion: true);
 
@@ -80,6 +87,8 @@ public sealed class UpdateLifecycle(IUpdateStore updates, IStackStore stacks)
     private static StoredHistoryEntry HistoryEntryFor(StoredUpdate update, string status) => new()
     {
         UpdateId = update.UpdateId,
+        RequestedByLogin = update.RequestedByLogin,
+        RequestedByName = update.RequestedByName,
         Info = new AppUpdateInfo
         {
             Kind = update.Kind,
@@ -101,6 +110,7 @@ public sealed class UpdateLifecycle(IUpdateStore updates, IStackStore stacks)
         if (update is null)
             return null;
         update.Status = UpdateStatuses.Failed;
+        updates.Save(update);
         return update;
     }
 

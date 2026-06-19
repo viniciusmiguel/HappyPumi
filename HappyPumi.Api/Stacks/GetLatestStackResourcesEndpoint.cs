@@ -4,22 +4,24 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetLatestStackResources
 /// </summary>
-public sealed class GetLatestStackResourcesEndpoint : Endpoint<GetLatestStackResourcesRequest, GetStackResourcesResponse>
+public sealed class GetLatestStackResourcesEndpoint(IStackStore stacks) : Endpoint<GetLatestStackResourcesRequest, GetStackResourcesResponse>
 {
     public override void Configure()
     {
         Get("/api/stacks/{orgName}/{projectName}/{stackName}/resources/latest");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("stack:read");
         Description(b => b
             .WithTags("Stacks")
             .WithSummary("GetLatestStackResources")
@@ -28,11 +30,19 @@ public sealed class GetLatestStackResourcesEndpoint : Endpoint<GetLatestStackRes
         );
     }
 
-    public override Task HandleAsync(GetLatestStackResourcesRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetLatestStackResourcesRequest req, CancellationToken ct)
     {
-        // TODO: implement GetLatestStackResources
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/resources/latest
-        // Should produce: GetStackResourcesResponse
-        throw new NotImplementedException("Endpoint GetLatestStackResources not implemented.");
+        var stack = stacks.Find(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName));
+        if (stack is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        var resources = StackResources.Extract(stack.Deployment)
+            .Select(r => new ResourceInfo { Resource = r }).ToList();
+        await Send.OkAsync(new GetStackResourcesResponse
+        {
+            Region = "", Version = stack.Version, Resources = resources,
+        }, ct);
     }
 }

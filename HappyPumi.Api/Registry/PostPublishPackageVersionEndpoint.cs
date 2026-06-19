@@ -39,14 +39,19 @@ public sealed class PostPublishPackageVersionEndpoint(IPackageRegistry registry)
             return;
         }
 
-        // Phase one of the publish handshake: register the (unpublished) version and hand back stub
-        // upload URLs. The client uploads, then calls complete to finalize.
+        // Phase one of the publish handshake: register the (unpublished) version and hand back upload URLs.
+        // The CLI PUTs each artifact directly to these URLs, so they must be absolute (rooted at this host).
         var coords = new PackageCoordinates(req.Source, req.Publisher, req.Name);
         registry.StartPublish(coords, req.Body.Version, req.Body.PublishedAt);
+        var uploads = RegistryMapper.UploadUrls(coords, req.Body.Version);
+        var baseUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}";
+        uploads.Index = baseUrl + uploads.Index;
+        uploads.Schema = baseUrl + uploads.Schema;
+        uploads.InstallationConfiguration = baseUrl + uploads.InstallationConfiguration;
         await Send.OkAsync(new StartPackagePublishResponse
         {
             OperationId = Guid.NewGuid().ToString(),
-            UploadUrLs = RegistryMapper.UploadUrls(coords, req.Body.Version),
+            UploadUrLs = uploads,
         }, ct);
     }
 }

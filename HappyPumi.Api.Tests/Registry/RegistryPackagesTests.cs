@@ -17,7 +17,7 @@ public sealed class RegistryPackagesTests(HappyPumiApp app)
     [Fact]
     public async Task PublishHandshakeThenGetAndList()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var name = $"pkg{Guid.NewGuid():N}";
 
         // Phase 1: start publish -> operation id + upload URLs.
@@ -42,10 +42,122 @@ public sealed class RegistryPackagesTests(HappyPumiApp app)
         Assert.Contains(list!.Packages, p => p.Name == name);
     }
 
+    // The web console fetches readmeURL/schemaURL directly from the browser (cross-origin, not via its API
+    // proxy), so GetPackageVersion must advertise absolute URLs rooted at the request host — a root-relative
+    // path would resolve against the console origin and 404. Regression for the Private Components README.
+    [Fact]
+    public async Task GetVersionReturnsAbsoluteArtifactUrls()
+    {
+        using var client = app.CreateAuthedClient();
+        var name = $"pkg{Guid.NewGuid():N}";
+        await Post<StartPackagePublishResponse>(client, $"{Base(name)}/versions",
+            new StartPackagePublishRequest { Version = "1.0.0" });
+
+        var meta = await client.GetFromJsonAsync<PackageMetadata>($"{Base(name)}/versions/1.0.0");
+
+        Assert.StartsWith("http", meta!.ReadmeUrl);
+        Assert.EndsWith($"{Base(name)}/versions/1.0.0/readme", meta.ReadmeUrl);
+        Assert.StartsWith("http", meta.SchemaUrl);
+        Assert.EndsWith($"{Base(name)}/versions/1.0.0/schema", meta.SchemaUrl);
+    }
+
+    // ── Console component surfaces (versions list, readme, nav) ─────────────────
+    [Fact]
+    public async Task ListVersionsReturnsAllNewestFirstWithLatestFlag()
+    {
+        using var client = app.CreateAuthedClient();
+        var name = $"pkg{Guid.NewGuid():N}";
+        await Publish(client, name, "1.0.0");
+        await Publish(client, name, "2.0.0");
+
+        var list = await client.GetFromJsonAsync<ListPackagesResponse>($"{Base(name)}/versions");
+
+        Assert.Equal(2, list!.Packages.Count);
+        Assert.Equal("2.0.0", list.Packages[0].Version); // newest first
+        Assert.True(list.Packages[0].IsLatest);
+        Assert.False(list.Packages[1].IsLatest);
+    }
+
+    [Fact]
+    public async Task ReadmeReturnsMarkdownText()
+    {
+        using var client = app.CreateAuthedClient();
+        var name = $"pkg{Guid.NewGuid():N}";
+        await Publish(client, name, "1.0.0");
+
+        using var res = await client.GetAsync($"{Base(name)}/versions/1.0.0/readme");
+
+        res.EnsureSuccessStatusCode();
+        Assert.Contains("text/markdown", res.Content.Headers.ContentType!.ToString());
+        var body = await res.Content.ReadAsStringAsync();
+        Assert.StartsWith("#", body.TrimStart());
+    }
+
+    [Fact]
+    public async Task NavReturnsModulesEnvelope()
+    {
+        using var client = app.CreateAuthedClient();
+        var name = $"pkg{Guid.NewGuid():N}";
+        await Publish(client, name, "1.0.0");
+
+        var nav = await client.GetFromJsonAsync<GetPackageNavResponse>($"{Base(name)}/versions/latest/nav");
+
+        Assert.Equal(name, nav!.Name);
+        Assert.NotNull(nav.Modules);
+    }
+
+    [Fact]
+    public async Task ReadmeAndNavReturn404ForUnknownPackage()
+    {
+        using var client = app.CreateAuthedClient();
+        var name = $"pkg{Guid.NewGuid():N}";
+
+        using var readme = await client.GetAsync($"{Base(name)}/versions/1.0.0/readme");
+        using var nav = await client.GetAsync($"{Base(name)}/versions/1.0.0/nav");
+
+        Assert.Equal(HttpStatusCode.NotFound, readme.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, nav.StatusCode);
+    }
+
+    [Fact]
+    public async Task PublishUploadsAndServesSchemaArtifact()
+    {
+        using var client = app.CreateAuthedClient();
+        var name = $"pkg{Guid.NewGuid():N}";
+
+        // Start -> absolute upload URLs -> PUT the schema bytes -> complete.
+        var start = await Post<StartPackagePublishResponse>(client, $"{Base(name)}/versions",
+            new StartPackagePublishRequest { Version = "1.0.0" });
+        Assert.StartsWith("http", start.UploadUrLs.Schema); // absolute, so the CLI can PUT to it
+
+        var schema = "{\"name\":\"" + name + "\",\"version\":\"1.0.0\",\"resources\":{\"" + name + ":index:Widget\":{\"isComponent\":true}}}";
+        using var put = await client.PutAsync($"{Base(name)}/versions/1.0.0/upload/schema",
+            new StringContent(schema, System.Text.Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.NoContent, put.StatusCode);
+
+        using var complete = await client.PostAsJsonAsync($"{Base(name)}/versions/1.0.0/complete", new { });
+        Assert.Equal(HttpStatusCode.OK, complete.StatusCode);
+
+        // The schema downloads back, and the nav is derived from it.
+        var served = await client.GetStringAsync($"{Base(name)}/versions/1.0.0/schema");
+        Assert.Contains($"{name}:index:Widget", served);
+
+        var nav = await client.GetFromJsonAsync<GetPackageNavResponse>($"{Base(name)}/versions/latest/nav");
+        Assert.Contains(nav!.Modules, m => m.Resources != null && m.Resources.Any(r => r.TypeToken == $"{name}:index:Widget"));
+    }
+
+    private static async Task Publish(HttpClient client, string name, string version)
+    {
+        await Post<StartPackagePublishResponse>(client, $"{Base(name)}/versions",
+            new StartPackagePublishRequest { Version = version });
+        using var complete = await client.PostAsJsonAsync($"{Base(name)}/versions/{version}/complete", new { });
+        complete.EnsureSuccessStatusCode();
+    }
+
     [Fact]
     public async Task GetUnknownVersionReturns404()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
 
         using var response = await client.GetAsync($"{Base($"pkg{Guid.NewGuid():N}")}/versions/1.0.0");
 
@@ -55,7 +167,7 @@ public sealed class RegistryPackagesTests(HappyPumiApp app)
     [Fact]
     public async Task PublishWithoutVersionReturns400()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
 
         using var response = await client.PostAsJsonAsync($"{Base($"pkg{Guid.NewGuid():N}")}/versions",
             new StartPackagePublishRequest { Version = "" });
@@ -66,7 +178,7 @@ public sealed class RegistryPackagesTests(HappyPumiApp app)
     [Fact]
     public async Task DeleteRemovesTheVersion()
     {
-        using var client = app.CreateClient();
+        using var client = app.CreateAuthedClient();
         var name = $"pkg{Guid.NewGuid():N}";
         await Post<StartPackagePublishResponse>(client, $"{Base(name)}/versions",
             new StartPackagePublishRequest { Version = "1.0.0" });

@@ -1,0 +1,10 @@
+# Config for the prebuilt Pulumi customer-managed workflow agent, pointed at the local HappyPumi.
+# service_url is the docker host-gateway so it resolves from both the host-network agent and the nested
+# executor/step containers (Linux). working_directory holds the staged runner binaries; shared_volume_directory
+# is the host path job workdirs are created under (bind-mounted into the agent at the same path).
+token: happypumi-demo-pool
+service_url: http://172.17.0.1:5118
+working_directory: /runners
+shared_volume_directory: /tmp/hp-shared
+single_run: false
+pull_image: true

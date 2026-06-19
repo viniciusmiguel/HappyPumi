@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using HappyPumi.Api.Contracts;
 
 namespace HappyPumi.Api.State;
@@ -28,7 +29,7 @@ public sealed class InMemoryDeploymentStore : IDeploymentStore
         return true;
     }
 
-    public StoredDeployment CreateDeployment(StackCoordinates stack, string operation)
+    public StoredDeployment CreateDeployment(StackCoordinates stack, string operation, string? templateRef = null)
     {
         var state = State(stack);
         lock (state.Deployments)
@@ -38,6 +39,7 @@ public sealed class InMemoryDeploymentStore : IDeploymentStore
                 Id = Guid.NewGuid().ToString(),
                 Version = state.NextVersion++,
                 Operation = operation,
+                TemplateRef = templateRef,
             };
             state.Deployments.Add(deployment);
             return deployment;
@@ -50,6 +52,28 @@ public sealed class InMemoryDeploymentStore : IDeploymentStore
         lock (state.Deployments)
             return state.Deployments.ToArray();
     }
+
+    public IReadOnlyList<StoredDeployment> ListByOrg(string org)
+        => _state.Where(kv => kv.Key.Org == org)
+            .SelectMany(kv => kv.Value.Deployments)
+            .OrderByDescending(d => d.Created).ToArray();
+
+    public StoredDeployment? GetByVersion(StackCoordinates stack, long version)
+    {
+        var state = State(stack);
+        lock (state.Deployments)
+            return state.Deployments.FirstOrDefault(d => d.Version == version);
+    }
+
+    public StoredDeployment? GetById(StackCoordinates stack, string deploymentId)
+    {
+        var state = State(stack);
+        lock (state.Deployments)
+            return state.Deployments.FirstOrDefault(d => d.Id == deploymentId);
+    }
+
+    // The in-memory store does not retain log lines (logs are persisted by the Postgres store/runner).
+    public IReadOnlyList<DeploymentLogLine> GetLogs(string deploymentId) => Array.Empty<DeploymentLogLine>();
 
     public bool CancelDeployment(StackCoordinates stack, string deploymentId)
     {

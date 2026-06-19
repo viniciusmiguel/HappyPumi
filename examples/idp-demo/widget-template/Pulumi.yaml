@@ -1,0 +1,9 @@
+name: widget-template
+runtime: dotnet
+description: A C# template that provisions a Widget on the fake-cloud (random) provider.
+template:
+  description: Provision a Widget backed by the fake-cloud provider.
+  config:
+    widget:size:
+      description: The widget size.
+      default: large

@@ -1,0 +1,15 @@
+{
+  "name": "widgets",
+  "version": "1.0.0",
+  "displayName": "Widgets",
+  "description": "A reusable widget component for the IdP demo.",
+  "publisher": "happypumi",
+  "resources": {
+    "widgets:index:Widget": {
+      "isComponent": true,
+      "description": "A configurable widget.",
+      "inputProperties": { "size": { "type": "string", "description": "The widget size." } },
+      "properties": { "widgetId": { "type": "string", "description": "The provisioned widget id." } }
+    }
+  }
+}

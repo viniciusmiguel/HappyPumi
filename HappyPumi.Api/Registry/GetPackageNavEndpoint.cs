@@ -4,35 +4,63 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Registry;
 
 /// <summary>
 /// GetPackageNav
 /// </summary>
-public sealed class GetPackageNavEndpoint : Endpoint<GetPackageNavRequest, GetPackageNavResponse>
+public sealed class GetPackageNavEndpoint(IPackageRegistry registry, IArtifactStore artifacts) : Endpoint<GetPackageNavRequest, GetPackageNavResponse>
 {
     public override void Configure()
     {
-        Get("/api/registry/packages/{source}/{publisher}/{name}/versions/{version}/nav");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        // Spec path + the console-internal path the web console actually calls for the API Docs tab.
+        Get("/api/registry/packages/{source}/{publisher}/{name}/versions/{version}/nav",
+            "/api/console/registry/packages/{source}/{publisher}/{name}/versions/{version}/nav");
+        Permissions("stack:read");
         Description(b => b
             .WithTags("Registry")
             .WithSummary("GetPackageNav")
             .WithDescription("Returns the package navigation: a flat list of modules in schema-declaration order. By default returns a summary (module names and counts only) suitable for discovery. Pass 'depth=full' to include resources and functions; combine with 'q' to filter results by name or token. Module names like 's3/bucket' are flat strings, not nested. Supports JSON or markdown via Accept. Returns 404 if the package version does not exist.")
-            .WithName("GetPackageNav")
         );
     }
 
-    public override Task HandleAsync(GetPackageNavRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetPackageNavRequest req, CancellationToken ct)
     {
-        // TODO: implement GetPackageNav
-        // HTTP: GET /api/registry/packages/{source}/{publisher}/{name}/versions/{version}/nav
-        // Should produce: GetPackageNavResponse
-        throw new NotImplementedException("Endpoint GetPackageNav not implemented.");
+        var pkg = registry.Get(new PackageCoordinates(req.Source, req.Publisher, req.Name), req.Version);
+        if (pkg is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        // Prefer the seeded nav; otherwise derive it from the published schema artifact.
+        List<GetPackageNavModule> modules;
+        if (pkg.Nav is { Count: > 0 })
+        {
+            modules = pkg.Nav;
+            foreach (var m in modules)
+            {
+                m.ResourcesTotal = m.Resources?.Count ?? 0;
+                m.FunctionsTotal = m.Functions?.Count ?? 0;
+            }
+        }
+        else
+        {
+            var schema = artifacts.Get(ArtifactKeys.Package(req.Source, req.Publisher, req.Name, pkg.Version, "schema"));
+            modules = schema is not null ? SchemaNav.Derive(schema.Content) : new List<GetPackageNavModule>();
+        }
+        var basePath = $"/api/registry/packages/{req.Source}/{req.Publisher}/{req.Name}/versions/{pkg.Version}";
+        await Send.OkAsync(new GetPackageNavResponse
+        {
+            Source = req.Source, Publisher = req.Publisher, Name = req.Name, Version = pkg.Version,
+            Title = req.Name, Language = "go", Modules = modules, ModulesTotal = modules.Count,
+            PackageVersionUrl = basePath, ReadmeUrl = $"{basePath}/readme", DocsUrlTemplate = $"{basePath}/docs/{{token}}",
+        }, ct);
     }
 }

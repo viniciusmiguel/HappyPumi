@@ -8,18 +8,19 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Deployments;
 
 /// <summary>
 /// GetDeployment
 /// </summary>
-public sealed class GetDeploymentEndpoint : Endpoint<GetDeploymentRequest, GetDeploymentResponse>
+public sealed class GetDeploymentEndpoint(IDeploymentStore deployments) : Endpoint<GetDeploymentRequest, GetDeploymentResponse>
 {
     public override void Configure()
     {
         Get("/api/stacks/{orgName}/{projectName}/{stackName}/deployments/{deploymentId}");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("deployments:read");
         Description(b => b
             .WithTags("Deployments")
             .WithSummary("GetDeployment")
@@ -28,11 +29,15 @@ public sealed class GetDeploymentEndpoint : Endpoint<GetDeploymentRequest, GetDe
         );
     }
 
-    public override Task HandleAsync(GetDeploymentRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetDeploymentRequest req, CancellationToken ct)
     {
-        // TODO: implement GetDeployment
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/deployments/{deploymentId}
-        // Should produce: GetDeploymentResponse
-        throw new NotImplementedException("Endpoint GetDeployment not implemented.");
+        var stack = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        var dep = deployments.GetById(stack, req.DeploymentId);
+        if (dep is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        await Send.OkAsync(DeploymentMapper.ToResponse(dep), ct);
     }
 }

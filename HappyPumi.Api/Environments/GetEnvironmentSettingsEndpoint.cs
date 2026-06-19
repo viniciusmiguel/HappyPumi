@@ -8,18 +8,19 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Environments;
 
 /// <summary>
 /// GetEnvironmentSettings
 /// </summary>
-public sealed class GetEnvironmentSettingsEndpoint : Endpoint<GetEnvironmentSettingsRequest, EnvironmentSettings>
+public sealed class GetEnvironmentSettingsEndpoint(IEnvironmentStore environments) : Endpoint<GetEnvironmentSettingsRequest, EnvironmentSettings>
 {
     public override void Configure()
     {
         Get("/api/esc/environments/{orgName}/{projectName}/{envName}/settings");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("environment:read");
         Description(b => b
             .WithTags("Environments")
             .WithSummary("GetEnvironmentSettings")
@@ -28,11 +29,14 @@ public sealed class GetEnvironmentSettingsEndpoint : Endpoint<GetEnvironmentSett
         );
     }
 
-    public override Task HandleAsync(GetEnvironmentSettingsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetEnvironmentSettingsRequest req, CancellationToken ct)
     {
-        // TODO: implement GetEnvironmentSettings
-        // HTTP: GET /api/esc/environments/{orgName}/{projectName}/{envName}/settings
-        // Should produce: EnvironmentSettings
-        throw new NotImplementedException("Endpoint GetEnvironmentSettings not implemented.");
+        var env = environments.Get(new EnvCoordinates(req.OrgName, req.ProjectName, req.EnvName));
+        if (env is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        await Send.OkAsync(new EnvironmentSettings { DeletionProtected = env.DeletionProtected }, ct);
     }
 }

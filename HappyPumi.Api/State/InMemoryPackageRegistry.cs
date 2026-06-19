@@ -34,6 +34,9 @@ public sealed class InMemoryPackageRegistry : IPackageRegistry
         return Versions(coordinates).TryGetValue(version, out var v) ? v : null;
     }
 
+    public IReadOnlyCollection<StoredPackageVersion> ListVersions(PackageCoordinates coordinates)
+        => Versions(coordinates).Values.OrderByDescending(v => v.CreatedAt).ToArray();
+
     public StoredPackageVersion StartPublish(PackageCoordinates coordinates, string version, DateTime? publishedAt)
     {
         var entry = new StoredPackageVersion

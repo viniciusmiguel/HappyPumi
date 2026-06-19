@@ -1,6 +1,8 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
+using HappyPumi.Api.Contracts;
 
 namespace HappyPumi.Api.State;
 
@@ -14,4 +16,9 @@ public sealed class StoredPackageVersion
 
     /// <summary>False between StartPublish and CompletePublish (the upload window); true once finalized.</summary>
     public bool Published { get; set; }
+
+    /// <summary>README markdown for the Overview tab.</summary>
+    public string? Readme { get; set; }
+    /// <summary>API-docs navigation tree (modules → resources/functions).</summary>
+    public List<GetPackageNavModule>? Nav { get; set; }
 }

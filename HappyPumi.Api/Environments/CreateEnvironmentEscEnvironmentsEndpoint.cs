@@ -8,18 +8,19 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Environments;
 
 /// <summary>
 /// CreateEnvironment
 /// </summary>
-public sealed class CreateEnvironmentEscEnvironmentsEndpoint : Endpoint<CreateEnvironmentEscEnvironmentsRequest>
+public sealed class CreateEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore environments) : Endpoint<CreateEnvironmentEscEnvironmentsRequest>
 {
     public override void Configure()
     {
         Post("/api/esc/environments/{orgName}");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("environment:create");
         Description(b => b
             .WithTags("Environments")
             .WithSummary("CreateEnvironment")
@@ -28,10 +29,22 @@ public sealed class CreateEnvironmentEscEnvironmentsEndpoint : Endpoint<CreateEn
         );
     }
 
-    public override Task HandleAsync(CreateEnvironmentEscEnvironmentsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(CreateEnvironmentEscEnvironmentsRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateEnvironmentEscEnvironments
-        // HTTP: POST /api/esc/environments/{orgName}
-        throw new NotImplementedException("Endpoint CreateEnvironmentEscEnvironments not implemented.");
+        var body = req.Body;
+        if (body is null || string.IsNullOrWhiteSpace(body.Name) || string.IsNullOrWhiteSpace(body.Project))
+        {
+            AddError("'project' and 'name' are required.");
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+        // The creator becomes the owner. (Interactive auth/identity is the ADR-0007 follow-up; use the
+        // authenticated principal's name when present, else the seeded admin.)
+        var login = User.Identity?.Name ?? "happypumi";
+        var created = environments.Create(new EnvCoordinates(req.OrgName, body.Project, body.Name), login, login);
+        await Send.ResultAsync(created is null
+            ? Microsoft.AspNetCore.Http.Results.Conflict()
+            : Microsoft.AspNetCore.Http.Results.Created(
+                $"/api/esc/environments/{req.OrgName}/{body.Project}/{body.Name}", (object?)null));
     }
 }

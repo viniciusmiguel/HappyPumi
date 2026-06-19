@@ -34,7 +34,8 @@ public sealed class CreateApiDeploymentHandlerV2Endpoint(IDeploymentStore deploy
     public async override Task HandleAsync(CreateApiDeploymentHandlerV2Request req, CancellationToken ct)
     {
         var operation = req.Body?.Operation ?? "update";
-        var deployment = deployments.CreateDeployment(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), operation);
+        var deployment = deployments.CreateDeployment(
+            new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), operation, req.Body?.TemplateRef);
         await Send.OkAsync(new CreateDeploymentResponse
         {
             Id = deployment.Id,

@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+/* Pulumi Console-style dark theme tokens. */
+@theme {
+  --color-bg: #0b0b0d;          /* app + sidebar background (near black) */
+  --color-panel: #141417;       /* cards / raised surfaces */
+  --color-hover: #1c1c21;       /* hovered rows / nav items */
+  --color-active: #26262c;      /* selected nav pill */
+  --color-line: #26262c;        /* hairline borders */
+  --color-ink: #ededf0;         /* primary text */
+  --color-ink-dim: #a1a1aa;     /* secondary text */
+  --color-ink-faint: #6b6b73;   /* tertiary text */
+  --color-brand: #8b5cf6;       /* Pulumi-ish violet (primary) */
+  --color-brand-hover: #9d76f7;
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+* { box-sizing: border-box; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #2c2c33; border-radius: 6px; }
+::-webkit-scrollbar-track { background: transparent; }

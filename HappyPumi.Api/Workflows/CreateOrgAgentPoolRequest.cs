@@ -23,8 +23,8 @@ public sealed class CreateOrgAgentPoolRequest
     public string OrgName { get; set; } = default!;
 
     /// <summary>
-    /// Request body.
+    /// Request body (name + description). Fully qualified to disambiguate from this endpoint request type.
     /// </summary>
     [FromBody]
-    public CreateOrgAgentPoolRequest Body { get; set; } = default!;
+    public HappyPumi.Api.Contracts.CreateOrgAgentPoolRequest Body { get; set; } = default!;
 }

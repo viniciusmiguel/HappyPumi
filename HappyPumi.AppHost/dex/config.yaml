@@ -24,20 +24,27 @@ staticClients:
     redirectURIs:
       - http://localhost:8080/signin-oidc
       - http://localhost:5556/callback # device/CLI-style local callback for tests
+  # Public (PKCE) client for the React console SPA — no secret; the browser does Authorization Code + PKCE.
+  - id: happypumi-console
+    name: HappyPumi Console
+    public: true
+    redirectURIs:
+      - http://localhost:5173/callback # vite dev server
+      - http://localhost:3000/callback # console served from its build
 
 enablePasswordDB: true
 
-# Static users. The bcrypt hash below is Dex's canonical example hash for the password "password".
-# group membership drives RBAC: happypumi-admins -> admin role, happypumi-members -> member role.
+# Static users. The bcrypt hash below is for the password "password" (cost 10). group membership drives
+# RBAC: happypumi-admins -> admin role, happypumi-members -> member role.
 staticPasswords:
   - email: admin@happypumi.dev
-    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4i"
+    hash: "$2b$10$zzWI3rhYkCxTGz9fypTbl.GW97aJ3pmXnBzm5sgS2gi58A.LKsU/e"
     username: admin
     userID: "08a8684b-db88-4b73-90a9-3cd1661f5466"
     groups:
       - happypumi-admins
   - email: member@happypumi.dev
-    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4i"
+    hash: "$2b$10$zzWI3rhYkCxTGz9fypTbl.GW97aJ3pmXnBzm5sgS2gi58A.LKsU/e"
     username: member
     userID: "41331323-6f44-45e6-b3b9-2c4b60c02be5"
     groups:

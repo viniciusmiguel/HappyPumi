@@ -28,11 +28,9 @@ public sealed class GetPulumiDeployExecutorEndpoint : EndpointWithoutRequest<obj
         );
     }
 
-    public override Task HandleAsync(CancellationToken ct)
+    public override async Task HandleAsync(CancellationToken ct)
     {
-        // TODO: implement GetPulumiDeployExecutor
-        // HTTP: GET /api/deployments/executor
-        // Should produce: object
-        throw new NotImplementedException("Endpoint GetPulumiDeployExecutor not implemented.");
+        // The agent's docker deploy_target runs Pulumi operations in this executor image.
+        await Send.OkAsync(new { imageReference = "pulumi/pulumi:latest" }, ct);
     }
 }

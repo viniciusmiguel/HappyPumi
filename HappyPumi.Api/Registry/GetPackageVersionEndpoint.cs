@@ -38,6 +38,13 @@ public sealed class GetPackageVersionEndpoint(IPackageRegistry registry) : Endpo
             return;
         }
 
-        await Send.OkAsync(RegistryMapper.ToMetadata(pkg), ct);
+        var meta = RegistryMapper.ToMetadata(pkg);
+        // The web console fetches readmeURL/schemaURL directly from the browser (not via its API proxy), so a
+        // root-relative path would resolve against the console origin and 404. Advertise absolute URLs rooted
+        // at this request's host so cross-origin fetches reach the API (matches Pulumi's absolute CDN URLs).
+        var baseUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}";
+        if (meta.ReadmeUrl.StartsWith('/')) meta.ReadmeUrl = baseUrl + meta.ReadmeUrl;
+        if (meta.SchemaUrl.StartsWith('/')) meta.SchemaUrl = baseUrl + meta.SchemaUrl;
+        await Send.OkAsync(meta, ct);
     }
 }

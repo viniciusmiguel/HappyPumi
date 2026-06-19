@@ -13,15 +13,14 @@ namespace HappyPumi.Api.Contracts;
 /// </summary>
 public class GetPackageNavItem
 {
-    /// <summary>
-    /// The display name, resolved for the requested language.
-    /// </summary>
+    /// <summary>Per-language display name map; the console reads name["go"].</summary>
     [JsonPropertyName("name")]
-    public string Name { get; set; } = default!;
+    public Dictionary<string, string> Name { get; set; } = new();
 
     /// <summary>
-    /// The Pulumi token identifying this resource or function (e.g. &apos;random:index/randomPassword:RandomPassword&apos;).
+    /// The Pulumi type token identifying this resource or function (e.g. &apos;random:index:RandomPassword&apos;).
+    /// The console's nav tree reads this as <c>typeToken</c>.
     /// </summary>
-    [JsonPropertyName("token")]
-    public string Token { get; set; } = default!;
+    [JsonPropertyName("typeToken")]
+    public string TypeToken { get; set; } = default!;
 }

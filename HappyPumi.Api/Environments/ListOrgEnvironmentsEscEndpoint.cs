@@ -4,22 +4,24 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Environments;
 
 /// <summary>
 /// ListOrgEnvironments
 /// </summary>
-public sealed class ListOrgEnvironmentsEscEndpoint : Endpoint<ListOrgEnvironmentsEscRequest, ListEnvironmentsResponse>
+public sealed class ListOrgEnvironmentsEscEndpoint(IEnvironmentStore environments) : Endpoint<ListOrgEnvironmentsEscRequest, ListEnvironmentsResponse>
 {
     public override void Configure()
     {
         Get("/api/esc/environments/{orgName}");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("environment:list");
         Description(b => b
             .WithTags("Environments")
             .WithSummary("ListOrgEnvironments")
@@ -28,11 +30,9 @@ public sealed class ListOrgEnvironmentsEscEndpoint : Endpoint<ListOrgEnvironment
         );
     }
 
-    public override Task HandleAsync(ListOrgEnvironmentsEscRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ListOrgEnvironmentsEscRequest req, CancellationToken ct)
     {
-        // TODO: implement ListOrgEnvironmentsEsc
-        // HTTP: GET /api/esc/environments/{orgName}
-        // Should produce: ListEnvironmentsResponse
-        throw new NotImplementedException("Endpoint ListOrgEnvironmentsEsc not implemented.");
+        var envs = environments.ListByOrg(req.OrgName).Select(EnvironmentMapper.ToOrgEnvironment).ToList();
+        await Send.OkAsync(new ListEnvironmentsResponse { Environments = envs, NextToken = null }, ct);
     }
 }

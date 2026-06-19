@@ -14,4 +14,10 @@ public interface IUpdateStore
 
     /// <summary>Returns the update by id, or null when it does not exist.</summary>
     StoredUpdate? Find(string updateId);
+
+    /// <summary>
+    /// Persists mutations made to a record obtained from <see cref="Find"/> or <see cref="Create"/>. A
+    /// no-op for in-memory (the record is live); writes the row for durable stores.
+    /// </summary>
+    void Save(StoredUpdate update);
 }

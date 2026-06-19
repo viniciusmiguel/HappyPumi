@@ -41,11 +41,13 @@ public sealed class CreatePolicyPackEndpoint(IPolicyStore policy) : Endpoint<Cre
         }
 
         // Auto-increment the pack version; the client then uploads to UploadUri and calls complete.
-        var version = policy.CreatePackVersion(req.OrgName, body.Name, body.DisplayName ?? body.Name, body.Policies);
+        var version = policy.CreatePackVersion(req.OrgName, body.Name, body.DisplayName ?? body.Name, body.Policies, body.VersionTag);
+        // The CLI PUTs the compressed pack directly to this URL, so it must be absolute (rooted at this host).
+        var baseUrl = $"{HttpContext.Request.Scheme}://{HttpContext.Request.Host}";
         await Send.OkAsync(new AppCreatePolicyPackResponse
         {
             Version = version,
-            UploadUri = $"/api/orgs/{req.OrgName}/policypacks/{body.Name}/versions/{version}/upload",
+            UploadUri = $"{baseUrl}/api/orgs/{req.OrgName}/policypacks/{body.Name}/versions/{version}/upload",
         }, ct);
     }
 }

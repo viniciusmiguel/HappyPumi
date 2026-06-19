@@ -26,10 +26,11 @@ public class GetPackageNavModule
     public int FunctionsTotal { get; set; }
 
     /// <summary>
-    /// Module display name, resolved for the requested language. May contain &apos;/&apos; (e.g. &apos;s3/bucket&apos;).
+    /// Per-language module name map (e.g. {"go":"index","nodejs":"index"}). The console reads name["go"];
+    /// real Pulumi nav returns a language-keyed map rather than a single resolved string.
     /// </summary>
     [JsonPropertyName("name")]
-    public string Name { get; set; } = default!;
+    public Dictionary<string, string> Name { get; set; } = new();
 
     /// <summary>
     /// Resources in this module. Returned only when &apos;depth=full&apos; is set.

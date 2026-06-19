@@ -6,20 +6,22 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Deployments;
 
 /// <summary>
 /// GetDeploymentLogs
 /// </summary>
-public sealed class GetDeploymentLogsEndpoint : Endpoint<GetDeploymentLogsRequest, DeploymentLogsBase>
+public sealed class GetDeploymentLogsEndpoint(IDeploymentStore deployments) : Endpoint<GetDeploymentLogsRequest, DeploymentLogsBase>
 {
     public override void Configure()
     {
         Get("/api/stacks/{orgName}/{projectName}/{stackName}/deployments/{deploymentId}/logs");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("deployments:read");
         Description(b => b
             .WithTags("Deployments")
             .WithSummary("GetDeploymentLogs")
@@ -28,11 +30,9 @@ public sealed class GetDeploymentLogsEndpoint : Endpoint<GetDeploymentLogsReques
         );
     }
 
-    public override Task HandleAsync(GetDeploymentLogsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetDeploymentLogsRequest req, CancellationToken ct)
     {
-        // TODO: implement GetDeploymentLogs
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/deployments/{deploymentId}/logs
-        // Should produce: DeploymentLogsBase
-        throw new NotImplementedException("Endpoint GetDeploymentLogs not implemented.");
+        var lines = deployments.GetLogs(req.DeploymentId).ToList();
+        await Send.OkAsync(new DeploymentLogs { Lines = lines, NextToken = null }, ct);
     }
 }

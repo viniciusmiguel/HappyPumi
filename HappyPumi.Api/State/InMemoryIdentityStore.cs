@@ -15,6 +15,7 @@ public sealed class InMemoryIdentityStore : IIdentityStore
     {
         public ConcurrentDictionary<string, StoredMember> Members { get; } = new();
         public ConcurrentDictionary<string, StoredRole> Roles { get; } = new();
+        public ConcurrentDictionary<string, StoredTeam> Teams { get; } = new();
         public ConcurrentDictionary<string, HashSet<string>> TeamRoles { get; } = new();
     }
 
@@ -73,17 +74,59 @@ public sealed class InMemoryIdentityStore : IIdentityStore
         return true;
     }
 
+    public IReadOnlyCollection<StoredTeam> ListTeams(string org) => Org(org).Teams.Values.ToArray();
+
+    public StoredTeam? GetTeam(string org, string teamName)
+        => Org(org).Teams.TryGetValue(teamName, out var t) ? t : null;
+
+    public StoredTeam? CreateTeam(string org, string name, string displayName, string description, string kind)
+    {
+        var team = new StoredTeam { Name = name, DisplayName = displayName, Description = description, Kind = kind };
+        return Org(org).Teams.TryAdd(name, team) ? team : null;
+    }
+
+    public bool DeleteTeam(string org, string teamName)
+    {
+        Org(org).TeamRoles.TryRemove(teamName, out _);
+        return Org(org).Teams.TryRemove(teamName, out _);
+    }
+
+    public bool AddTeamMember(string org, string teamName, string userLogin)
+    {
+        if (!Org(org).Teams.TryGetValue(teamName, out var team))
+            return false;
+        lock (team.Members)
+            if (!team.Members.Contains(userLogin))
+                team.Members.Add(userLogin);
+        return true;
+    }
+
+    public bool RemoveTeamMember(string org, string teamName, string userLogin)
+    {
+        if (!Org(org).Teams.TryGetValue(teamName, out var team))
+            return false;
+        lock (team.Members)
+            return team.Members.Remove(userLogin);
+    }
+
     public bool AssignTeamRole(string org, string teamName, string roleId)
     {
         if (!Org(org).Roles.ContainsKey(roleId))
             return false;
         var roles = Org(org).TeamRoles.GetOrAdd(teamName, _ => new HashSet<string>());
         lock (roles) roles.Add(roleId);
+        if (Org(org).Teams.TryGetValue(teamName, out var team))
+            lock (team.RoleIds)
+                if (!team.RoleIds.Contains(roleId))
+                    team.RoleIds.Add(roleId);
         return true;
     }
 
     public bool RemoveTeamRole(string org, string teamName, string roleId)
     {
+        if (Org(org).Teams.TryGetValue(teamName, out var team))
+            lock (team.RoleIds)
+                team.RoleIds.Remove(roleId);
         if (!Org(org).TeamRoles.TryGetValue(teamName, out var roles))
             return false;
         lock (roles) return roles.Remove(roleId);

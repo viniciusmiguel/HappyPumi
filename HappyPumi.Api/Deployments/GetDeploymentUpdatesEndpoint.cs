@@ -19,7 +19,7 @@ public sealed class GetDeploymentUpdatesEndpoint : Endpoint<GetDeploymentUpdates
     public override void Configure()
     {
         Get("/api/stacks/{orgName}/{projectName}/{stackName}/deployments/{deploymentId}/updates");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("deployments:read");
         Description(b => b
             .WithTags("Deployments")
             .WithSummary("GetDeploymentUpdates")
@@ -28,11 +28,10 @@ public sealed class GetDeploymentUpdatesEndpoint : Endpoint<GetDeploymentUpdates
         );
     }
 
-    public override Task HandleAsync(GetDeploymentUpdatesRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetDeploymentUpdatesRequest req, CancellationToken ct)
     {
-        // TODO: implement GetDeploymentUpdates
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/deployments/{deploymentId}/updates
-        // Should produce: List<UpdateInfo>
-        throw new NotImplementedException("Endpoint GetDeploymentUpdates not implemented.");
+        // A deployment's resulting stack updates are not separately linked in this store, so there are no
+        // correlated UpdateInfo records to return. The console spreads this as an array, so answer [].
+        await Send.OkAsync(new List<UpdateInfo>(), ct);
     }
 }
