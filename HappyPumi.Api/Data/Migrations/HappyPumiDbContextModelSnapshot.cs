@@ -115,6 +115,8 @@ namespace HappyPumi.Api.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Org", "Timestamp");
+
                     b.ToTable("AuditLogs");
                 });
 
@@ -233,9 +235,11 @@ namespace HappyPumi.Api.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("JobId");
+                    b.HasIndex("JobId")
+                        .IsUnique()
+                        .HasFilter("\"JobId\" IS NOT NULL");
 
-                    b.HasIndex("Status");
+                    b.HasIndex("Status", "Created");
 
                     b.HasIndex("Org", "Project", "Stack");
 
@@ -303,7 +307,8 @@ namespace HappyPumi.Api.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Org", "Project", "Name");
+                    b.HasIndex("Org", "Project", "Name", "Number")
+                        .IsUnique();
 
                     b.ToTable("EnvironmentRevisions");
                 });
@@ -444,6 +449,8 @@ namespace HappyPumi.Api.Data.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Org");
+
                     b.ToTable("PolicyFindings");
                 });
 
@@ -496,6 +503,10 @@ namespace HappyPumi.Api.Data.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Org", "Name", "Version");
+
+                    b.HasIndex("Org", "Name", "VersionTag")
+                        .IsUnique()
+                        .HasFilter("\"VersionTag\" IS NOT NULL");
 
                     b.ToTable("PolicyPackVersions");
                 });
@@ -696,7 +707,8 @@ namespace HappyPumi.Api.Data.Migrations
 
                     b.HasKey("UpdateId");
 
-                    b.HasIndex("Org", "Project", "Stack");
+                    b.HasIndex("Org", "Project", "Stack", "Version")
+                        .IsUnique();
 
                     b.ToTable("StackUpdates");
                 });
@@ -713,6 +725,8 @@ namespace HappyPumi.Api.Data.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Org", "TeamName", "RoleId");
+
+                    b.HasIndex("Org", "RoleId");
 
                     b.ToTable("TeamRoles");
                 });
@@ -833,6 +847,8 @@ namespace HappyPumi.Api.Data.Migrations
 
                     b.HasKey("UpdateId");
 
+                    b.HasIndex("Org", "Project", "Stack");
+
                     b.ToTable("Updates");
                 });
 
@@ -882,6 +898,42 @@ namespace HappyPumi.Api.Data.Migrations
                     b.HasIndex("Org", "Project", "Stack");
 
                     b.ToTable("Webhooks");
+                });
+
+            modelBuilder.Entity("HappyPumi.Api.Data.Entities.DeploymentLogRow", b =>
+                {
+                    b.HasOne("HappyPumi.Api.Data.Entities.DeploymentRow", null)
+                        .WithMany()
+                        .HasForeignKey("DeploymentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HappyPumi.Api.Data.Entities.EnvironmentRevisionRow", b =>
+                {
+                    b.HasOne("HappyPumi.Api.Data.Entities.EnvironmentRow", null)
+                        .WithMany()
+                        .HasForeignKey("Org", "Project", "Name")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HappyPumi.Api.Data.Entities.StackUpdateRow", b =>
+                {
+                    b.HasOne("HappyPumi.Api.Data.Entities.StackRow", null)
+                        .WithMany()
+                        .HasForeignKey("Org", "Project", "Stack")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HappyPumi.Api.Data.Entities.UpdateRow", b =>
+                {
+                    b.HasOne("HappyPumi.Api.Data.Entities.StackRow", null)
+                        .WithMany()
+                        .HasForeignKey("Org", "Project", "Stack")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }

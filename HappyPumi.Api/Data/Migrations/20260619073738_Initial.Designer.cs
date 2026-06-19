@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HappyPumi.Api.Data.Migrations
 {
     [DbContext(typeof(HappyPumiDbContext))]
-    [Migration("20260619063905_AddTeams")]
-    partial class AddTeams
+    [Migration("20260619073738_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -57,6 +57,94 @@ namespace HappyPumi.Api.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("AgentPools");
+                });
+
+            modelBuilder.Entity("HappyPumi.Api.Data.Entities.ApprovalRuleRow", b =>
+                {
+                    b.Property<string>("Org")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("RequiredApprovals")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StackPattern")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Org", "Name");
+
+                    b.ToTable("ApprovalRules");
+                });
+
+            modelBuilder.Entity("HappyPumi.Api.Data.Entities.AuditLogRow", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ActorName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Event")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Org")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SourceIp")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Org", "Timestamp");
+
+                    b.ToTable("AuditLogs");
+                });
+
+            modelBuilder.Entity("HappyPumi.Api.Data.Entities.CloudAccountRow", b =>
+                {
+                    b.Property<string>("Org")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Org", "Name");
+
+                    b.ToTable("CloudAccounts");
                 });
 
             modelBuilder.Entity("HappyPumi.Api.Data.Entities.DeploymentLogRow", b =>
@@ -150,9 +238,11 @@ namespace HappyPumi.Api.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("JobId");
+                    b.HasIndex("JobId")
+                        .IsUnique()
+                        .HasFilter("\"JobId\" IS NOT NULL");
 
-                    b.HasIndex("Status");
+                    b.HasIndex("Status", "Created");
 
                     b.HasIndex("Org", "Project", "Stack");
 
@@ -220,7 +310,8 @@ namespace HappyPumi.Api.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Org", "Project", "Name");
+                    b.HasIndex("Org", "Project", "Name", "Number")
+                        .IsUnique();
 
                     b.ToTable("EnvironmentRevisions");
                 });
@@ -289,6 +380,26 @@ namespace HappyPumi.Api.Data.Migrations
                     b.ToTable("Members");
                 });
 
+            modelBuilder.Entity("HappyPumi.Api.Data.Entities.OidcIssuerRow", b =>
+                {
+                    b.Property<string>("Org")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Org", "Name");
+
+                    b.ToTable("OidcIssuers");
+                });
+
             modelBuilder.Entity("HappyPumi.Api.Data.Entities.PackageVersionRow", b =>
                 {
                     b.Property<string>("Source")
@@ -340,6 +451,8 @@ namespace HappyPumi.Api.Data.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Org");
 
                     b.ToTable("PolicyFindings");
                 });
@@ -393,6 +506,10 @@ namespace HappyPumi.Api.Data.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Org", "Name", "Version");
+
+                    b.HasIndex("Org", "Name", "VersionTag")
+                        .IsUnique()
+                        .HasFilter("\"VersionTag\" IS NOT NULL");
 
                     b.ToTable("PolicyPackVersions");
                 });
@@ -486,6 +603,34 @@ namespace HappyPumi.Api.Data.Migrations
                     b.ToTable("Schedules");
                 });
 
+            modelBuilder.Entity("HappyPumi.Api.Data.Entities.ServiceRow", b =>
+                {
+                    b.Property<string>("Org")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Items")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.HasKey("Org", "Name");
+
+                    b.ToTable("Services");
+                });
+
             modelBuilder.Entity("HappyPumi.Api.Data.Entities.StackRow", b =>
                 {
                     b.Property<string>("Org")
@@ -565,7 +710,8 @@ namespace HappyPumi.Api.Data.Migrations
 
                     b.HasKey("UpdateId");
 
-                    b.HasIndex("Org", "Project", "Stack");
+                    b.HasIndex("Org", "Project", "Stack", "Version")
+                        .IsUnique();
 
                     b.ToTable("StackUpdates");
                 });
@@ -582,6 +728,8 @@ namespace HappyPumi.Api.Data.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Org", "TeamName", "RoleId");
+
+                    b.HasIndex("Org", "RoleId");
 
                     b.ToTable("TeamRoles");
                 });
@@ -702,7 +850,29 @@ namespace HappyPumi.Api.Data.Migrations
 
                     b.HasKey("UpdateId");
 
+                    b.HasIndex("Org", "Project", "Stack");
+
                     b.ToTable("Updates");
+                });
+
+            modelBuilder.Entity("HappyPumi.Api.Data.Entities.VcsConnectionRow", b =>
+                {
+                    b.Property<string>("Org")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Org", "Name");
+
+                    b.ToTable("VcsConnections");
                 });
 
             modelBuilder.Entity("HappyPumi.Api.Data.Entities.WebhookRow", b =>
@@ -731,6 +901,42 @@ namespace HappyPumi.Api.Data.Migrations
                     b.HasIndex("Org", "Project", "Stack");
 
                     b.ToTable("Webhooks");
+                });
+
+            modelBuilder.Entity("HappyPumi.Api.Data.Entities.DeploymentLogRow", b =>
+                {
+                    b.HasOne("HappyPumi.Api.Data.Entities.DeploymentRow", null)
+                        .WithMany()
+                        .HasForeignKey("DeploymentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HappyPumi.Api.Data.Entities.EnvironmentRevisionRow", b =>
+                {
+                    b.HasOne("HappyPumi.Api.Data.Entities.EnvironmentRow", null)
+                        .WithMany()
+                        .HasForeignKey("Org", "Project", "Name")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HappyPumi.Api.Data.Entities.StackUpdateRow", b =>
+                {
+                    b.HasOne("HappyPumi.Api.Data.Entities.StackRow", null)
+                        .WithMany()
+                        .HasForeignKey("Org", "Project", "Stack")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("HappyPumi.Api.Data.Entities.UpdateRow", b =>
+                {
+                    b.HasOne("HappyPumi.Api.Data.Entities.StackRow", null)
+                        .WithMany()
+                        .HasForeignKey("Org", "Project", "Stack")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 #pragma warning restore 612, 618
         }
