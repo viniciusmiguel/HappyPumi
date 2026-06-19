@@ -50,6 +50,8 @@
       <PackageReference Include="AWSSDK.IdentityManagement" Version="3.*" />
       <!-- ESC fn::rotate::mysql rotator: rotate MySQL user passwords. -->
       <PackageReference Include="MySqlConnector" Version="2.*" />
+      <!-- ESC scheduled-action executor: cron parsing for due-schedule evaluation. -->
+      <PackageReference Include="NCrontab" Version="3.*" />
     </ItemGroup>
 
     <ItemGroup>
