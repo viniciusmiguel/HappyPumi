@@ -41,6 +41,7 @@ export default function Environments() {
       <PageHeader icon={KeyRound} title="Environments"
         actions={
           <div className="flex items-center gap-3 text-sm text-ink-dim">
+            <Link to="/environments/providers" className="text-brand hover:underline">Providers &amp; rotators</Link>
             <span>Projects: <span className="rounded bg-panel px-1.5 py-0.5">{projectCount}</span></span>
             <span>Environments: <span className="rounded bg-panel px-1.5 py-0.5">{envs.length}</span></span>
           </div>

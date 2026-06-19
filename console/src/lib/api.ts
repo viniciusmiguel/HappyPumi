@@ -159,6 +159,8 @@ export interface EnvSchedule { id: string; kind: string; scheduleCron?: string; 
 export interface RotationEvent { id: string; created?: string; completed?: string; errorMessage?: string; preRotationRevision?: number; postRotationRevision?: number; }
 export interface EnvReferrer { environment?: { project?: string; name?: string }; stack?: { projectName?: string; stackName?: string }; insightsAccount?: { name?: string }; }
 export interface EnvSettings { deletionProtected?: boolean; }
+export interface EscSchema { type?: string; description?: string; secret?: boolean; required?: string[]; properties?: Record<string, EscSchema>; additionalProperties?: EscSchema; }
+export interface ProviderSchema { name: string; description?: string; inputs?: EscSchema; outputs?: EscSchema; }
 
 export interface Member { role?: string; user?: Actor; name?: string; githubLogin?: string; }
 export interface Role { id: string; name: string; description?: string; }
@@ -266,6 +268,11 @@ export const api = {
     postJson<{ granted?: boolean; approvals?: number; required?: number }>(`/change-requests/${org}/${id}/approve`, {}),
   unapproveChangeRequest: (org: string, id: string) =>
     del(`/change-requests/${org}/${id}/approve`),
+  // Provider / rotator catalog (fn::open / fn::rotate) — names + per-integration JSON schema
+  escProviders: () => get<{ providers?: string[] }>("/esc/providers", { providers: [] }),
+  escRotators: () => get<{ rotators?: string[] }>("/esc/rotators", { rotators: [] }),
+  escProviderSchema: (name: string) => get<ProviderSchema>(`/esc/providers/${name}/schema`, { name }),
+  escRotatorSchema: (name: string) => get<ProviderSchema>(`/esc/rotators/${name}/schema`, { name }),
   // Referrers (imported by)
   environmentReferrers: (org: string, project: string, name: string) =>
     get<{ referrers?: Record<string, EnvReferrer[]> }>(`/esc/environments/${org}/${project}/${name}/referrers`, { referrers: {} }),
