@@ -13,18 +13,22 @@ export default function Environments() {
   const [searchParams] = useSearchParams();
   const [showNew, setShowNew] = useState(searchParams.get("new") === "1");
   const [form, setForm] = useState({ project: "default", name: "" });
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { api.environments(org).then((r) => setEnvs(r.environments ?? [])); }, [org]);
+  function load() { api.environments(org).then((r) => setEnvs(r.environments ?? [])); }
+  useEffect(() => { load(); }, [org]);
 
-  function createEnv() {
+  async function createEnv() {
     if (!form.name) return;
-    const created: OrgEnvironment = {
-      id: `${org}/${form.project}/${form.name}`, organization: org, project: form.project, name: form.name,
-      modified: new Date().toISOString(), settings: { deletionProtected: false },
-    };
-    setEnvs((e) => [created, ...e]);
-    setShowNew(false);
-    navigate(`/environments/${created.project}/${created.name}`);
+    setError(null);
+    try {
+      await api.createEnvironment(org, form.project, form.name);
+      const dest = `/environments/${form.project}/${form.name}`;
+      setShowNew(false);
+      navigate(dest);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
   }
 
   const filtered = envs.filter((e) => `${e.project}/${e.name}`.includes(q));
@@ -85,6 +89,7 @@ export default function Environments() {
           </>}>
           <Field label="Project" value={form.project} onChange={(v) => setForm((f) => ({ ...f, project: v }))} placeholder="default" />
           <Field label="Environment name" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} placeholder="dev" />
+          {error && <p className="text-xs text-red-400">{error}</p>}
         </Modal>
       )}
     </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useSearchParams, useNavigate } from "react-router-dom";
-import { Layers, ChevronDown, ExternalLink, RefreshCw, Download, Trash2, Box, Boxes, Cloud, Database, Zap } from "lucide-react";
+import { Layers, ChevronDown, ExternalLink, Download, Trash2, Box, Boxes, Cloud, Database, Zap } from "lucide-react";
 import {
   api, timeAgo, type Stack, type UpdateInfo, type Resource, type Deployment,
 } from "../lib/api";
@@ -82,7 +82,6 @@ export default function StackDetail() {
           <Dropdown
             trigger={<SecondaryButton icon={ChevronDown}>Actions</SecondaryButton>}
             items={[
-              { label: "Refresh", icon: RefreshCw, onSelect: () => navigate(`/deployments/${project}/${stack}/${lu?.version ?? 1}`) },
               { label: "Export checkpoint", icon: Download, onSelect: () => window.open(`/api/stacks/${org}/${project}/${stack}/export`, "_blank") },
               { label: "Delete stack", icon: Trash2, danger: true, onSelect: () => setConfirmDelete(true) },
             ]} />
@@ -209,9 +208,6 @@ function Updates({ updates }: { updates: UpdateInfo[] }) {
                     </div>
                   </div>
                   <Badge>{changeCount(u)}</Badge>
-                </div>
-                <div className="flex justify-end border-t border-line px-4 py-1.5">
-                  <span className="text-xs text-brand">Details</span>
                 </div>
               </div>
             ))}

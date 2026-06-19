@@ -27,7 +27,6 @@ import VersionControl from "./pages/VersionControl";
 import AuditLogs from "./pages/AuditLogs";
 import Identity from "./pages/Identity";
 import Billing from "./pages/Billing";
-import * as Empty from "./pages/empties";
 
 /** Redirects to /login (remembering where you were) when there's no stored token. */
 function RequireAuth({ children }: { children: React.ReactNode }) {

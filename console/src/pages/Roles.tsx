@@ -9,14 +9,22 @@ export default function Roles() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState({ name: "", description: "" });
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { api.roles(org).then((r) => setRoles(r.roles ?? [])); }, [org]);
+  function load() { api.roles(org).then((r) => setRoles(r.roles ?? [])); }
+  useEffect(() => { load(); }, [org]);
 
-  function createRole() {
+  async function createRole() {
     if (!form.name) return;
-    setRoles((r) => [...r, { id: form.name.toLowerCase().replace(/\s+/g, "-"), name: form.name, description: form.description }]);
-    setShowNew(false);
-    setForm({ name: "", description: "" });
+    setError(null);
+    try {
+      await api.createRole(org, form.name, form.description);
+      setShowNew(false);
+      setForm({ name: "", description: "" });
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    }
   }
 
   return (
@@ -41,6 +49,7 @@ export default function Roles() {
           </>}>
           <Field label="Name" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} placeholder="Deployer" />
           <Field label="Description" value={form.description} onChange={(v) => setForm((f) => ({ ...f, description: v }))} placeholder="Can trigger deployments" />
+          {error && <p className="text-xs text-red-400">{error}</p>}
         </Modal>
       )}
     </div>
