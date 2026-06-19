@@ -3,6 +3,7 @@ using System;
 using HappyPumi.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HappyPumi.Api.Data.Migrations
 {
     [DbContext(typeof(HappyPumiDbContext))]
-    partial class HappyPumiDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260619103530_AddRevisionRetraction")]
+    partial class AddRevisionRetraction
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -347,12 +350,6 @@ namespace HappyPumi.Api.Data.Migrations
 
                     b.Property<long>("CurrentRevision")
                         .HasColumnType("bigint");
-
-                    b.Property<bool>("Deleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.Property<bool>("DeletionProtected")
                         .HasColumnType("boolean");
