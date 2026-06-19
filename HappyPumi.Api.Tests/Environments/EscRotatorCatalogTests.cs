@@ -9,21 +9,25 @@ namespace HappyPumi.Api.Tests.Environments;
 [Collection(HappyPumiCollection.Name)]
 public sealed class EscRotatorCatalogTests(HappyPumiApp app)
 {
-    [Fact]
-    public async Task ListRotatorsIncludesAwsIam()
+    [Theory]
+    [InlineData("aws-iam")]
+    [InlineData("postgres")]
+    public async Task ListRotatorsIncludesRegisteredRotators(string rotator)
     {
         using var client = app.CreateAuthedClient();
         var response = await client.GetFromJsonAsync<ListRotatorsResponse>("/api/esc/rotators");
-        Assert.Contains("aws-iam", response!.Rotators);
+        Assert.Contains(rotator, response!.Rotators);
     }
 
-    [Fact]
-    public async Task GetRotatorSchemaReturnsInputsForAwsIam()
+    [Theory]
+    [InlineData("aws-iam", "region")]
+    [InlineData("postgres", "host")]
+    public async Task GetRotatorSchemaReturnsRequiredInputs(string rotator, string requiredInput)
     {
         using var client = app.CreateAuthedClient();
-        var schema = await client.GetFromJsonAsync<ProviderSchema>("/api/esc/rotators/aws-iam/schema");
-        Assert.Equal("aws-iam", schema!.Name);
-        Assert.Contains("region", schema.Inputs.Required!);
+        var schema = await client.GetFromJsonAsync<ProviderSchema>($"/api/esc/rotators/{rotator}/schema");
+        Assert.Equal(rotator, schema!.Name);
+        Assert.Contains(requiredInput, schema.Inputs.Required!);
     }
 
     [Fact]
