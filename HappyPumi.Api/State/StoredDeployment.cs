@@ -23,6 +23,10 @@ public sealed class StoredDeployment
     public string? RequestedByLogin { get; set; }
     public string? RequestedByName { get; set; }
     public string? TemplateRef { get; set; }
+    // Git source for the remote-workspace path (null for template/empty deployments). See GitSource.
+    public string? GitRepoUrl { get; set; }
+    public string? GitBranch { get; set; }
+    public string? GitRepoDir { get; set; }
     public List<DeploymentJob> Jobs { get; set; } = new();
     public List<DeploymentNestedUpdate> Updates { get; set; } = new();
 }

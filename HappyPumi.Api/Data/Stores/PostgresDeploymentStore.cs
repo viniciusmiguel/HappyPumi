@@ -36,7 +36,7 @@ public sealed class PostgresDeploymentStore(HappyPumiDbContext db) : IDeployment
         return true;
     }
 
-    public StoredDeployment CreateDeployment(StackCoordinates s, string operation, string? templateRef = null)
+    public StoredDeployment CreateDeployment(StackCoordinates s, string operation, GitSource? git = null, string? templateRef = null)
     {
         var existing = db.Deployments.Where(d => d.Org == s.Org && d.Project == s.Project && d.Stack == s.Stack)
             .Select(d => d.Version).ToList();
@@ -45,6 +45,7 @@ public sealed class PostgresDeploymentStore(HappyPumiDbContext db) : IDeployment
         {
             Id = Guid.NewGuid().ToString(), Org = s.Org, Project = s.Project, Stack = s.Stack,
             Version = version, Operation = operation, TemplateRef = templateRef,
+            GitRepoUrl = git?.RepoUrl, GitBranch = git?.Branch, GitRepoDir = git?.RepoDir,
             RequestedByLogin = "happypumi", RequestedByName = "HappyPumi",
         };
         db.Deployments.Add(row);
@@ -88,6 +89,7 @@ public sealed class PostgresDeploymentStore(HappyPumiDbContext db) : IDeployment
         Created = d.Created, Modified = d.Modified,
         RequestedByLogin = d.RequestedByLogin, RequestedByName = d.RequestedByName,
         TemplateRef = d.TemplateRef, Jobs = d.Jobs, Updates = d.Updates,
+        GitRepoUrl = d.GitRepoUrl, GitBranch = d.GitBranch, GitRepoDir = d.GitRepoDir,
     };
 
     public bool CancelDeployment(StackCoordinates s, string deploymentId)

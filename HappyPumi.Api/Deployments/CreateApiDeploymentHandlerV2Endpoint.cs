@@ -34,8 +34,10 @@ public sealed class CreateApiDeploymentHandlerV2Endpoint(IDeploymentStore deploy
     public async override Task HandleAsync(CreateApiDeploymentHandlerV2Request req, CancellationToken ct)
     {
         var operation = req.Body?.Operation ?? "update";
+        var g = req.Body?.SourceContext?.Git;
+        var git = g is { RepoUrl: { Length: > 0 } url } ? new GitSource(url, g.Branch, g.RepoDir) : null;
         var deployment = deployments.CreateDeployment(
-            new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), operation, req.Body?.TemplateRef);
+            new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), operation, git, req.Body?.TemplateRef);
         await Send.OkAsync(new CreateDeploymentResponse
         {
             Id = deployment.Id,

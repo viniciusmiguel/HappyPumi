@@ -29,7 +29,7 @@ public sealed class InMemoryDeploymentStore : IDeploymentStore
         return true;
     }
 
-    public StoredDeployment CreateDeployment(StackCoordinates stack, string operation, string? templateRef = null)
+    public StoredDeployment CreateDeployment(StackCoordinates stack, string operation, GitSource? git = null, string? templateRef = null)
     {
         var state = State(stack);
         lock (state.Deployments)
@@ -40,6 +40,9 @@ public sealed class InMemoryDeploymentStore : IDeploymentStore
                 Version = state.NextVersion++,
                 Operation = operation,
                 TemplateRef = templateRef,
+                GitRepoUrl = git?.RepoUrl,
+                GitBranch = git?.Branch,
+                GitRepoDir = git?.RepoDir,
             };
             state.Deployments.Add(deployment);
             return deployment;

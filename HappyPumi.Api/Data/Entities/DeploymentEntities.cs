@@ -41,6 +41,11 @@ public sealed class DeploymentRow
     public string? RequestedByName { get; set; }
     /// <summary>Template ref ("source/publisher/name/version") the runner deploys, when this is a template deploy.</summary>
     public string? TemplateRef { get; set; }
+    /// <summary>Git source for the remote-workspace path (pulumi up --remote / auto-API remote stacks).
+    /// When <see cref="GitRepoUrl"/> is set the runner clones it and runs the operation there.</summary>
+    public string? GitRepoUrl { get; set; }
+    public string? GitBranch { get; set; }
+    public string? GitRepoDir { get; set; }
     /// <summary>Job runs with their step timeline (jsonb — nested contract payload).</summary>
     public List<DeploymentJob> Jobs { get; set; } = new();
     /// <summary>Stack updates produced by this deployment (jsonb).</summary>
