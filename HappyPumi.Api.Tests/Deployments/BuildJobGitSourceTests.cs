@@ -82,6 +82,30 @@ public sealed class BuildJobGitSourceTests
     }
 
     [Fact]
+    public void RefsHeadsBranchIsNormalizedToShortName()
+    {
+        var script = Script(GitRow(branch: "refs/heads/master", dir: null));
+
+        // git clone -b wants the short branch name; the refs/heads/ prefix the deployments API sends is stripped.
+        Assert.Contains("-b 'master'", script);
+        Assert.DoesNotContain("refs/heads", script);
+    }
+
+    [Fact]
+    public void NestedRepoDirIsAccepted()
+    {
+        var script = Script(GitRow(branch: null, dir: "services/api"));
+
+        Assert.Contains("cd 'services/api'", script);
+    }
+
+    [Fact]
+    public void RepoDirWithParentTraversalIsRejected()
+    {
+        Assert.Throws<ArgumentException>(() => GetWorkflowJobEndpoint.BuildJob(GitRow(dir: "../etc"), Backend));
+    }
+
+    [Fact]
     public void GitUrlWithShellMetacharactersIsRejected()
     {
         var row = GitRow();

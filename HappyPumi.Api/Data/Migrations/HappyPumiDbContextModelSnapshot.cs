@@ -184,6 +184,15 @@ namespace HappyPumi.Api.Data.Migrations
                     b.Property<DateTime>("Created")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("GitBranch")
+                        .HasColumnType("text");
+
+                    b.Property<string>("GitRepoDir")
+                        .HasColumnType("text");
+
+                    b.Property<string>("GitRepoUrl")
+                        .HasColumnType("text");
+
                     b.Property<string>("JobId")
                         .HasColumnType("text");
 

@@ -212,10 +212,10 @@ public sealed class GetWorkflowJobEndpoint(IDeploymentQueue queue, IConfiguratio
         var apply = op == "preview" ? "pulumi preview" : $"pulumi {op} --yes --skip-preview";
         var branchArg = string.IsNullOrWhiteSpace(row.GitBranch)
             ? ""
-            : $" -b '{RequireSafeIdentifier(row.GitBranch!, nameof(row.GitBranch))}'";
+            : $" -b '{ShortBranch(RequireSafeGitRef(row.GitBranch!, nameof(row.GitBranch)))}'";
         var enterDir = string.IsNullOrWhiteSpace(row.GitRepoDir)
             ? ""
-            : $"cd '{RequireSafeIdentifier(row.GitRepoDir!, nameof(row.GitRepoDir))}'";
+            : $"cd '{RequireSafeGitRef(row.GitRepoDir!, nameof(row.GitRepoDir))}'";
         return string.Join('\n', new[]
         {
             "set -euo pipefail",
@@ -287,6 +287,24 @@ public sealed class GetWorkflowJobEndpoint(IDeploymentQueue queue, IConfiguratio
                 $"{field} '{value}' is not a safe identifier; expected non-empty [A-Za-z0-9._+-].", field);
         return value;
     }
+
+    // Allow-list for git refs (branches/tags) and repo subdirectories interpolated into the runner's shell
+    // script — like SafeIdentifier but additionally permits '/' (refs/heads/main, sub/dir). Still excludes
+    // quotes, whitespace, and shell metacharacters, and rejects '..' so a repoDir cannot traverse upward.
+    private static readonly Regex SafeGitRef = new(@"^[A-Za-z0-9._/+-]+$", RegexOptions.CultureInvariant);
+
+    private static string RequireSafeGitRef(string value, string field)
+    {
+        if (string.IsNullOrEmpty(value) || !SafeGitRef.IsMatch(value) || value.Contains("..", StringComparison.Ordinal))
+            throw new ArgumentException(
+                $"{field} '{value}' is not a safe git ref/path; expected non-empty [A-Za-z0-9._/+-] without '..'.", field);
+        return value;
+    }
+
+    /// <summary>Normalizes a git ref to the short branch/tag name <c>git clone -b</c> expects, stripping the
+    /// <c>refs/heads/</c> prefix the deployments API (and auto SDK) commonly sends.</summary>
+    private static string ShortBranch(string gitRef) =>
+        gitRef.StartsWith("refs/heads/", StringComparison.Ordinal) ? gitRef["refs/heads/".Length..] : gitRef;
 
     /// <summary>Splits a registry template ref "source/publisher/name/version" into its four parts.</summary>
     private static (string Source, string Publisher, string Name, string Version) SplitTemplateRef(string templateRef)

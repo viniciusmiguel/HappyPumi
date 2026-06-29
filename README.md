@@ -122,6 +122,7 @@ export PULUMI_ACCESS_TOKEN=hp-dev && pulumi login http://localhost:8080 && pulum
 | `HappyPumi.ServiceDefaults` | Shared Aspire defaults: OpenTelemetry, health checks, service discovery, resilience. |
 | `HappyPumi.Api.Tests` | xUnit component tests — the real API in-process against a throwaway Postgres (Testcontainers). |
 | `HappyPumi.Cli.IntegrationTests` | Drives the **real** `pulumi` CLI against a live HappyPumi over HTTPS (wire-compatibility). |
+| `HappyPumi.AutomationApi.IntegrationTests` | Drives the **Pulumi Automation API** (Go SDK) against a live HappyPumi; includes a Docker-backed remote-workspace (git source) deployment test. |
 | `Generator` | Reads the OpenAPI spec and emits endpoint + contract scaffolding. |
 | `console/` | The React + Vite + Tailwind web console. |
 
@@ -138,6 +139,7 @@ make build              # build the whole solution
 make dev                # full Aspire topology + dashboard
 make test-unit          # fast in-process component tests (needs Docker)
 make test-integration   # drive the real pulumi CLI against a live HappyPumi
+make test-automation    # drive the Go Automation API SDK against a live HappyPumi (needs Go)
 make coverage           # tests with coverage
 make docker             # build the production container image
 make help               # list every target

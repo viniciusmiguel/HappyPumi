@@ -104,7 +104,7 @@ once with `make certs` (`dotnet dev-certs https --trust`). On Linux, clients tru
 (`tests-support/DevCertTrust.cs`, linked into both test projects) and the Go `pulumi` CLI honours the same
 env. Use host `localhost` (the cert's SAN), not `127.0.0.1`.
 
-## Testing tooling (three layers)
+## Testing tooling (four layers)
 
 1. **`HappyPumi.Api.Tests` — component tests.** Boot the real API in-process with
    `WebApplicationFactory<ApiMarker>` (see `HappyPumiApp`); fast, no sockets, no Docker. The bulk of
@@ -115,7 +115,14 @@ env. Use host `localhost` (the cert's SAN), not `127.0.0.1`.
    binary (`PulumiCli`, isolated `PULUMI_HOME` + token, `SSL_CERT_DIR` for cert trust) against it.
    `make pulumi` / `tools/build-pulumi-cli.sh` builds the Apache-2.0 CLI **and** the Go language host from
    `../pulumi` into `.tools/bin/` (gitignored). Clean-room: the CLI is a black-box client (ADR-0008).
-3. **Aspire topology test (`AspireTopologyTests`).** Boots the whole AppHost (Postgres + Dex + API) like
+3. **`HappyPumi.AutomationApi.IntegrationTests` — the Pulumi Automation API (Go SDK).** Reuses the
+   layer-2 `HappyPumiServer` + dev-cert trust and drives `github.com/pulumi/pulumi/sdk/v3/go/auto`
+   (a Go module under `autoapi/`) via a `go test -json` child process (`GoTestRunner`). The auto SDK
+   shells out to the same locally-built `pulumi` binary, so this proves wire-compat for the Automation
+   API too — and, since the Node/Python/.NET auto SDKs all shell out to the CLI, for those as well.
+   `make test-automation`. The remote-workspace test (`RemoteWorkspaceTests`) is Docker-backed (brings
+   up the `deploy/deployment-agent` compose topology incl. a git server) and auto-skips without Docker.
+4. **Aspire topology test (`AspireTopologyTests`).** Boots the whole AppHost (Postgres + Dex + API) like
    `make dev` and asserts the API comes up healthy and serves `/api/user` over HTTPS. Docker-backed and
    slow (~20s); auto-skips when Docker is unavailable. Health probe is over the http endpoint (no cert
    trust needed); the assertion uses https (self-signed).
