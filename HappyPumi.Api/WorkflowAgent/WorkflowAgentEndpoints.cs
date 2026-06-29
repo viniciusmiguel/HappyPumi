@@ -154,9 +154,11 @@ public sealed class GetWorkflowJobEndpoint(IDeploymentQueue queue, IConfiguratio
     }
 
     /// <summary>
-    /// Builds the runner job. A template deploy (<see cref="DeploymentRow.TemplateRef"/> set) emits steps that
-    /// fetch the published template archive and run <c>pulumi up</c> against HappyPumi as the backend; otherwise
-    /// a diagnostic <c>pulumi version</c> step (e.g. an empty-stack operation with no source to materialize).
+    /// Builds the runner job. A git deploy (<see cref="DeploymentRow.GitRepoUrl"/> set — the remote-workspace
+    /// path) clones the repo and runs the operation there; a template deploy
+    /// (<see cref="DeploymentRow.TemplateRef"/> set) fetches the published template archive and runs the
+    /// operation; otherwise a diagnostic <c>pulumi version</c> step (e.g. an empty-stack operation with no
+    /// source to materialize). All non-trivial work runs against HappyPumi as the backend.
     /// </summary>
     internal static JobDefinition BuildJob(DeploymentRow row, string backendUrl)
     {
@@ -178,6 +180,12 @@ public sealed class GetWorkflowJobEndpoint(IDeploymentQueue queue, IConfiguratio
         // (see research/ notes). So our real work must start at step 1, behind a placeholder step 0.
         job.Steps.Add(new StepDefinition { Name = "prepare", Run = "true" });
 
+        if (!string.IsNullOrWhiteSpace(row.GitRepoUrl))
+        {
+            job.Steps.Add(new StepDefinition { Name = "pulumi " + row.Operation, Run = GitDeployScript(row, backendUrl) });
+            return job;
+        }
+
         if (string.IsNullOrWhiteSpace(row.TemplateRef))
         {
             job.Steps.Add(new StepDefinition { Name = "pulumi " + row.Operation, Run = "pulumi version" });
@@ -186,6 +194,52 @@ public sealed class GetWorkflowJobEndpoint(IDeploymentQueue queue, IConfiguratio
 
         job.Steps.Add(new StepDefinition { Name = "pulumi " + row.Operation, Run = DeployScript(row, backendUrl) });
         return job;
+    }
+
+    /// <summary>Clones the deployment's git source, enters the project subdir, selects the stack, and runs the
+    /// requested Pulumi operation against HappyPumi — all in one step (see <see cref="BuildJob"/> for why it must
+    /// be one step). The repo URL is validated as an http(s) git URL; branch/dir and org/project/stack go through
+    /// the same OWASP-A03 identifier allow-list <see cref="DeployScript"/> uses, so no value can break out of the
+    /// surrounding single quotes.</summary>
+    private static string GitDeployScript(DeploymentRow row, string backendUrl)
+    {
+        var url = RequireGitUrl(row.GitRepoUrl!);
+        var org = RequireSafeIdentifier(row.Org, nameof(row.Org));
+        var project = RequireSafeIdentifier(row.Project, nameof(row.Project));
+        var stack = RequireSafeIdentifier(row.Stack, nameof(row.Stack));
+        var stackRef = $"{org}/{project}/{stack}";
+        var op = row.Operation is "preview" or "refresh" or "destroy" ? row.Operation : "up";
+        var apply = op == "preview" ? "pulumi preview" : $"pulumi {op} --yes --skip-preview";
+        var branchArg = string.IsNullOrWhiteSpace(row.GitBranch)
+            ? ""
+            : $" -b '{RequireSafeIdentifier(row.GitBranch!, nameof(row.GitBranch))}'";
+        var enterDir = string.IsNullOrWhiteSpace(row.GitRepoDir)
+            ? ""
+            : $"cd '{RequireSafeIdentifier(row.GitRepoDir!, nameof(row.GitRepoDir))}'";
+        return string.Join('\n', new[]
+        {
+            "set -euo pipefail",
+            "rm -rf /tmp/hpwork && mkdir -p /tmp/hpwork && cd /tmp/hpwork",
+            $"git clone{branchArg} '{url}' repo",
+            "cd repo",
+            enterDir,
+            $"pulumi stack select --create '{stackRef}'",
+            apply,
+        }.Where(line => line.Length > 0));
+    }
+
+    // http(s) git URL allow-list (OWASP A03): scheme + the RFC-3986 host/path/query characters only. Excludes
+    // quotes, whitespace, and every shell metacharacter, so a value matching this cannot break out of the
+    // surrounding single quotes in GitDeployScript.
+    private static readonly Regex GitUrl = new(@"^https?://[A-Za-z0-9._~:/?#@!$&()*+,;=%-]+$", RegexOptions.CultureInvariant);
+
+    private static string RequireGitUrl(string value)
+    {
+        if (string.IsNullOrEmpty(value) || !GitUrl.IsMatch(value))
+            throw new ArgumentException(
+                $"git repoUrl '{value}' is not a safe http(s) URL; expected http(s):// with no shell metacharacters.",
+                nameof(value));
+        return value;
     }
 
     /// <summary>Fetches the published template archive, extracts it, then runs the requested Pulumi operation
