@@ -31,3 +31,10 @@ func LoginWorkspace(ctx context.Context) (auto.Workspace, error) {
 // noop is a resourceless inline Pulumi program — the inline-source mirror of the empty-stack
 // fixture. It provisions nothing, so the full update lifecycle runs without any provider.
 func noop(_ *pulumi.Context) error { return nil }
+
+// qualified builds a fully-qualified stack name under the "organization" org. HappyPumi accepts
+// any org segment; the CLI wire-compat suite uses "organization", so the auto suite matches it.
+func qualified(project, stack string) string {
+	return "organization/" + project + "/" + stack
+}
+
