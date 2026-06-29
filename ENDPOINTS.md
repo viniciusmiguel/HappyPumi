@@ -144,8 +144,9 @@ dry run) — it only has create/start/status/events/log/complete/cancel/renew_le
 | ✅ | GET   | `/api/stacks/{orgName}/{projectName}/{stackName}/updates`   | `GetStackUpdates` |
 | ✅ | GET   | `/api/stacks/{orgName}/{projectName}/{stackName}/updates/{version}` | `GetStackUpdate` |
 | ✅ | POST  | `/api/stacks/{orgName}/{projectName}/{stackName}/rename`    | `RenameStack` |
-| ✅ | POST  | `/api/stacks/{orgName}/{projectName}/{stackName}/tags`      | `AddStackTag` |
-| ✅ | PATCH | `/api/stacks/{orgName}/{projectName}/{stackName}/tags`      | `UpdateStackTags` |
+| ✅ | POST   | `/api/stacks/{orgName}/{projectName}/{stackName}/tags`      | `AddStackTag` |
+| ✅ | PATCH  | `/api/stacks/{orgName}/{projectName}/{stackName}/tags`      | `UpdateStackTags` |
+| ✅ | DELETE | `/api/stacks/{orgName}/{projectName}/{stackName}/tags/{tagName}` | `DeleteStackTag` (Automation API `RemoveTag` / `pulumi stack tag rm`) |
 
 ---
 
