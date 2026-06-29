@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// DeleteStackTag
 /// </summary>
-public sealed class DeleteStackTagEndpoint : Endpoint<DeleteStackTagRequest>
+public sealed class DeleteStackTagEndpoint(IStackStore stacks) : Endpoint<DeleteStackTagRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,16 @@ public sealed class DeleteStackTagEndpoint : Endpoint<DeleteStackTagRequest>
         );
     }
 
-    public override Task HandleAsync(DeleteStackTagRequest req, CancellationToken ct)
+    public async override Task HandleAsync(DeleteStackTagRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteStackTag
-        // HTTP: DELETE /api/stacks/{orgName}/{projectName}/{stackName}/tags/{tagName}
-        throw new NotImplementedException("Endpoint DeleteStackTag not implemented.");
+        var coords = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        var (stack, existed) = stacks.RemoveTag(coords, req.TagName);
+        if (stack is null || !existed)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

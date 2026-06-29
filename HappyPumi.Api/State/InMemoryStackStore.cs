@@ -87,6 +87,14 @@ public sealed class InMemoryStackStore : IStackStore
         return stack;
     }
 
+    public (StoredStack? Stack, bool TagExisted) RemoveTag(StackCoordinates coordinates, string name)
+    {
+        if (!_stacks.TryGetValue(coordinates, out var stack))
+            return (null, false);
+        var existed = stack.Tags.Remove(name);
+        return (stack, existed);
+    }
+
     public StoredStack? Rename(StackCoordinates from, StackCoordinates to, out bool collision)
     {
         collision = false;

@@ -124,6 +124,18 @@ public sealed class PostgresStackStore(HappyPumiDbContext db) : IStackStore
         return ToStored(row, LoadHistory(c));
     }
 
+    public (StoredStack? Stack, bool TagExisted) RemoveTag(StackCoordinates c, string name)
+    {
+        var row = Row(c);
+        if (row is null)
+            return (null, false);
+        if (!row.Tags.Remove(name))
+            return (ToStored(row, LoadHistory(c)), false);
+        db.Entry(row).Property(r => r.Tags).IsModified = true; // mutating the dictionary in place
+        db.SaveChanges();
+        return (ToStored(row, LoadHistory(c)), true);
+    }
+
     public StoredStack? Rename(StackCoordinates from, StackCoordinates to, out bool collision)
     {
         collision = false;
