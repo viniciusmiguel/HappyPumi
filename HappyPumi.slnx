@@ -3,6 +3,7 @@
   <Project Path="HappyPumi.Api.Tests/HappyPumi.Api.Tests.csproj" />
   <Project Path="HappyPumi.Api/HappyPumi.Api.csproj" />
   <Project Path="HappyPumi.Cli.IntegrationTests/HappyPumi.Cli.IntegrationTests.csproj" />
+  <Project Path="HappyPumi.AutomationApi.IntegrationTests/HappyPumi.AutomationApi.IntegrationTests.csproj" />
   <Project Path="HappyPumi.ServiceDefaults/HappyPumi.ServiceDefaults.csproj" />
   <Project Path="HappyPumi.AppHost/HappyPumi.AppHost.csproj" />
 </Solution>
