@@ -228,16 +228,16 @@ public sealed class GetWorkflowJobEndpoint(IDeploymentQueue queue, IConfiguratio
         }.Where(line => line.Length > 0));
     }
 
-    // http(s) git URL allow-list (OWASP A03): scheme + the RFC-3986 host/path/query characters only. Excludes
-    // quotes, whitespace, and every shell metacharacter, so a value matching this cannot break out of the
-    // surrounding single quotes in GitDeployScript.
-    private static readonly Regex GitUrl = new(@"^https?://[A-Za-z0-9._~:/?#@!$&()*+,;=%-]+$", RegexOptions.CultureInvariant);
+    // git URL allow-list (OWASP A03): http(s)/git scheme + the RFC-3986 host/path/query characters only.
+    // Excludes quotes, whitespace, and every shell metacharacter, so a value matching this cannot break out
+    // of the surrounding single quotes in GitDeployScript.
+    private static readonly Regex GitUrl = new(@"^(https?|git)://[A-Za-z0-9._~:/?#@!$&()*+,;=%-]+$", RegexOptions.CultureInvariant);
 
     private static string RequireGitUrl(string value)
     {
         if (string.IsNullOrEmpty(value) || !GitUrl.IsMatch(value))
             throw new ArgumentException(
-                $"git repoUrl '{value}' is not a safe http(s) URL; expected http(s):// with no shell metacharacters.",
+                $"git repoUrl '{value}' is not a safe URL; expected http(s):// or git:// with no shell metacharacters.",
                 nameof(value));
         return value;
     }

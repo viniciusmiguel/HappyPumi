@@ -71,6 +71,17 @@ public sealed class BuildJobGitSourceTests
     }
 
     [Fact]
+    public void GitProtocolUrlIsAccepted()
+    {
+        var row = GitRow(branch: "master", dir: null);
+        row.GitRepoUrl = "git://172.17.0.1:9418/empty-stack.git";
+
+        var script = Script(row);
+
+        Assert.Contains("git clone -b 'master' 'git://172.17.0.1:9418/empty-stack.git' repo", script);
+    }
+
+    [Fact]
     public void GitUrlWithShellMetacharactersIsRejected()
     {
         var row = GitRow();

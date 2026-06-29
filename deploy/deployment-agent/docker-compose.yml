@@ -42,6 +42,13 @@ services:
       postgres:
         condition: service_healthy
 
+  gitserver:
+    # Serves the resourceless empty-stack program over git:// for remote-workspace deployments
+    # (pulumi up --remote / auto-API NewRemoteStackGitSource). On the host network so the clone URL
+    # git://172.17.0.1:9418/empty-stack.git resolves from the bridged executor/step containers too.
+    build: ./gitserver
+    network_mode: host
+
   agent:
     image: pulumi/customer-managed-workflow-agent:latest
     network_mode: host        # see topology notes above

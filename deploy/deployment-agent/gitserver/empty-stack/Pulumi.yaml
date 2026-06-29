@@ -1,0 +1,3 @@
+name: happypumi-empty-stack
+runtime: go
+description: Resourceless program served over git:// for the remote-workspace deployment demo.
