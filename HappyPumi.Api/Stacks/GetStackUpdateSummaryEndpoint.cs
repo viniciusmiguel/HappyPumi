@@ -4,17 +4,19 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetStackUpdateSummary
 /// </summary>
-public sealed class GetStackUpdateSummaryEndpoint : Endpoint<GetStackUpdateSummaryRequest, UpdateSummary>
+public sealed class GetStackUpdateSummaryEndpoint(IStackStore stacks, IUpdateStore updates) : Endpoint<GetStackUpdateSummaryRequest, UpdateSummary>
 {
     public override void Configure()
     {
@@ -28,11 +30,25 @@ public sealed class GetStackUpdateSummaryEndpoint : Endpoint<GetStackUpdateSumma
         );
     }
 
-    public override Task HandleAsync(GetStackUpdateSummaryRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetStackUpdateSummaryRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStackUpdateSummary
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/updates/{version}/summary
-        // Should produce: UpdateSummary
-        throw new NotImplementedException("Endpoint GetStackUpdateSummary not implemented.");
+        var coords = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        var stack = stacks.Find(coords);
+        var entry = stack?.History.FirstOrDefault(h => h.Info.Version == req.Version);
+        if (stack is null || entry is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        // Latest version's resources live on the stack; historical ones on the version's update checkpoint.
+        var deployment = req.Version == stack.Version ? stack.Deployment : updates.FindByVersion(coords, req.Version)?.Checkpoint;
+        await Send.OkAsync(new UpdateSummary
+        {
+            StartTime = entry.Info.StartTime,
+            EndTime = entry.Info.EndTime,
+            Result = entry.Info.Result,
+            ResourceCount = StackResources.Extract(deployment).Count,
+        }, ct);
     }
 }

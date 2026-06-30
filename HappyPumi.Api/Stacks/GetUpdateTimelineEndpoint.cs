@@ -4,17 +4,19 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetUpdateTimeline
 /// </summary>
-public sealed class GetUpdateTimelineEndpoint : Endpoint<GetUpdateTimelineRequest, GetUpdateTimelineResponse>
+public sealed class GetUpdateTimelineEndpoint(IStackStore stacks, IUpdateStore updates) : Endpoint<GetUpdateTimelineRequest, GetUpdateTimelineResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,16 @@ public sealed class GetUpdateTimelineEndpoint : Endpoint<GetUpdateTimelineReques
         );
     }
 
-    public override Task HandleAsync(GetUpdateTimelineRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetUpdateTimelineRequest req, CancellationToken ct)
     {
-        // TODO: implement GetUpdateTimeline
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/updates/{version}/timeline
-        // Should produce: GetUpdateTimelineResponse
-        throw new NotImplementedException("Endpoint GetUpdateTimeline not implemented.");
+        var stack = stacks.Find(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName));
+        var focal = stack?.History.FirstOrDefault(h => h.Info.Version == req.Version);
+        if (stack is null || focal is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(StackTimeline.For(updates, stack, focal), ct);
     }
 }

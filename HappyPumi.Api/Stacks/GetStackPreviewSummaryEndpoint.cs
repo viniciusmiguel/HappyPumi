@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetStackPreviewSummary
 /// </summary>
-public sealed class GetStackPreviewSummaryEndpoint : Endpoint<GetStackPreviewSummaryRequest, UpdateSummary>
+public sealed class GetStackPreviewSummaryEndpoint(IUpdateStore updates) : Endpoint<GetStackPreviewSummaryRequest, UpdateSummary>
 {
     public override void Configure()
     {
@@ -28,11 +29,22 @@ public sealed class GetStackPreviewSummaryEndpoint : Endpoint<GetStackPreviewSum
         );
     }
 
-    public override Task HandleAsync(GetStackPreviewSummaryRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetStackPreviewSummaryRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStackPreviewSummary
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/previews/{updateID}/summary
-        // Should produce: UpdateSummary
-        throw new NotImplementedException("Endpoint GetStackPreviewSummary not implemented.");
+        var update = updates.Find(req.UpdateId);
+        if (update is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        // Previews keep no promoted checkpoint, so the resource count is derived from the recorded events.
+        await Send.OkAsync(new UpdateSummary
+        {
+            StartTime = update.StartedAt,
+            EndTime = update.StartedAt,
+            Result = update.Status,
+            ResourceCount = EngineEventMapper.ResourceCount(updates.GetEvents(req.UpdateId)),
+        }, ct);
     }
 }
