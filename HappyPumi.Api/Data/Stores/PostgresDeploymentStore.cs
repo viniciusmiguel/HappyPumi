@@ -129,6 +129,39 @@ public sealed class PostgresDeploymentStore(HappyPumiDbContext db) : IDeployment
         => db.Webhooks.AsNoTracking().Where(x => x.Org == s.Org && x.Project == s.Project && x.Stack == s.Stack)
             .ToList().Select(x => x.Webhook).ToList();
 
+    public WebhookResponse? GetWebhook(StackCoordinates s, string name)
+        => WebhookRowFor(s, name, tracked: false)?.Webhook;
+
+    public WebhookResponse? UpdateWebhook(StackCoordinates s, string name, Webhook patch)
+    {
+        var row = WebhookRowFor(s, name, tracked: true);
+        if (row is null)
+            return null;
+        StackWebhookMapper.ApplyPatch(row.Webhook, patch);
+        db.Webhooks.Update(row); // jsonb is value-converted; force a re-serialize of the mutated payload
+        db.SaveChanges();
+        return row.Webhook;
+    }
+
+    public bool DeleteWebhook(StackCoordinates s, string name)
+    {
+        var row = WebhookRowFor(s, name, tracked: true);
+        if (row is null)
+            return false;
+        db.Webhooks.Remove(row);
+        db.SaveChanges();
+        return true;
+    }
+
+    // The webhook name lives inside the jsonb payload (not a column), so materialize the stack's rows first.
+    private WebhookRow? WebhookRowFor(StackCoordinates s, string name, bool tracked)
+    {
+        var query = db.Webhooks.Where(x => x.Org == s.Org && x.Project == s.Project && x.Stack == s.Stack);
+        if (!tracked)
+            query = query.AsNoTracking();
+        return query.ToList().FirstOrDefault(x => x.Webhook.Name == name);
+    }
+
     private DeploymentSettingsRow? SettingsRow(StackCoordinates s)
         => db.DeploymentSettings.FirstOrDefault(x => x.Org == s.Org && x.Project == s.Project && x.Stack == s.Stack);
 }

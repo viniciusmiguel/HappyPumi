@@ -67,7 +67,16 @@ bld.Services.AddScoped<IEnvironmentStore, PostgresEnvironmentStore>(); // ESC en
 bld.Services.AddScoped<IEnvironmentWebhookStore, PostgresEnvironmentWebhookStore>(); // ESC environment webhooks
 bld.Services.AddSingleton<HappyPumi.Api.Webhooks.IWebhookSender, HappyPumi.Api.Webhooks.WebhookSender>();       // HTTP delivery
 bld.Services.AddScoped<HappyPumi.Api.Webhooks.IWebhookDeliveryLog, PostgresWebhookDeliveryLog>(); // delivery log (Postgres)
-bld.Services.AddScoped<HappyPumi.Api.Webhooks.WebhookDeliveryService>();                                       // ping/redeliver orchestration
+bld.Services.AddScoped<HappyPumi.Api.Webhooks.WebhookDeliveryService>();                                       // ping/redeliver orchestration (ESC env)
+bld.Services.AddScoped<IWebhookDeliveryStore, PostgresWebhookDeliveryStore>();                                 // shared webhook delivery history (stack/org/env)
+// Shared event-fired webhook dispatcher: a typed HttpClient (owned seam, swappable in tests) + the per-format
+// body formatters (raw default). SSRF deny-list comes from Webhooks:BlockedHosts.
+bld.Services.AddSingleton<HappyPumi.Api.Webhooks.IWebhookPayloadFormatter, HappyPumi.Api.Webhooks.RawFormatter>();
+bld.Services.AddSingleton<HappyPumi.Api.Webhooks.IWebhookPayloadFormatter, HappyPumi.Api.Webhooks.SlackFormatter>();
+bld.Services.AddSingleton<HappyPumi.Api.Webhooks.IWebhookPayloadFormatter, HappyPumi.Api.Webhooks.MsTeamsFormatter>();
+bld.Services.AddSingleton<HappyPumi.Api.Webhooks.IWebhookPayloadFormatter, HappyPumi.Api.Webhooks.PulumiDeploymentsFormatter>();
+bld.Services.AddHttpClient<HappyPumi.Api.Webhooks.IWebhookDispatcher, HappyPumi.Api.Webhooks.WebhookDispatcher>();
+bld.Services.AddScoped<HappyPumi.Api.Webhooks.StackWebhookTrigger>(); // best-effort firing on update/deployment events
 bld.Services.AddScoped<IArtifactStore, PostgresArtifactStore>();       // registry artifact blobs (publish)
 bld.Services.AddScoped<IPolicyFindingStore, PostgresPolicyFindingStore>(); // policy violations (events → findings)
 bld.Services.AddScoped<IAuditLog, PostgresAuditLog>();                 // audit events (ADR-0010)

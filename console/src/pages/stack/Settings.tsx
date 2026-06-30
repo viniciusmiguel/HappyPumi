@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, type Stack } from "../../lib/api";
 import { Card, Field, PrimaryButton, SecondaryButton } from "../../components/ui";
+import { Webhooks } from "./Webhooks";
 
 type Props = { org: string; project: string; stack: string; meta: Stack | null; onChanged: () => void; onDelete: () => void };
 
@@ -13,6 +14,7 @@ export function Settings({ org, project, stack, meta, onChanged, onDelete }: Pro
       <Tags org={org} project={project} stack={stack} meta={meta} onChanged={onChanged} />
       <Notifications org={org} project={project} stack={stack} meta={meta} onChanged={onChanged} />
       <Ownership org={org} project={project} stack={stack} meta={meta} onChanged={onChanged} />
+      <Webhooks org={org} project={project} stack={stack} />
       <Transfer org={org} project={project} stack={stack} />
       <Card title="Danger zone">
         <button onClick={onDelete} className="rounded-md border border-red-500/40 px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/10">Delete stack</button>

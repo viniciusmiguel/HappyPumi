@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetStackWebhook
 /// </summary>
-public sealed class GetStackWebhookEndpoint : Endpoint<GetStackWebhookRequest, WebhookResponse>
+public sealed class GetStackWebhookEndpoint(IDeploymentStore deployments) : Endpoint<GetStackWebhookRequest, WebhookResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,14 @@ public sealed class GetStackWebhookEndpoint : Endpoint<GetStackWebhookRequest, W
         );
     }
 
-    public override Task HandleAsync(GetStackWebhookRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetStackWebhookRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStackWebhook
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/hooks/{hookName}
-        // Should produce: WebhookResponse
-        throw new NotImplementedException("Endpoint GetStackWebhook not implemented.");
+        var hook = deployments.GetWebhook(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), req.HookName);
+        if (hook is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        await Send.OkAsync(StackWebhookMapper.Sanitized(hook), ct);
     }
 }

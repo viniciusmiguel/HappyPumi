@@ -38,4 +38,10 @@ public interface IDeploymentStore
 
     void AddWebhook(StackCoordinates stack, WebhookResponse webhook);
     IReadOnlyList<WebhookResponse> ListWebhooks(StackCoordinates stack);
+    /// <summary>A single stack webhook by name, or null. Carries the secret for signing — sanitize before echoing.</summary>
+    WebhookResponse? GetWebhook(StackCoordinates stack, string name);
+    /// <summary>Applies a PATCH body to a stack webhook and returns the updated record; null when it does not exist.</summary>
+    WebhookResponse? UpdateWebhook(StackCoordinates stack, string name, Webhook patch);
+    /// <summary>Removes a stack webhook by name. False when no such webhook exists.</summary>
+    bool DeleteWebhook(StackCoordinates stack, string name);
 }

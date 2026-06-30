@@ -9,13 +9,14 @@ using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
 using HappyPumi.Api.State;
+using HappyPumi.Api.Webhooks;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// CompleteUpdate
 /// </summary>
-public sealed class CompleteUpdateRefreshEndpoint(UpdateLifecycle lifecycle) : Endpoint<CompleteUpdateRefreshRequest>
+public sealed class CompleteUpdateRefreshEndpoint(UpdateLifecycle lifecycle, StackWebhookTrigger webhooks) : Endpoint<CompleteUpdateRefreshRequest>
 {
     public override void Configure()
     {
@@ -40,11 +41,15 @@ public sealed class CompleteUpdateRefreshEndpoint(UpdateLifecycle lifecycle) : E
         }
 
         // On success this promotes the last checkpoint to the stack and bumps its version.
-        if (lifecycle.Complete(req.UpdateId, status) is null)
+        var update = lifecycle.Complete(req.UpdateId, status);
+        if (update is null)
         {
             await Send.NotFoundAsync(ct);
             return;
         }
+
+        // Fire the stack's webhooks on completion (best-effort; never blocks or faults the update).
+        await webhooks.FireAsync(update.Coordinates, "stack_update", StackWebhookTrigger.StackUpdateEvent(update, status), ct);
 
         await Send.NoContentAsync(ct);
     }

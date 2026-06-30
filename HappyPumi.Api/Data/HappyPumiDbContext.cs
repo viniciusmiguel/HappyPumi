@@ -38,6 +38,7 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
     public DbSet<AgentPoolRow> AgentPools => Set<AgentPoolRow>();
     public DbSet<ScheduleRow> Schedules => Set<ScheduleRow>();
     public DbSet<WebhookRow> Webhooks => Set<WebhookRow>();
+    public DbSet<WebhookDeliveryRow> WebhookDeliveries => Set<WebhookDeliveryRow>();
     public DbSet<EnvironmentRow> Environments => Set<EnvironmentRow>();
     public DbSet<EnvironmentRevisionRow> EnvironmentRevisions => Set<EnvironmentRevisionRow>();
     public DbSet<EnvironmentWebhookRow> EnvironmentWebhooks => Set<EnvironmentWebhookRow>();
@@ -217,6 +218,12 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.Org, x.Project, x.Stack });
             e.Property(x => x.Webhook).AsJsonb();
+        });
+
+        b.Entity<WebhookDeliveryRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.ScopeKind, x.ScopeId, x.WebhookName }); // listed per (scope, webhook)
         });
 
         b.Entity<EnvironmentRow>(e =>

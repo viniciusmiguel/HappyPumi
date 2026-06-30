@@ -112,4 +112,31 @@ public sealed class InMemoryDeploymentStore : IDeploymentStore
         lock (state.Webhooks)
             return state.Webhooks.ToArray();
     }
+
+    public WebhookResponse? GetWebhook(StackCoordinates stack, string name)
+    {
+        var state = State(stack);
+        lock (state.Webhooks)
+            return state.Webhooks.FirstOrDefault(w => w.Name == name);
+    }
+
+    public WebhookResponse? UpdateWebhook(StackCoordinates stack, string name, Webhook patch)
+    {
+        var state = State(stack);
+        lock (state.Webhooks)
+        {
+            var hook = state.Webhooks.FirstOrDefault(w => w.Name == name);
+            if (hook is null)
+                return null;
+            StackWebhookMapper.ApplyPatch(hook, patch);
+            return hook;
+        }
+    }
+
+    public bool DeleteWebhook(StackCoordinates stack, string name)
+    {
+        var state = State(stack);
+        lock (state.Webhooks)
+            return state.Webhooks.RemoveAll(w => w.Name == name) > 0;
+    }
 }

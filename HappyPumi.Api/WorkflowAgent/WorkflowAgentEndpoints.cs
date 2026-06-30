@@ -13,6 +13,7 @@ using Microsoft.Extensions.Configuration;
 using HappyPumi.Api.Contracts;
 using HappyPumi.Api.Data.Entities;
 using HappyPumi.Api.State;
+using HappyPumi.Api.Webhooks;
 
 namespace HappyPumi.Api.WorkflowAgent;
 
@@ -321,7 +322,7 @@ public sealed class GetWorkflowJobEndpoint(IDeploymentQueue queue, IConfiguratio
 /// PATCH /api/workflow/jobs/{jobID}/{stepIndex}/status — runner reports a step's status. The runner sends
 /// the body WITHOUT a Content-Type, so we bind route + body manually (FE body binding would 415).
 /// </summary>
-public sealed class UpdateStepStatusEndpoint(IDeploymentQueue queue) : EndpointWithoutRequest
+public sealed class UpdateStepStatusEndpoint(IDeploymentQueue queue, StackWebhookTrigger webhooks) : EndpointWithoutRequest
 {
     public override void Configure()
     {
@@ -340,8 +341,20 @@ public sealed class UpdateStepStatusEndpoint(IDeploymentQueue queue) : EndpointW
             var normalized = NormalizeStatus(status);
             queue.SetStatusByJobId(jobId, normalized);          // overall deployment status (failed sticky)
             queue.RecordStepStatus(jobId, stepIndex, normalized); // per-step timeline for the console
+            await FireDeploymentWebhookAsync(jobId, normalized, ct); // fire deployment_<status> on the owning stack
         }
         await Send.OkAsync(new { }, ct);
+    }
+
+    // Fire the owning stack's webhooks on the deployment status change (best-effort; the trigger swallows failures).
+    private async Task FireDeploymentWebhookAsync(string jobId, string status, CancellationToken ct)
+    {
+        var row = queue.GetByJobId(jobId);
+        if (row is null)
+            return;
+        var stack = new StackCoordinates(row.Org, row.Project, row.Stack);
+        var payload = new { deploymentId = row.Id, status, version = row.Version };
+        await webhooks.FireAsync(stack, $"deployment_{status}", payload, ct);
     }
 
     /// <summary>Maps a runner step-status string (succeeded/failed/failure/success/… ) to a deployment status.</summary>
