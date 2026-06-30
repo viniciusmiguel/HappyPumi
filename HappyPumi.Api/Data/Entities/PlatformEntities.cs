@@ -53,7 +53,19 @@ public sealed class OidcIssuerRow
     public string Org { get; set; } = default!;
     public string Name { get; set; } = default!;
     public string Url { get; set; } = default!;
+
+    /// <summary>Opaque GUID identifier used by the spec's /oidc/issuers/{issuerId} routes (distinct from the name key).</summary>
+    public string Id { get; set; } = default!;
+
+    /// <summary>SHA-1 TLS certificate thumbprints (uppercase hex). Stored as jsonb. Empty until fetched/regenerated.</summary>
+    public List<string> Thumbprints { get; set; } = new();
+
+    /// <summary>Maximum token expiration in seconds the issuer's tokens may request; null = service default.</summary>
+    public long? MaxExpiration { get; set; }
+
     public DateTime Created { get; set; } = DateTime.UtcNow;
+    public DateTime? Modified { get; set; }
+    public DateTime? LastUsed { get; set; }
 }
 
 /// <summary>An approval rule requiring sign-off before updates to matching stacks. Key: (Org, Name).</summary>

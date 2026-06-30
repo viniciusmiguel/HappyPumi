@@ -11,7 +11,7 @@ export default function Identity() {
   const [form, setForm] = useState({ name: "", url: "" });
   const [error, setError] = useState<string | null>(null);
 
-  function load() { api.oidcIssuers(org).then((r) => setIssuers(r.issuers ?? [])); }
+  function load() { api.oidcIssuers(org).then((r) => setIssuers(r.oidcIssuers ?? [])); }
   useEffect(() => { load(); }, [org]);
 
   async function create() {

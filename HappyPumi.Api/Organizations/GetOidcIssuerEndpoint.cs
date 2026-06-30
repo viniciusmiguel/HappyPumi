@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// GetOidcIssuer
 /// </summary>
-public sealed class GetOidcIssuerEndpoint : Endpoint<GetOidcIssuerRequest, OidcIssuerRegistrationResponse>
+public sealed class GetOidcIssuerEndpoint(IOidcIssuerStore issuers)
+    : Endpoint<GetOidcIssuerRequest, OidcIssuerRegistrationResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,10 @@ public sealed class GetOidcIssuerEndpoint : Endpoint<GetOidcIssuerRequest, OidcI
         );
     }
 
-    public override Task HandleAsync(GetOidcIssuerRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetOidcIssuerRequest req, CancellationToken ct)
     {
-        // TODO: implement GetOidcIssuer
-        // HTTP: GET /api/orgs/{orgName}/oidc/issuers/{issuerId}
-        // Should produce: OidcIssuerRegistrationResponse
-        throw new NotImplementedException("Endpoint GetOidcIssuer not implemented.");
+        var row = issuers.Get(req.OrgName, req.IssuerId);
+        if (row is null) { await Send.NotFoundAsync(ct); return; }
+        await Send.OkAsync(OidcIssuerMapper.ToResponse(row), ct);
     }
 }

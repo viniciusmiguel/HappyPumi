@@ -30,6 +30,7 @@ import Identity from "./pages/Identity";
 import Billing from "./pages/Billing";
 import Webhooks from "./pages/Webhooks";
 import AccessTokens from "./pages/AccessTokens";
+import OidcIssuers from "./pages/OidcIssuers";
 
 /** Redirects to /login (remembering where you were) when there's no stored token. */
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -76,6 +77,7 @@ export default function App() {
         <Route path="/settings/teams" element={<Teams />} />
         <Route path="/settings/roles" element={<Roles />} />
         <Route path="/settings/identity" element={<Identity />} />
+        <Route path="/settings/oidc-issuers" element={<OidcIssuers />} />
         <Route path="/settings/integrations" element={<Integrations />} />
         <Route path="/settings/webhooks" element={<Webhooks />} />
         <Route path="/settings/tokens" element={<AccessTokens />} />

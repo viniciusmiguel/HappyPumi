@@ -86,6 +86,10 @@ bld.Services.AddSingleton<HappyPumi.Api.Webhooks.IWebhookPayloadFormatter, Happy
 bld.Services.AddHttpClient<HappyPumi.Api.Webhooks.IWebhookDispatcher, HappyPumi.Api.Webhooks.WebhookDispatcher>(
         c => c.Timeout = TimeSpan.FromSeconds(5))
     .RemoveAllResilienceHandlers();
+// OIDC thumbprint fetcher (regenerate-thumbprints): same fail-fast pattern — short timeout, no retry handler.
+bld.Services.AddHttpClient<HappyPumi.Api.Endpoints.Organizations.IOidcThumbprintFetcher,
+        HappyPumi.Api.Endpoints.Organizations.OidcThumbprintFetcher>(c => c.Timeout = TimeSpan.FromSeconds(5))
+    .RemoveAllResilienceHandlers();
 #pragma warning restore EXTEXP0001
 bld.Services.AddScoped<HappyPumi.Api.Webhooks.StackWebhookTrigger>(); // best-effort firing on update/deployment events
 bld.Services.AddScoped<IArtifactStore, PostgresArtifactStore>();       // registry artifact blobs (publish)

@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using HappyPumi.Api.Data.Entities;
@@ -92,12 +93,46 @@ public sealed class PostgresOidcIssuerStore(HappyPumiDbContext db) : IOidcIssuer
     public IReadOnlyList<OidcIssuerRow> List(string org)
         => db.OidcIssuers.AsNoTracking().Where(i => i.Org == org).OrderBy(i => i.Name).ToList();
 
+    public OidcIssuerRow? Get(string org, string id)
+        => db.OidcIssuers.AsNoTracking().FirstOrDefault(i => i.Org == org && i.Id == id);
+
     public OidcIssuerRow? Create(string org, string name, string url)
+        => Create(org, name, url, null, null);
+
+    public OidcIssuerRow? Create(string org, string name, string url, List<string>? thumbprints, long? maxExpiration)
     {
         if (db.OidcIssuers.Any(i => i.Org == org && i.Name == name))
             return null;
-        var row = new OidcIssuerRow { Org = org, Name = name, Url = url };
+        var row = new OidcIssuerRow
+        {
+            Org = org, Name = name, Url = url, Id = Guid.NewGuid().ToString(),
+            Thumbprints = thumbprints ?? new(), MaxExpiration = maxExpiration,
+        };
         db.OidcIssuers.Add(row);
+        db.SaveChanges();
+        return row;
+    }
+
+    public OidcIssuerRow? Update(string org, string id, string? name, long? maxExpiration, List<string>? thumbprints)
+    {
+        var row = db.OidcIssuers.FirstOrDefault(i => i.Org == org && i.Id == id);
+        if (row is null) return null;
+        // Name is part of the (Org,Name) primary key, so a rename is a delete+insert keeping the same Id.
+        if (name is not null && name != row.Name)
+            return Recreate(row, name, maxExpiration, thumbprints);
+        if (maxExpiration is not null) row.MaxExpiration = maxExpiration;
+        if (thumbprints is not null) row.Thumbprints = thumbprints;
+        row.Modified = DateTime.UtcNow;
+        db.SaveChanges();
+        return row;
+    }
+
+    public OidcIssuerRow? SetThumbprints(string org, string id, IReadOnlyList<string> thumbprints)
+    {
+        var row = db.OidcIssuers.FirstOrDefault(i => i.Org == org && i.Id == id);
+        if (row is null) return null;
+        row.Thumbprints = thumbprints.ToList();
+        row.Modified = DateTime.UtcNow;
         db.SaveChanges();
         return row;
     }
@@ -109,6 +144,29 @@ public sealed class PostgresOidcIssuerStore(HappyPumiDbContext db) : IOidcIssuer
         db.OidcIssuers.Remove(row);
         db.SaveChanges();
         return true;
+    }
+
+    public bool DeleteById(string org, string id)
+    {
+        var row = db.OidcIssuers.FirstOrDefault(i => i.Org == org && i.Id == id);
+        if (row is null) return false;
+        db.OidcIssuers.Remove(row);
+        db.SaveChanges();
+        return true;
+    }
+
+    private OidcIssuerRow Recreate(OidcIssuerRow old, string newName, long? maxExpiration, List<string>? thumbprints)
+    {
+        var replacement = new OidcIssuerRow
+        {
+            Org = old.Org, Name = newName, Url = old.Url, Id = old.Id, Created = old.Created,
+            Thumbprints = thumbprints ?? old.Thumbprints, MaxExpiration = maxExpiration ?? old.MaxExpiration,
+            Modified = DateTime.UtcNow, LastUsed = old.LastUsed,
+        };
+        db.OidcIssuers.Remove(old);
+        db.OidcIssuers.Add(replacement);
+        db.SaveChanges();
+        return replacement;
     }
 }
 

@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// UpdateOidcIssuer
 /// </summary>
-public sealed class UpdateOidcIssuerEndpoint : Endpoint<UpdateOidcIssuerRequest, OidcIssuerRegistrationResponse>
+public sealed class UpdateOidcIssuerEndpoint(IOidcIssuerStore issuers)
+    : Endpoint<UpdateOidcIssuerRequest, OidcIssuerRegistrationResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,11 @@ public sealed class UpdateOidcIssuerEndpoint : Endpoint<UpdateOidcIssuerRequest,
         );
     }
 
-    public override Task HandleAsync(UpdateOidcIssuerRequest req, CancellationToken ct)
+    public override async Task HandleAsync(UpdateOidcIssuerRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateOidcIssuer
-        // HTTP: PATCH /api/orgs/{orgName}/oidc/issuers/{issuerId}
-        // Should produce: OidcIssuerRegistrationResponse
-        throw new NotImplementedException("Endpoint UpdateOidcIssuer not implemented.");
+        var body = req.Body; // Url is immutable, so it is intentionally not patched here.
+        var row = issuers.Update(req.OrgName, req.IssuerId, body?.Name, body?.MaxExpiration, body?.Thumbprints);
+        if (row is null) { await Send.NotFoundAsync(ct); return; }
+        await Send.OkAsync(OidcIssuerMapper.ToResponse(row), ct);
     }
 }

@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// GetAuthPolicy
 /// </summary>
-public sealed class GetAuthPolicyEndpoint : Endpoint<GetAuthPolicyRequest, AuthPolicy>
+public sealed class GetAuthPolicyEndpoint(IOidcIssuerStore issuers) : Endpoint<GetAuthPolicyRequest, AuthPolicy>
 {
     public override void Configure()
     {
@@ -28,11 +29,19 @@ public sealed class GetAuthPolicyEndpoint : Endpoint<GetAuthPolicyRequest, AuthP
         );
     }
 
-    public override Task HandleAsync(GetAuthPolicyRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetAuthPolicyRequest req, CancellationToken ct)
     {
-        // TODO: implement GetAuthPolicy
-        // HTTP: GET /api/orgs/{orgName}/auth/policies/oidcissuers/{issuerId}
-        // Should produce: AuthPolicy
-        throw new NotImplementedException("Endpoint GetAuthPolicy not implemented.");
+        var issuer = issuers.Get(req.OrgName, req.IssuerId);
+        if (issuer is null) { await Send.NotFoundAsync(ct); return; }
+        // No auth-policy store yet: synthesize a deterministic default (empty rule set) keyed to the issuer.
+        var created = issuer.Created.ToString("o");
+        await Send.OkAsync(new AuthPolicy
+        {
+            Id = req.IssuerId,
+            Version = 1,
+            Created = created,
+            Modified = created,
+            Policies = new List<AuthPolicyDefinition>(),
+        }, ct);
     }
 }
