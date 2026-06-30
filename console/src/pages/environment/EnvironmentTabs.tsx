@@ -2,9 +2,13 @@ import { useEffect, useState } from "react";
 import { Plus, RefreshCw, Link2, ShieldCheck } from "lucide-react";
 import {
   api, timeAgo, type EnvRevision, type EscValue, type Actor,
-  type EnvTag, type EnvWebhook, type EnvSchedule, type RotationEvent, type EnvReferrer,
+  type EnvTag, type EnvSchedule, type RotationEvent, type EnvReferrer,
 } from "../../lib/api";
 import { Table, Card, Avatar, EmptyState, PrimaryButton, SecondaryButton, Modal, Field, Badge } from "../../components/ui";
+
+// The Webhooks tab lives in its own module (env webhook CRUD + deliveries/ping/redeliver); re-exported here
+// so EnvironmentDetail keeps importing every tab from this barrel.
+export { WebhooksTab } from "./EnvWebhooks";
 
 interface EnvProps { org: string; project: string; name: string; }
 
@@ -152,48 +156,6 @@ export function TagsTab({ org, project, name }: EnvProps) {
           footer={<><SecondaryButton onClick={() => setDraft(null)}>Cancel</SecondaryButton><PrimaryButton onClick={create}>Create</PrimaryButton></>}>
           <Field label="Name" value={draft.name} onChange={(v) => setDraft((d) => ({ ...d!, name: v }))} placeholder="environment" />
           <Field label="Value" value={draft.value} onChange={(v) => setDraft((d) => ({ ...d!, value: v }))} placeholder="production" />
-          {error && <p className="text-xs text-red-400">{error}</p>}
-        </Modal>
-      )}
-    </div>
-  );
-}
-
-export function WebhooksTab({ org, project, name }: EnvProps) {
-  const [hooks, setHooks] = useState<EnvWebhook[]>([]);
-  const [draft, setDraft] = useState<{ name: string; payloadUrl: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  function load() { api.environmentWebhooks(org, project, name).then(setHooks); }
-  useEffect(load, [org, project, name]);
-
-  async function create() {
-    if (!draft?.name || !draft.payloadUrl) return;
-    try { await api.createEnvironmentWebhook(org, project, name, draft); setDraft(null); setError(null); load(); }
-    catch (e) { setError(e instanceof Error ? e.message : String(e)); }
-  }
-  async function remove(hook: string) { await api.deleteEnvironmentWebhook(org, project, name, hook); load(); }
-
-  return (
-    <div className="max-w-3xl">
-      <SecondaryButton icon={Plus} onClick={() => setDraft({ name: "", payloadUrl: "" })}>New Webhook</SecondaryButton>
-      <div className="mt-3">
-        <Table
-          rows={hooks}
-          empty="No webhooks. Webhooks notify an endpoint when this environment changes."
-          columns={[
-            { header: "Name", cell: (h) => <span className="font-medium">{h.displayName || h.name}</span> },
-            { header: "Payload URL", cell: (h) => <span className="font-mono text-xs text-ink-dim">{h.payloadUrl}</span> },
-            { header: "Status", cell: (h) => <Badge tone={h.active ? "success" : "default"}>{h.active ? "active" : "disabled"}</Badge> },
-            { header: "", cell: (h) => <button onClick={() => remove(h.name)} className="text-xs text-red-400 hover:underline">Remove</button> },
-          ]}
-        />
-      </div>
-      {draft && (
-        <Modal title="New webhook" onClose={() => setDraft(null)}
-          footer={<><SecondaryButton onClick={() => setDraft(null)}>Cancel</SecondaryButton><PrimaryButton onClick={create}>Create</PrimaryButton></>}>
-          <Field label="Name" value={draft.name} onChange={(v) => setDraft((d) => ({ ...d!, name: v }))} placeholder="my-webhook" />
-          <Field label="Payload URL" value={draft.payloadUrl} onChange={(v) => setDraft((d) => ({ ...d!, payloadUrl: v }))} placeholder="https://example.com/hook" />
           {error && <p className="text-xs text-red-400">{error}</p>}
         </Modal>
       )}
