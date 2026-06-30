@@ -199,6 +199,41 @@ public sealed class StackHistoryListingTagsTests(HappyPumiApp app)
         Assert.Equal("platform", afterReplace.Tags["team"]);
     }
 
+    [Fact]
+    public async Task DeleteTagRemovesItAndReturns204()
+    {
+        using var client = app.CreateClient();
+        var stack = await NewStack(client);
+
+        using var add = await client.PostAsJsonAsync($"{StackPath(stack)}/tags",
+            new StackTag { Name = "team", Value = "platform" });
+        Assert.Equal(HttpStatusCode.NoContent, add.StatusCode);
+
+        using var del = await client.DeleteAsync($"{StackPath(stack)}/tags/team");
+        Assert.Equal(HttpStatusCode.NoContent, del.StatusCode);
+
+        var after = await client.GetFromJsonAsync<AppStack>(StackPath(stack));
+        Assert.False(after!.Tags!.ContainsKey("team"));
+    }
+
+    [Fact]
+    public async Task DeleteMissingTagReturns404()
+    {
+        using var client = app.CreateClient();
+        var stack = await NewStack(client);
+
+        using var del = await client.DeleteAsync($"{StackPath(stack)}/tags/absent");
+        Assert.Equal(HttpStatusCode.NotFound, del.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteTagOnUnknownStackReturns404()
+    {
+        using var client = app.CreateClient();
+        using var del = await client.DeleteAsync($"{StackPath("missing-" + Guid.NewGuid().ToString("N"))}/tags/any");
+        Assert.Equal(HttpStatusCode.NotFound, del.StatusCode);
+    }
+
     private static async Task<T> Post<T>(HttpClient client, string url, object body)
     {
         using var response = await client.PostAsJsonAsync(url, body);

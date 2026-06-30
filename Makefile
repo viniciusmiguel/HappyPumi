@@ -2,9 +2,10 @@
 #
 #   make build             build the whole solution
 #   make dev               run the full Aspire topology + dashboard locally
-#   make test              run everything (unit + CLI integration)
+#   make test              run everything (unit + CLI integration + automation API)
 #   make test-unit         in-process component tests (needs Docker: Postgres via Testcontainers)
 #   make test-integration  drive the REAL pulumi CLI against a live HappyPumi (HTTPS, self-signed)
+#   make test-automation   drive the Go Automation API SDK against a live HappyPumi (needs Go)
 #   make pulumi            build the Apache-2.0 pulumi CLI + Go language host from ../pulumi
 #   make certs             create + trust the self-signed HTTPS dev certificate
 #   make coverage          run tests with coverage collection
@@ -18,6 +19,7 @@
 SLN            := HappyPumi.slnx
 UNIT_TESTS     := HappyPumi.Api.Tests
 INTEG_TESTS    := HappyPumi.Cli.IntegrationTests
+AUTO_TESTS     := HappyPumi.AutomationApi.IntegrationTests
 PULUMI_BIN     := $(CURDIR)/.tools/bin/pulumi
 DOCKER_IMAGE   := happypumi-api
 CONFIG         ?= Debug
@@ -50,7 +52,7 @@ $(PULUMI_BIN):
 pulumi: $(PULUMI_BIN)
 
 .PHONY: test
-test: test-unit test-integration
+test: test-unit test-integration test-automation
 
 .PHONY: test-unit
 test-unit:
@@ -61,6 +63,10 @@ test-unit:
 .PHONY: test-integration
 test-integration: pulumi certs build
 	PULUMI_BIN=$(PULUMI_BIN) dotnet test $(INTEG_TESTS) -c $(CONFIG) --no-build
+
+.PHONY: test-automation
+test-automation: pulumi certs build  ## Drive the Go Automation API SDK against a live HappyPumi (needs Go + Docker)
+	PULUMI_BIN=$(PULUMI_BIN) dotnet test $(AUTO_TESTS) -c $(CONFIG) --no-build
 
 .PHONY: coverage
 coverage:

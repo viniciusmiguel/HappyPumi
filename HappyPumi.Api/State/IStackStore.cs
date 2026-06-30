@@ -50,6 +50,12 @@ public interface IStackStore
     StoredStack? ReplaceTags(StackCoordinates coordinates, IReadOnlyDictionary<string, string> tags);
 
     /// <summary>
+    /// Removes a single tag. Returns (null, false) when the stack is missing, (stack, false) when the
+    /// stack exists but has no such tag, and (stack, true) when the tag was present and removed.
+    /// </summary>
+    (StoredStack? Stack, bool TagExisted) RemoveTag(StackCoordinates coordinates, string name);
+
+    /// <summary>
     /// Moves a stack to new coordinates (project and/or stack name). Returns the moved stack, null when
     /// the source is missing, or throws nothing — a name collision is reported by <paramref name="collision"/>.
     /// </summary>

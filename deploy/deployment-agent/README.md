@@ -4,13 +4,30 @@ One-command demo of Pulumi's **prebuilt** customer-managed workflow agent
 (`pulumi/customer-managed-workflow-agent`) running deployments against HappyPumi — no HappyPumi-side
 runner code, just the API endpoints the agent calls (reverse-engineered black-box; see ADR-0008).
 
-It composes three containers:
+It composes four containers:
 
 | Service | What it is |
 |---|---|
 | `postgres` | HappyPumi's state store (ADR-0005). |
 | `happypumi` | The API, built from `HappyPumi.Api/Dockerfile`, seeded with the `happypumi/webstore/prod` stack. Published on host `:5118`. |
 | `agent` | The unmodified prebuilt agent. Polls HappyPumi, claims deployments, and runs each in an executor container it launches via the host Docker socket. |
+| `gitserver` | A `git daemon` serving the resourceless `empty-stack` program at `git://172.17.0.1:9418/empty-stack.git`, so remote-workspace deployments have a repo to clone with no public-internet dependency. |
+
+## Remote-workspace (git source) deployments
+
+A deployment created with a **git source** (`pulumi up --remote` or the Automation API's
+`NewRemoteStackGitSource`) sends a `sourceContext.git` body. HappyPumi persists the repo URL / branch /
+dir on the deployment, and the runner job builder emits a `git clone … && pulumi <op> --yes` step that
+targets HappyPumi as its backend. Trigger one against the bundled git server:
+
+```bash
+curl -s -X POST http://localhost:5118/api/stacks/happypumi/webstore/prod/deployments \
+     -H 'Authorization: token t' -H 'Content-Type: application/json' \
+     -d '{"operation":"update","sourceContext":{"git":{"repoUrl":"git://172.17.0.1:9418/empty-stack.git","branch":"master"}}}'
+```
+
+This path is covered end-to-end by the Docker-backed `RemoteWorkspaceTests` in
+`HappyPumi.AutomationApi.IntegrationTests` (auto-skips when Docker is unavailable).
 
 ## Run it
 

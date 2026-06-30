@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="coverlet.collector" Version="6.0.4" />
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+        <PackageReference Include="Testcontainers.PostgreSql" Version="4.12.0" />
+        <PackageReference Include="Xunit.SkippableFact" Version="1.5.23" />
+        <PackageReference Include="xunit" Version="2.9.3" />
+        <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Guarantees the API is built before these tests run and lets us locate its bin output. -->
+        <ProjectReference Include="../HappyPumi.Api/HappyPumi.Api.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Reuse the CLI wire-compat harness verbatim: same out-of-process HTTPS server bootstrap,
+             same repo-path resolution, same dev-cert trust. The Go auto SDK shells out to the pulumi
+             binary, so this layer differs only in the client it drives. -->
+        <Compile Include="../HappyPumi.Cli.IntegrationTests/HappyPumiServer.cs" Link="HappyPumiServer.cs" />
+        <Compile Include="../HappyPumi.Cli.IntegrationTests/RepoPaths.cs" Link="RepoPaths.cs" />
+        <Compile Include="../tests-support/DevCertTrust.cs" Link="DevCertTrust.cs" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="System.Net" />
+        <Using Include="Xunit" />
+        <Using Include="HappyPumi.Cli.IntegrationTests" />
+    </ItemGroup>
+
+</Project>

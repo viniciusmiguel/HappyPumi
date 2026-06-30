@@ -11,8 +11,10 @@ HAPPYPUMI_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PULUMI_SRC="${PULUMI_SRC:-$(cd "${HAPPYPUMI_ROOT}/../pulumi" 2>/dev/null && pwd || true)}"
 OUT_DIR="${HAPPYPUMI_ROOT}/.tools/bin"
 OUT_BIN="${OUT_DIR}/pulumi"
-# A non-empty, dev-flavoured version so the CLI doesn't report v0.0.0.
-PULUMI_BUILD_VERSION="${PULUMI_BUILD_VERSION:-v3.0.0-happypumi-dev}"
+# Stamp the real version of the ../pulumi checkout (v3.246.0 line) so the Automation API SDK's
+# per-feature version gates (e.g. ">= 3.181.0 required for --client with refresh") pass — the CLI is
+# built from that source, so a lower dev-flavoured string would falsely fail those gates.
+PULUMI_BUILD_VERSION="${PULUMI_BUILD_VERSION:-v3.246.0}"
 
 if [[ "${1:-}" != "--force" && -x "${OUT_BIN}" ]]; then
   echo "pulumi CLI already built: ${OUT_BIN}"
