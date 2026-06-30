@@ -63,6 +63,24 @@ public static class VcsIntegrationMapper
         Valid = true,
     };
 
+    /// <summary>Overlays the non-null fields of a GitHub PATCH body onto the existing settings.</summary>
+    public static VcsIntegrationSettings Merge(VcsIntegrationSettings s, GitHubSettingsRequest b) => new()
+    {
+        DisableDetailedDiff = b.DisableDetailedDiff ?? s.DisableDetailedDiff,
+        DisablePrComments = b.DisablePrComments ?? s.DisablePrComments,
+        DisableNeoSummaries = b.DisableNeoSummaries ?? s.DisableNeoSummaries,
+        DisableCodeAccessForReviews = b.DisableCodeAccessForReviews ?? s.DisableCodeAccessForReviews,
+    };
+
+    /// <summary>Overlays the non-null fields of an Azure DevOps PATCH body onto the existing settings.</summary>
+    public static VcsIntegrationSettings Merge(VcsIntegrationSettings s, AzureDevOpsSettingsRequest b) => new()
+    {
+        DisableDetailedDiff = b.DisableDetailedDiff ?? s.DisableDetailedDiff,
+        DisablePrComments = b.DisablePrComments ?? s.DisablePrComments,
+        DisableNeoSummaries = b.DisableNeoSummaries ?? s.DisableNeoSummaries,
+        DisableCodeAccessForReviews = s.DisableCodeAccessForReviews, // not part of the ADO settings contract
+    };
+
     private static AzureDevOpsOrganization AzureOrg(StoredVcsIntegration i) => new()
     {
         Name = i.AccountName ?? "",

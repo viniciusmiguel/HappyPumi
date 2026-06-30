@@ -8,18 +8,20 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.VcsIntegrations;
 
 namespace HappyPumi.Api.Endpoints.VcsIntegrations;
 
 /// <summary>
 /// UpdateAzureDevOpsIntegration
 /// </summary>
-public sealed class UpdateAzureDevOpsIntegrationEndpoint : Endpoint<UpdateAzureDevOpsIntegrationRequest>
+public sealed class UpdateAzureDevOpsIntegrationEndpoint(IVcsIntegrationStore store) : Endpoint<UpdateAzureDevOpsIntegrationRequest>
 {
     public override void Configure()
     {
         Patch("/api/console/orgs/{orgName}/integrations/azure-devops/{integrationId}");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:update");
         Description(b => b
             .WithTags("VCS Integrations")
             .WithSummary("UpdateAzureDevOpsIntegration")
@@ -28,10 +30,15 @@ public sealed class UpdateAzureDevOpsIntegrationEndpoint : Endpoint<UpdateAzureD
         );
     }
 
-    public override Task HandleAsync(UpdateAzureDevOpsIntegrationRequest req, CancellationToken ct)
+    public override async Task HandleAsync(UpdateAzureDevOpsIntegrationRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateAzureDevOpsIntegration
-        // HTTP: PATCH /api/console/orgs/{orgName}/integrations/azure-devops/{integrationId}
-        throw new NotImplementedException("Endpoint UpdateAzureDevOpsIntegration not implemented.");
+        var found = store.Get(req.OrgName, req.IntegrationId);
+        if (found is null || found.Kind != "azure-devops")
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        store.UpdateSettings(req.OrgName, req.IntegrationId, VcsIntegrationMapper.Merge(found.Settings, req.Body));
+        await Send.NoContentAsync(ct);
     }
 }

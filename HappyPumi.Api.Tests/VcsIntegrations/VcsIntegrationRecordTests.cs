@@ -117,4 +117,85 @@ public sealed class VcsIntegrationRecordTests(HappyPumiApp app)
         Assert.Equal("Widgets", details.Project!.Name);
         Assert.True(details.Valid);
     }
+
+    [Fact]
+    public async Task GitHubGetUpdateDeleteRoundTrip()
+    {
+        var org = NewOrg();
+        var seeded = Seed(GitHub(org));
+        using var client = app.CreateAuthedClient();
+        var url = $"/api/console/orgs/{org}/integrations/github/{seeded.Id}";
+
+        var got = await client.GetFromJsonAsync<GitHubIntegrationDetails>(url);
+        Assert.Equal(seeded.Id, got!.Id);
+        Assert.False(got.DisablePrComments);
+
+        var patch = await client.PatchAsJsonAsync(url, new GitHubSettingsRequest { DisablePrComments = true });
+        Assert.Equal(HttpStatusCode.NoContent, patch.StatusCode);
+
+        var after = await client.GetFromJsonAsync<GitHubIntegrationDetails>(url);
+        Assert.True(after!.DisablePrComments);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync(url)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(url)).StatusCode);
+    }
+
+    [Fact]
+    public async Task GitHubGetUnknownIdReturns404()
+    {
+        var org = NewOrg();
+        using var client = app.CreateAuthedClient();
+        var r = await client.GetAsync($"/api/console/orgs/{org}/integrations/github/{Guid.NewGuid():N}");
+        Assert.Equal(HttpStatusCode.NotFound, r.StatusCode);
+    }
+
+    [Fact]
+    public async Task GitHubGetWrongProviderRouteReturns404()
+    {
+        var org = NewOrg();
+        var ado = Seed(AzureDevOps(org));
+        using var client = app.CreateAuthedClient();
+        // An ADO record is invisible to the GitHub route (kind guard).
+        var r = await client.GetAsync($"/api/console/orgs/{org}/integrations/github/{ado.Id}");
+        Assert.Equal(HttpStatusCode.NotFound, r.StatusCode);
+    }
+
+    [Fact]
+    public async Task GitHubEnterpriseGetUpdateDeleteRoundTrip()
+    {
+        var org = NewOrg();
+        var seeded = Seed(GitHub(org, "github-enterprise"));
+        using var client = app.CreateAuthedClient();
+        var url = $"/api/console/orgs/{org}/integrations/github-enterprise/{seeded.Id}";
+
+        var got = await client.GetFromJsonAsync<GitHubIntegrationDetails>(url);
+        Assert.True(got!.IsSelfHosted);
+
+        var patch = await client.PatchAsJsonAsync(url, new GitHubSettingsRequest { DisableNeoSummaries = true });
+        Assert.Equal(HttpStatusCode.NoContent, patch.StatusCode);
+        Assert.True((await client.GetFromJsonAsync<GitHubIntegrationDetails>(url))!.DisableNeoSummaries);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync(url)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(url)).StatusCode);
+    }
+
+    [Fact]
+    public async Task AzureDevOpsGetUpdateDeleteRoundTrip()
+    {
+        var org = NewOrg();
+        var seeded = Seed(AzureDevOps(org));
+        using var client = app.CreateAuthedClient();
+        var url = $"/api/console/orgs/{org}/integrations/azure-devops/{seeded.Id}";
+
+        var got = await client.GetFromJsonAsync<AzureDevOpsAppIntegrationResponse>(url);
+        Assert.True(got!.Installed);
+        Assert.Equal("contoso", got.Organization!.Name);
+
+        var patch = await client.PatchAsJsonAsync(url, new AzureDevOpsSettingsRequest { DisablePrComments = true });
+        Assert.Equal(HttpStatusCode.NoContent, patch.StatusCode);
+        Assert.True((await client.GetFromJsonAsync<AzureDevOpsAppIntegrationResponse>(url))!.DisablePrComments);
+
+        Assert.Equal(HttpStatusCode.NoContent, (await client.DeleteAsync(url)).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync(url)).StatusCode);
+    }
 }

@@ -8,18 +8,19 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.VcsIntegrations;
 
 /// <summary>
 /// DeleteAzureDevOpsIntegration
 /// </summary>
-public sealed class DeleteAzureDevOpsIntegrationEndpoint : Endpoint<DeleteAzureDevOpsIntegrationRequest>
+public sealed class DeleteAzureDevOpsIntegrationEndpoint(IVcsIntegrationStore store) : Endpoint<DeleteAzureDevOpsIntegrationRequest>
 {
     public override void Configure()
     {
         Delete("/api/console/orgs/{orgName}/integrations/azure-devops/{integrationId}");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:update");
         Description(b => b
             .WithTags("VCS Integrations")
             .WithSummary("DeleteAzureDevOpsIntegration")
@@ -28,10 +29,15 @@ public sealed class DeleteAzureDevOpsIntegrationEndpoint : Endpoint<DeleteAzureD
         );
     }
 
-    public override Task HandleAsync(DeleteAzureDevOpsIntegrationRequest req, CancellationToken ct)
+    public override async Task HandleAsync(DeleteAzureDevOpsIntegrationRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteAzureDevOpsIntegration
-        // HTTP: DELETE /api/console/orgs/{orgName}/integrations/azure-devops/{integrationId}
-        throw new NotImplementedException("Endpoint DeleteAzureDevOpsIntegration not implemented.");
+        var found = store.Get(req.OrgName, req.IntegrationId);
+        if (found is null || found.Kind != "azure-devops")
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        store.Delete(req.OrgName, req.IntegrationId);
+        await Send.NoContentAsync(ct);
     }
 }

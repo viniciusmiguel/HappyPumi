@@ -8,18 +8,20 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.VcsIntegrations;
 
 namespace HappyPumi.Api.Endpoints.VcsIntegrations;
 
 /// <summary>
 /// GetAzureDevOpsIntegration
 /// </summary>
-public sealed class GetAzureDevOpsIntegrationEndpoint : Endpoint<GetAzureDevOpsIntegrationRequest, AzureDevOpsAppIntegrationResponse>
+public sealed class GetAzureDevOpsIntegrationEndpoint(IVcsIntegrationStore store) : Endpoint<GetAzureDevOpsIntegrationRequest, AzureDevOpsAppIntegrationResponse>
 {
     public override void Configure()
     {
         Get("/api/console/orgs/{orgName}/integrations/azure-devops/{integrationId}");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:read");
         Description(b => b
             .WithTags("VCS Integrations")
             .WithSummary("GetAzureDevOpsIntegration")
@@ -28,11 +30,14 @@ public sealed class GetAzureDevOpsIntegrationEndpoint : Endpoint<GetAzureDevOpsI
         );
     }
 
-    public override Task HandleAsync(GetAzureDevOpsIntegrationRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetAzureDevOpsIntegrationRequest req, CancellationToken ct)
     {
-        // TODO: implement GetAzureDevOpsIntegration
-        // HTTP: GET /api/console/orgs/{orgName}/integrations/azure-devops/{integrationId}
-        // Should produce: AzureDevOpsAppIntegrationResponse
-        throw new NotImplementedException("Endpoint GetAzureDevOpsIntegration not implemented.");
+        var found = store.Get(req.OrgName, req.IntegrationId);
+        if (found is null || found.Kind != "azure-devops")
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        await Send.OkAsync(VcsIntegrationMapper.ToAzureAppResponse(found), ct);
     }
 }

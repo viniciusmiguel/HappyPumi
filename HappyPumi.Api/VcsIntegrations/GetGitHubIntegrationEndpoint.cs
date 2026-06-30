@@ -8,18 +8,20 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.VcsIntegrations;
 
 namespace HappyPumi.Api.Endpoints.VcsIntegrations;
 
 /// <summary>
 /// GetGitHubIntegration
 /// </summary>
-public sealed class GetGitHubIntegrationEndpoint : Endpoint<GetGitHubIntegrationRequest, GitHubIntegrationDetails>
+public sealed class GetGitHubIntegrationEndpoint(IVcsIntegrationStore store) : Endpoint<GetGitHubIntegrationRequest, GitHubIntegrationDetails>
 {
     public override void Configure()
     {
         Get("/api/console/orgs/{orgName}/integrations/github/{integrationId}");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:read");
         Description(b => b
             .WithTags("VCS Integrations")
             .WithSummary("GetGitHubIntegration")
@@ -28,11 +30,14 @@ public sealed class GetGitHubIntegrationEndpoint : Endpoint<GetGitHubIntegration
         );
     }
 
-    public override Task HandleAsync(GetGitHubIntegrationRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetGitHubIntegrationRequest req, CancellationToken ct)
     {
-        // TODO: implement GetGitHubIntegration
-        // HTTP: GET /api/console/orgs/{orgName}/integrations/github/{integrationId}
-        // Should produce: GitHubIntegrationDetails
-        throw new NotImplementedException("Endpoint GetGitHubIntegration not implemented.");
+        var found = store.Get(req.OrgName, req.IntegrationId);
+        if (found is null || found.Kind != "github")
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        await Send.OkAsync(VcsIntegrationMapper.ToGitHubDetails(found), ct);
     }
 }
