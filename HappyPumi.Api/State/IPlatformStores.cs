@@ -33,8 +33,26 @@ public interface IVcsConnectionStore
 public interface IOidcIssuerStore
 {
     IReadOnlyList<OidcIssuerRow> List(string org);
+
+    /// <summary>Fetch a single issuer by its opaque GUID id; null if not found in the org.</summary>
+    OidcIssuerRow? Get(string org, string id);
+
+    /// <summary>Registers an issuer with only a name/url (assigns an Id). Null if the name already exists.</summary>
     OidcIssuerRow? Create(string org, string name, string url);
+
+    /// <summary>Registers an issuer with thumbprints/max-expiration (assigns an Id). Null if the name already exists.</summary>
+    OidcIssuerRow? Create(string org, string name, string url, List<string>? thumbprints, long? maxExpiration);
+
+    /// <summary>Patches the supplied (non-null) fields by id and bumps Modified; null if the issuer is missing.</summary>
+    OidcIssuerRow? Update(string org, string id, string? name, long? maxExpiration, List<string>? thumbprints);
+
+    /// <summary>Replaces an issuer's thumbprints (regenerate flow) and bumps Modified; null if missing.</summary>
+    OidcIssuerRow? SetThumbprints(string org, string id, IReadOnlyList<string> thumbprints);
+
     bool Delete(string org, string name);
+
+    /// <summary>Removes an issuer by its opaque GUID id; false if not found.</summary>
+    bool DeleteById(string org, string id);
 }
 
 /// <summary>Approval rules requiring sign-off before updates to matching stacks, per org.</summary>

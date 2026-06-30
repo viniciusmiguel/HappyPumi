@@ -170,7 +170,12 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
         });
         b.Entity<CloudAccountRow>(e => e.HasKey(x => new { x.Org, x.Name }));
         b.Entity<VcsConnectionRow>(e => e.HasKey(x => new { x.Org, x.Name }));
-        b.Entity<OidcIssuerRow>(e => e.HasKey(x => new { x.Org, x.Name }));
+        b.Entity<OidcIssuerRow>(e =>
+        {
+            e.HasKey(x => new { x.Org, x.Name });
+            e.HasIndex(x => new { x.Org, x.Id }); // issuers are fetched/updated/deleted by their opaque GUID id
+            e.Property(x => x.Thumbprints).AsJsonb();
+        });
         b.Entity<ApprovalRuleRow>(e => e.HasKey(x => new { x.Org, x.Name }));
 
         b.Entity<DeploymentSettingsRow>(e =>
