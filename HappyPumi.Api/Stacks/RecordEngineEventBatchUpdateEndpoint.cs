@@ -13,10 +13,11 @@ using HappyPumi.Api.State;
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
-/// RecordEngineEventBatch. Engine events are acknowledged (not persisted), except policy-violation events
-/// (AppPolicyEvent) which we capture as policy findings for the console's "Policy findings" page.
+/// RecordEngineEventBatch. Persists the batch against the update (for the read-side timeline) and, as
+/// before, captures policy-violation events (AppPolicyEvent) as policy findings for the console's
+/// "Policy findings" page.
 /// </summary>
-public sealed class RecordEngineEventBatchUpdateEndpoint(IPolicyFindingStore findings) : Endpoint<RecordEngineEventBatchUpdateRequest>
+public sealed class RecordEngineEventBatchUpdateEndpoint(IPolicyFindingStore findings, IUpdateStore updates) : Endpoint<RecordEngineEventBatchUpdateRequest>
 {
     public override void Configure()
     {
@@ -32,7 +33,10 @@ public sealed class RecordEngineEventBatchUpdateEndpoint(IPolicyFindingStore fin
 
     public async override Task HandleAsync(RecordEngineEventBatchUpdateRequest req, CancellationToken ct)
     {
-        foreach (var e in req.Body?.Events ?? Enumerable.Empty<AppEngineEvent>())
+        var events = req.Body?.Events ?? new List<AppEngineEvent>();
+        updates.AppendEvents(req.UpdateId, events);
+
+        foreach (var e in events)
             if (e.PolicyEvent is { PolicyName.Length: > 0 } pe)
                 findings.Record(req.OrgName, PolicyFindingMapper.FromEvent(req.ProjectName, req.StackName, pe));
 

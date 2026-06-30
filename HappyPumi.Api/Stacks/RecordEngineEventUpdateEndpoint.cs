@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
-/// RecordEngineEvent
+/// RecordEngineEvent. Persists the event against the update (update kind only) so the read side can
+/// replay the timeline; the CLI still renders the live stream locally.
 /// </summary>
-public sealed class RecordEngineEventUpdateEndpoint : Endpoint<RecordEngineEventUpdateRequest>
+public sealed class RecordEngineEventUpdateEndpoint(IUpdateStore updates) : Endpoint<RecordEngineEventUpdateRequest>
 {
     public override void Configure()
     {
@@ -30,8 +32,8 @@ public sealed class RecordEngineEventUpdateEndpoint : Endpoint<RecordEngineEvent
 
     public async override Task HandleAsync(RecordEngineEventUpdateRequest req, CancellationToken ct)
     {
-        // Engine events are accepted and acknowledged; this in-memory backend does not persist or replay
-        // them (the CLI renders the live stream locally). Read-side replay can attach to a real store later.
+        if (req.Body is not null)
+            updates.AppendEvents(req.UpdateId, new[] { req.Body });
         await Send.NoContentAsync(ct);
     }
 }

@@ -4,17 +4,19 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetEngineEvents
 /// </summary>
-public sealed class GetEngineEventsUpdateEndpoint : Endpoint<GetEngineEventsUpdateRequest, GetUpdateEventsResponse>
+public sealed class GetEngineEventsUpdateEndpoint(IUpdateStore updates) : Endpoint<GetEngineEventsUpdateRequest, GetUpdateEventsResponse>
 {
     public override void Configure()
     {
@@ -30,11 +32,12 @@ public sealed class GetEngineEventsUpdateEndpoint : Endpoint<GetEngineEventsUpda
 
     public async override Task HandleAsync(GetEngineEventsUpdateRequest req, CancellationToken ct)
     {
-        // We do not persist engine events (see RecordEngineEvent), so the read side is always empty.
-        // An empty continuation token signals there are no further events to fetch.
+        // Replays the events RecordEngineEvent[Batch] persisted for this update. An empty continuation
+        // token signals the update is complete and there are no further events to fetch.
+        var events = updates.GetEvents(req.UpdateId).Select(EngineEventMapper.ToWire).ToList();
         await Send.OkAsync(new GetUpdateEventsResponse
         {
-            Events = new List<EngineEvent>(),
+            Events = events,
             ContinuationToken = string.Empty,
         }, ct);
     }
