@@ -6,15 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetStackActivity
 /// </summary>
-public sealed class GetStackActivityEndpoint : Endpoint<GetStackActivityRequest, GetStackActivityResponse>
+public sealed class GetStackActivityEndpoint(IStackStore stacks) : Endpoint<GetStackActivityRequest, GetStackActivityResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,26 @@ public sealed class GetStackActivityEndpoint : Endpoint<GetStackActivityRequest,
         );
     }
 
-    public override Task HandleAsync(GetStackActivityRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetStackActivityRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStackActivity
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/activity
-        // Should produce: GetStackActivityResponse
-        throw new NotImplementedException("Endpoint GetStackActivity not implemented.");
+        var stack = stacks.Find(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName));
+        if (stack is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        // History is stored oldest-first; the activity feed is newest-first.
+        var newest = stack.History.AsEnumerable().Reverse().ToList();
+        var pageSize = req.PageSize is > 0 ? req.PageSize.Value : 20;
+        var page = req.Page is > 0 ? req.Page.Value : 1;
+        var items = newest.Skip((int)((page - 1) * pageSize)).Take((int)pageSize)
+            .Select(e => new Activity { Update = UpdateInfoMapper.FromHistory(e, stack.Version) })
+            .ToList();
+
+        await Send.OkAsync(new GetStackActivityResponse
+        {
+            Activity = items, ItemsPerPage = pageSize, Total = newest.Count,
+        }, ct);
     }
 }
