@@ -55,6 +55,7 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
     public DbSet<KeyMigrationRow> KeyMigrations => Set<KeyMigrationRow>();
     public DbSet<SamlConfigRow> SamlConfigs => Set<SamlConfigRow>();
     public DbSet<ConnectedCloudAccountRow> ConnectedCloudAccounts => Set<ConnectedCloudAccountRow>();
+    public DbSet<ChangeGateRow> ChangeGates => Set<ChangeGateRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -339,6 +340,13 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
         {
             e.HasKey(x => new { x.Org, x.Provider }); // one connected record per org+cloud provider
             e.Property(x => x.Accounts).AsJsonb();
+        });
+
+        b.Entity<ChangeGateRow>(e =>
+        {
+            e.HasKey(x => new { x.Org, x.Id }); // gates are listed/looked up per org
+            e.Property(x => x.EligibleApprovers).AsJsonb();
+            e.Property(x => x.ActionTypes).AsJsonb();
         });
     }
 }

@@ -127,6 +127,7 @@ bld.Services.AddHttpClient<HappyPumi.Api.CloudSetup.GcpCloudSetupProvider>(c => 
 bld.Services.AddScoped<HappyPumi.Api.CloudSetup.ICloudSetupProviderRegistry, HappyPumi.Api.CloudSetup.CloudSetupProviderRegistry>();
 bld.Services.AddSingleton<HappyPumi.Api.CloudSetup.ICloudOAuthSessionStore, HappyPumi.Api.CloudSetup.CloudOAuthSessionStore>(); // ephemeral OAuth sessions
 bld.Services.AddScoped<IConnectedCloudAccountStore, PostgresConnectedCloudAccountStore>(); // connected cloud accounts (PR6)
+bld.Services.AddScoped<IChangeGateStore, PostgresChangeGateStore>(); // change gates (change-requests PR1)
 
 // ESC engine: dynamic-value providers (fn::open) + the open-session lifecycle. Providers and their
 // registry are singletons (stateless wrappers over cloud SDKs); EscOpener is scoped because it reads
