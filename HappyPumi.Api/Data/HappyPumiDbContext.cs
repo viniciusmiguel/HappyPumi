@@ -50,6 +50,7 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
     public DbSet<EnvironmentWebhookDeliveryRow> EnvironmentWebhookDeliveries => Set<EnvironmentWebhookDeliveryRow>();
     public DbSet<RegistryArtifactRow> RegistryArtifacts => Set<RegistryArtifactRow>();
     public DbSet<VcsIntegrationRow> VcsIntegrations => Set<VcsIntegrationRow>();
+    public DbSet<AccessTokenRow> AccessTokens => Set<AccessTokenRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -299,6 +300,12 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.Org, x.Kind }); // integrations are listed per org, filtered by kind
             e.Property(x => x.Settings).AsJsonb();
+        });
+
+        b.Entity<AccessTokenRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.Scope, x.OwnerKey }); // tokens are listed/revoked per (scope, owner)
         });
     }
 }

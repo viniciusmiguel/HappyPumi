@@ -8,18 +8,19 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Users;
 
 /// <summary>
 /// CreatePersonalToken
 /// </summary>
-public sealed class CreatePersonalTokenEndpoint : Endpoint<CreatePersonalTokenRequest, CreateAccessTokenResponse>
+public sealed class CreatePersonalTokenEndpoint(IAccessTokenStore tokens) : Endpoint<CreatePersonalTokenRequest, CreateAccessTokenResponse>
 {
     public override void Configure()
     {
         Post("/api/user/tokens");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        // Any authenticated user issues their own tokens; the new token is owned by the caller's login.
         Description(b => b
             .WithTags("Users")
             .WithSummary("CreatePersonalToken")
@@ -28,11 +29,13 @@ public sealed class CreatePersonalTokenEndpoint : Endpoint<CreatePersonalTokenRe
         );
     }
 
-    public override Task HandleAsync(CreatePersonalTokenRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CreatePersonalTokenRequest req, CancellationToken ct)
     {
-        // TODO: implement CreatePersonalToken
-        // HTTP: POST /api/user/tokens
-        // Should produce: CreateAccessTokenResponse
-        throw new NotImplementedException("Endpoint CreatePersonalToken not implemented.");
+        var login = User.Identity?.Name ?? "happypumi";
+        var description = req.Body?.Description ?? "";
+        var expires = req.Body?.Expires ?? 0;
+        // Personal tokens carry no separate name field on the wire; the description doubles as the label.
+        var token = tokens.Issue("user", login, description, description, login, out var plaintext, expires);
+        await Send.OkAsync(new CreateAccessTokenResponse { Id = token.Id, TokenValue = plaintext }, ct);
     }
 }

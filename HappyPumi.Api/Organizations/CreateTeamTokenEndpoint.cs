@@ -7,19 +7,21 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using HappyPumi.Api.Auth;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// CreateTeamToken
 /// </summary>
-public sealed class CreateTeamTokenEndpoint : Endpoint<CreateTeamTokenRequest, CreateAccessTokenResponse>
+public sealed class CreateTeamTokenEndpoint(IAccessTokenStore tokens) : Endpoint<CreateTeamTokenRequest, CreateAccessTokenResponse>
 {
     public override void Configure()
     {
         Post("/api/orgs/{orgName}/teams/{teamName}/tokens");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Policies(AuthPolicies.OrgAdmin); // team token management requires the admin role (ADR-0007)
         Description(b => b
             .WithTags("Organizations")
             .WithSummary("CreateTeamToken")
@@ -28,11 +30,11 @@ public sealed class CreateTeamTokenEndpoint : Endpoint<CreateTeamTokenRequest, C
         );
     }
 
-    public override Task HandleAsync(CreateTeamTokenRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CreateTeamTokenRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateTeamToken
-        // HTTP: POST /api/orgs/{orgName}/teams/{teamName}/tokens
-        // Should produce: CreateAccessTokenResponse
-        throw new NotImplementedException("Endpoint CreateTeamToken not implemented.");
+        var createdBy = User.Identity?.Name ?? "happypumi";
+        var token = tokens.Issue("team", $"{req.OrgName}/{req.TeamName}", req.Body?.Name ?? "",
+            req.Body?.Description ?? "", createdBy, out var plaintext, req.Body?.Expires ?? 0);
+        await Send.OkAsync(new CreateAccessTokenResponse { Id = token.Id, TokenValue = plaintext }, ct);
     }
 }

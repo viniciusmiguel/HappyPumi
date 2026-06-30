@@ -7,19 +7,21 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using HappyPumi.Api.Auth;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// DeleteTeamToken
 /// </summary>
-public sealed class DeleteTeamTokenEndpoint : Endpoint<DeleteTeamTokenRequest>
+public sealed class DeleteTeamTokenEndpoint(IAccessTokenStore tokens) : Endpoint<DeleteTeamTokenRequest>
 {
     public override void Configure()
     {
         Delete("/api/orgs/{orgName}/teams/{teamName}/tokens/{tokenId}");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Policies(AuthPolicies.OrgAdmin); // team token management requires the admin role (ADR-0007)
         Description(b => b
             .WithTags("Organizations")
             .WithSummary("DeleteTeamToken")
@@ -28,10 +30,13 @@ public sealed class DeleteTeamTokenEndpoint : Endpoint<DeleteTeamTokenRequest>
         );
     }
 
-    public override Task HandleAsync(DeleteTeamTokenRequest req, CancellationToken ct)
+    public async override Task HandleAsync(DeleteTeamTokenRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteTeamToken
-        // HTTP: DELETE /api/orgs/{orgName}/teams/{teamName}/tokens/{tokenId}
-        throw new NotImplementedException("Endpoint DeleteTeamToken not implemented.");
+        if (!tokens.Delete("team", $"{req.OrgName}/{req.TeamName}", req.TokenId))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        await Send.NoContentAsync(ct);
     }
 }

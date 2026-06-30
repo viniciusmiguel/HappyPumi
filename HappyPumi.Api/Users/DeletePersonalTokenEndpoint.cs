@@ -8,18 +8,19 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Users;
 
 /// <summary>
 /// DeletePersonalToken
 /// </summary>
-public sealed class DeletePersonalTokenEndpoint : Endpoint<DeletePersonalTokenRequest>
+public sealed class DeletePersonalTokenEndpoint(IAccessTokenStore tokens) : Endpoint<DeletePersonalTokenRequest>
 {
     public override void Configure()
     {
         Delete("/api/user/tokens/{tokenId}");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        // Any authenticated user revokes their own tokens; revoke is scoped to the caller's login.
         Description(b => b
             .WithTags("Users")
             .WithSummary("DeletePersonalToken")
@@ -28,10 +29,14 @@ public sealed class DeletePersonalTokenEndpoint : Endpoint<DeletePersonalTokenRe
         );
     }
 
-    public override Task HandleAsync(DeletePersonalTokenRequest req, CancellationToken ct)
+    public async override Task HandleAsync(DeletePersonalTokenRequest req, CancellationToken ct)
     {
-        // TODO: implement DeletePersonalToken
-        // HTTP: DELETE /api/user/tokens/{tokenId}
-        throw new NotImplementedException("Endpoint DeletePersonalToken not implemented.");
+        var login = User.Identity?.Name ?? "happypumi";
+        if (!tokens.Delete("user", login, req.TokenId))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        await Send.NoContentAsync(ct);
     }
 }
