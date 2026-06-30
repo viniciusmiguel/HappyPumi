@@ -113,6 +113,21 @@ bld.Services.AddHttpClient<GitHubVcsProvider>();
 bld.Services.AddHttpClient<AzureDevOpsVcsProvider>();
 bld.Services.AddScoped<IVcsProviderRegistry, VcsProviderRegistry>();
 
+// Cloud-setup providers (PR6): real config-gated OAuth (CloudSetup:{Aws,Azure,Gcp,AwsSso}:*) behind the
+// ICloudSetupProvider seam, resolved by key. Typed HttpClients with the fail-fast pattern (short timeout, no
+// resilience handler) so tests can swap the primary handler and unconfigured providers degrade to empty.
+#pragma warning disable EXTEXP0001
+bld.Services.AddHttpClient<HappyPumi.Api.CloudSetup.AwsCloudSetupProvider>(c => c.Timeout = TimeSpan.FromSeconds(5))
+    .RemoveAllResilienceHandlers();
+bld.Services.AddHttpClient<HappyPumi.Api.CloudSetup.AzureCloudSetupProvider>(c => c.Timeout = TimeSpan.FromSeconds(5))
+    .RemoveAllResilienceHandlers();
+bld.Services.AddHttpClient<HappyPumi.Api.CloudSetup.GcpCloudSetupProvider>(c => c.Timeout = TimeSpan.FromSeconds(5))
+    .RemoveAllResilienceHandlers();
+#pragma warning restore EXTEXP0001
+bld.Services.AddScoped<HappyPumi.Api.CloudSetup.ICloudSetupProviderRegistry, HappyPumi.Api.CloudSetup.CloudSetupProviderRegistry>();
+bld.Services.AddSingleton<HappyPumi.Api.CloudSetup.ICloudOAuthSessionStore, HappyPumi.Api.CloudSetup.CloudOAuthSessionStore>(); // ephemeral OAuth sessions
+bld.Services.AddScoped<IConnectedCloudAccountStore, PostgresConnectedCloudAccountStore>(); // connected cloud accounts (PR6)
+
 // ESC engine: dynamic-value providers (fn::open) + the open-session lifecycle. Providers and their
 // registry are singletons (stateless wrappers over cloud SDKs); EscOpener is scoped because it reads
 // imported environments through the request-scoped IEnvironmentStore. Sessions hold decrypted/opened

@@ -31,6 +31,7 @@ import Billing from "./pages/Billing";
 import Webhooks from "./pages/Webhooks";
 import AccessTokens from "./pages/AccessTokens";
 import OidcIssuers from "./pages/OidcIssuers";
+import CloudAccounts from "./pages/CloudAccounts";
 import SamlSso from "./pages/SamlSso";
 import EncryptionKeys from "./pages/EncryptionKeys";
 
@@ -80,6 +81,7 @@ export default function App() {
         <Route path="/settings/roles" element={<Roles />} />
         <Route path="/settings/identity" element={<Identity />} />
         <Route path="/settings/oidc-issuers" element={<OidcIssuers />} />
+        <Route path="/settings/cloud-accounts" element={<CloudAccounts />} />
         <Route path="/settings/saml" element={<SamlSso />} />
         <Route path="/settings/integrations" element={<Integrations />} />
         <Route path="/settings/webhooks" element={<Webhooks />} />

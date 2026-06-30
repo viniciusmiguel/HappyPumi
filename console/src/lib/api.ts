@@ -188,6 +188,11 @@ export interface OidcIssuer {
   thumbprints?: string[]; maxExpiration?: number; created?: string; modified?: string; lastUsed?: string;
 }
 export interface RegisterOidcIssuerBody { name: string; url: string; maxExpiration?: number; }
+// Cloud accounts (Settings PR6): the ESC cloud-setup OAuth surface — initiate a provider OAuth flow and
+// list the accounts/subscriptions/projects connected for aws / azure / gcp.
+export interface CloudAccount { id: string; name: string; number?: number; roles?: string[]; }
+export interface InitiateCloudOAuthResponse { sessionID: string; url: string; }
+export type CloudProvider = "aws" | "azure" | "gcp";
 export interface SamlUserInfo { githubLogin: string; name?: string; email?: string; avatarUrl?: string; }
 export interface SamlOrganization {
   entityId?: string; idpSsoDescriptor: string; nameIdFormat?: string;
@@ -547,6 +552,17 @@ export const api = {
   deleteOidcIssuer: (org: string, id: string) => del(`/orgs/${org}/oidc/issuers/${id}`),
   regenerateOidcThumbprints: (org: string, id: string) =>
     postJson<OidcIssuer>(`/orgs/${org}/oidc/issuers/${id}/regenerate-thumbprints`, {}),
+
+  // Cloud accounts (Settings PR6): initiate a provider OAuth flow (returns a redirect URL) and list the
+  // connected accounts per provider. The accounts fetchers fall back to an empty list so the page renders.
+  initiateCloudOAuth: (org: string, provider: CloudProvider) =>
+    postJson<InitiateCloudOAuthResponse>(`/esc/cloudsetup/${org}/oauth/initiate`, { provider }),
+  awsSsoAccounts: (org: string) =>
+    get<{ accounts?: CloudAccount[] }>(`/esc/cloudsetup/${org}/aws/sso/accounts`, { accounts: [] }),
+  azureAccounts: (org: string) =>
+    get<{ accounts?: CloudAccount[] }>(`/esc/cloudsetup/${org}/oauth/azure/accounts`, { accounts: [] }),
+  gcpAccounts: (org: string) =>
+    get<{ accounts?: CloudAccount[] }>(`/esc/cloudsetup/${org}/oauth/gcp/accounts`, { accounts: [] }),
 
   // SAML/SSO (Settings PR5): the real /saml spec surface — read/update the config (IdP metadata XML) and
   // manage the SAML admins. The ACS endpoint (/saml/acs) is driven by the IdP POST, not the console.

@@ -54,6 +54,7 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
     public DbSet<CmkRow> CustomerManagedKeys => Set<CmkRow>();
     public DbSet<KeyMigrationRow> KeyMigrations => Set<KeyMigrationRow>();
     public DbSet<SamlConfigRow> SamlConfigs => Set<SamlConfigRow>();
+    public DbSet<ConnectedCloudAccountRow> ConnectedCloudAccounts => Set<ConnectedCloudAccountRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -332,6 +333,12 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
         {
             e.HasKey(x => x.Org); // one SAML configuration per org
             e.Property(x => x.Admins).AsJsonb();
+        });
+
+        b.Entity<ConnectedCloudAccountRow>(e =>
+        {
+            e.HasKey(x => new { x.Org, x.Provider }); // one connected record per org+cloud provider
+            e.Property(x => x.Accounts).AsJsonb();
         });
     }
 }
