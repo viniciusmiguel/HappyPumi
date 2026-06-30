@@ -7,14 +7,18 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Text.Json;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Webhooks;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// PingStackWebhook
 /// </summary>
-public sealed class PingStackWebhookEndpoint : Endpoint<PingStackWebhookRequest, WebhookDelivery>
+public sealed class PingStackWebhookEndpoint(IDeploymentStore deployments, IWebhookDispatcher dispatcher)
+    : Endpoint<PingStackWebhookRequest, WebhookDelivery>
 {
     public override void Configure()
     {
@@ -28,11 +32,17 @@ public sealed class PingStackWebhookEndpoint : Endpoint<PingStackWebhookRequest,
         );
     }
 
-    public override Task HandleAsync(PingStackWebhookRequest req, CancellationToken ct)
+    public async override Task HandleAsync(PingStackWebhookRequest req, CancellationToken ct)
     {
-        // TODO: implement PingStackWebhook
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/hooks/{hookName}/ping
-        // Should produce: WebhookDelivery
-        throw new NotImplementedException("Endpoint PingStackWebhook not implemented.");
+        var stack = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        var webhook = deployments.GetWebhook(stack, req.HookName);
+        if (webhook is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        var body = JsonSerializer.Serialize(new { kind = "ping", stack = stack.Qualified });
+        var delivery = await dispatcher.SendAsync(new WebhookScope("stack", stack.Qualified), webhook, "ping", body, ct);
+        await Send.OkAsync(WebhookDeliveryMapper.ToContract(delivery, webhook.PayloadUrl), ct);
     }
 }

@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// DeleteStackWebhook
 /// </summary>
-public sealed class DeleteStackWebhookEndpoint : Endpoint<DeleteStackWebhookRequest>
+public sealed class DeleteStackWebhookEndpoint(IDeploymentStore deployments) : Endpoint<DeleteStackWebhookRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,15 @@ public sealed class DeleteStackWebhookEndpoint : Endpoint<DeleteStackWebhookRequ
         );
     }
 
-    public override Task HandleAsync(DeleteStackWebhookRequest req, CancellationToken ct)
+    public async override Task HandleAsync(DeleteStackWebhookRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteStackWebhook
-        // HTTP: DELETE /api/stacks/{orgName}/{projectName}/{stackName}/hooks/{hookName}
-        throw new NotImplementedException("Endpoint DeleteStackWebhook not implemented.");
+        var deleted = deployments.DeleteWebhook(
+            new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), req.HookName);
+        if (!deleted)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        await Send.NoContentAsync(ct);
     }
 }

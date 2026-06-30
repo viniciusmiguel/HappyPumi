@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// UpdateStackWebhook
 /// </summary>
-public sealed class UpdateStackWebhookEndpoint : Endpoint<UpdateStackWebhookRequest, WebhookResponse>
+public sealed class UpdateStackWebhookEndpoint(IDeploymentStore deployments) : Endpoint<UpdateStackWebhookRequest, WebhookResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,15 @@ public sealed class UpdateStackWebhookEndpoint : Endpoint<UpdateStackWebhookRequ
         );
     }
 
-    public override Task HandleAsync(UpdateStackWebhookRequest req, CancellationToken ct)
+    public async override Task HandleAsync(UpdateStackWebhookRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateStackWebhook
-        // HTTP: PATCH /api/stacks/{orgName}/{projectName}/{stackName}/hooks/{hookName}
-        // Should produce: WebhookResponse
-        throw new NotImplementedException("Endpoint UpdateStackWebhook not implemented.");
+        var updated = deployments.UpdateWebhook(
+            new StackCoordinates(req.OrgName, req.ProjectName, req.StackName), req.HookName, req.Body);
+        if (updated is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        await Send.OkAsync(StackWebhookMapper.Sanitized(updated), ct);
     }
 }

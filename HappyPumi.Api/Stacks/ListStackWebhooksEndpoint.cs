@@ -33,6 +33,7 @@ public sealed class ListStackWebhooksEndpoint(IDeploymentStore deployments) : En
 
     public async override Task HandleAsync(ListStackWebhooksRequest req, CancellationToken ct)
     {
-        await Send.OkAsync(deployments.ListWebhooks(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName)).ToList(), ct);
+        await Send.OkAsync(deployments.ListWebhooks(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName))
+            .Select(StackWebhookMapper.Sanitized).ToList(), ct); // never echo stored secrets
     }
 }

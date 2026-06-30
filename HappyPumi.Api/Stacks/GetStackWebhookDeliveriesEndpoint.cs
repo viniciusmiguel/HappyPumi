@@ -7,14 +7,18 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Webhooks;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetStackWebhookDeliveries
 /// </summary>
-public sealed class GetStackWebhookDeliveriesEndpoint : Endpoint<GetStackWebhookDeliveriesRequest, List<WebhookDelivery>>
+public sealed class GetStackWebhookDeliveriesEndpoint(IWebhookDeliveryStore deliveries, IDeploymentStore deployments)
+    : Endpoint<GetStackWebhookDeliveriesRequest, List<WebhookDelivery>>
 {
     public override void Configure()
     {
@@ -28,11 +32,11 @@ public sealed class GetStackWebhookDeliveriesEndpoint : Endpoint<GetStackWebhook
         );
     }
 
-    public override Task HandleAsync(GetStackWebhookDeliveriesRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetStackWebhookDeliveriesRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStackWebhookDeliveries
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/hooks/{hookName}/deliveries
-        // Should produce: List<WebhookDelivery>
-        throw new NotImplementedException("Endpoint GetStackWebhookDeliveries not implemented.");
+        var stack = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        var url = deployments.GetWebhook(stack, req.HookName)?.PayloadUrl ?? "";
+        var stored = deliveries.List(new WebhookScope("stack", stack.Qualified), req.HookName);
+        await Send.OkAsync(stored.Select(d => WebhookDeliveryMapper.ToContract(d, url)).ToList(), ct);
     }
 }
