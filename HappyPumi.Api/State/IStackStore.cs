@@ -60,4 +60,16 @@ public interface IStackStore
     /// the source is missing, or throws nothing — a name collision is reported by <paramref name="collision"/>.
     /// </summary>
     StoredStack? Rename(StackCoordinates from, StackCoordinates to, out bool collision);
+
+    /// <summary>
+    /// Moves a stack to a different organization (preserving project/stack name and all state). Returns
+    /// the moved stack, null when the source is missing; a destination collision sets <paramref name="collision"/>.
+    /// </summary>
+    StoredStack? Transfer(StackCoordinates from, string destOrg, out bool collision);
+
+    /// <summary>Sets the stack owner's login. Returns the updated stack, or null when it does not exist.</summary>
+    StoredStack? SetOwner(StackCoordinates coordinates, string ownerLogin);
+
+    /// <summary>Sets the stack's notification settings. Returns the updated stack, or null when it does not exist.</summary>
+    StoredStack? SetNotificationSettings(StackCoordinates coordinates, StackNotificationSettings settings);
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { Layers, ChevronDown, Download, Trash2 } from "lucide-react";
 import {
@@ -15,6 +15,7 @@ import { Updates } from "./stack/Updates";
 import { Activity } from "./stack/Activity";
 import { Access } from "./stack/Access";
 import { References } from "./stack/References";
+import { Settings } from "./stack/Settings";
 
 const TABS = [
   { key: "overview", label: "Overview" },
@@ -42,13 +43,15 @@ export default function StackDetail() {
   const [count, setCount] = useState<number | undefined>();
   const [deps, setDeps] = useState<Deployment[]>([]);
 
+  const reloadMeta = useCallback(() => { api.stackMetadata(org, project, stack).then(setMeta); }, [org, project, stack]);
+
   useEffect(() => {
-    api.stackMetadata(org, project, stack).then(setMeta);
+    reloadMeta();
     api.stackUpdates(org, project, stack).then((r) => setUpdates(r.updates ?? []));
     api.stackResources(org, project, stack).then((r) => setResources((r.resources ?? []).map((x) => x.resource)));
     api.stackResourceCount(org, project, stack).then((r) => setCount(r.resourceCount));
     api.orgDeployments(org).then((r) => setDeps((r.deployments ?? []).filter((d) => d.stackName === stack && d.projectName === project)));
-  }, [org, project, stack]);
+  }, [reloadMeta, org, project, stack]);
 
   const lu = meta?.lastUpdate;
   return (
@@ -90,7 +93,7 @@ export default function StackDetail() {
         {active === "references" && <References org={org} project={project} stack={stack} />}
         {active === "deployments" && <Deployments deps={deps} project={project} stack={stack} />}
         {active === "resources" && <Resources org={org} project={project} stack={stack} resources={resources} />}
-        {active === "settings" && <Settings meta={meta} onDelete={() => setConfirmDelete(true)} />}
+        {active === "settings" && <Settings org={org} project={project} stack={stack} meta={meta} onChanged={reloadMeta} onDelete={() => setConfirmDelete(true)} />}
         {active === "access" && <Access org={org} project={project} stack={stack} />}
       </div>
 
@@ -136,27 +139,5 @@ function Deployments({ deps, project, stack }: { deps: Deployment[]; project: st
         { header: "Started", cell: (d) => <span className="text-ink-dim">{timeAgo(d.created)}</span> },
       ]}
     />
-  );
-}
-
-function Settings({ meta, onDelete }: { meta: Stack | null; onDelete: () => void }) {
-  const tags = Object.entries(meta?.tags ?? {});
-  return (
-    <div className="max-w-2xl space-y-4">
-      <Card title="Stack tags">
-        {tags.length === 0 ? <p className="text-sm text-ink-dim">No tags.</p> : (
-          <div className="space-y-1.5">
-            {tags.map(([k, v]) => (
-              <div key={k} className="flex items-center justify-between rounded-md border border-line px-3 py-1.5 text-sm">
-                <span className="font-mono text-xs text-ink-dim">{k}</span><span>{v}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-      <Card title="Danger zone">
-        <button onClick={onDelete} className="rounded-md border border-red-500/40 px-3 py-1.5 text-sm text-red-400 hover:bg-red-500/10">Delete stack</button>
-      </Card>
-    </div>
   );
 }

@@ -33,6 +33,8 @@ public sealed class PostgresStackStore(HappyPumiDbContext db) : IStackStore
             Tags = new Dictionary<string, string>(stack.Tags),
             Config = stack.Config,
             Deployment = stack.Deployment,
+            Owner = stack.Owner,
+            NotificationSettings = stack.NotificationSettings,
         });
         db.SaveChanges();
         return true;
@@ -156,6 +158,7 @@ public sealed class PostgresStackStore(HappyPumiDbContext db) : IStackStore
             Org = to.Org, Project = to.Project, Stack = to.Stack,
             Version = src.Version, Tags = new Dictionary<string, string>(src.Tags),
             Config = src.Config, Deployment = src.Deployment,
+            Owner = src.Owner, NotificationSettings = src.NotificationSettings,
         });
         db.Stacks.Remove(src);
         foreach (var h in db.StackUpdates.Where(h => h.Org == from.Org && h.Project == from.Project && h.Stack == from.Stack))
@@ -164,6 +167,30 @@ public sealed class PostgresStackStore(HappyPumiDbContext db) : IStackStore
         }
         db.SaveChanges();
         return Find(to);
+    }
+
+    // Transferring to another org is a re-key that only changes the org segment (mirrors Rename).
+    public StoredStack? Transfer(StackCoordinates source, string destOrg, out bool collision)
+        => Rename(source, source with { Org = destOrg }, out collision);
+
+    public StoredStack? SetOwner(StackCoordinates c, string ownerLogin)
+    {
+        var row = Row(c);
+        if (row is null)
+            return null;
+        row.Owner = ownerLogin;
+        db.SaveChanges();
+        return ToStored(row, LoadHistory(c));
+    }
+
+    public StoredStack? SetNotificationSettings(StackCoordinates c, StackNotificationSettings settings)
+    {
+        var row = Row(c);
+        if (row is null)
+            return null;
+        row.NotificationSettings = settings;
+        db.SaveChanges();
+        return ToStored(row, LoadHistory(c));
     }
 
     private StackRow? Row(StackCoordinates c)
@@ -183,6 +210,8 @@ public sealed class PostgresStackStore(HappyPumiDbContext db) : IStackStore
             Version = row.Version,
             Config = row.Config,
             Deployment = row.Deployment,
+            Owner = row.Owner,
+            NotificationSettings = row.NotificationSettings,
         };
         foreach (var (k, v) in row.Tags)
             stack.Tags[k] = v;

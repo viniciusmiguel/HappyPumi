@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetStacksAnnotation
 /// </summary>
-public sealed class GetStacksAnnotationEndpoint : Endpoint<GetStacksAnnotationRequest, object>
+public sealed class GetStacksAnnotationEndpoint(IStackAnnotationStore annotations) : Endpoint<GetStacksAnnotationRequest, object>
 {
     public override void Configure()
     {
@@ -28,11 +29,11 @@ public sealed class GetStacksAnnotationEndpoint : Endpoint<GetStacksAnnotationRe
         );
     }
 
-    public override Task HandleAsync(GetStacksAnnotationRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetStacksAnnotationRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStacksAnnotation
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/annotations/{kind}
-        // Should produce: object
-        throw new NotImplementedException("Endpoint GetStacksAnnotation not implemented.");
+        // No annotation for this kind yet is not an error; the console reads an empty object as "unset".
+        var coords = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        var payload = annotations.Get(coords, req.Kind);
+        await Send.OkAsync(payload ?? new object(), ct);
     }
 }

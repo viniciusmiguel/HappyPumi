@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// ReassignStackOwnership
 /// </summary>
-public sealed class ReassignStackOwnershipEndpoint : Endpoint<ReassignStackOwnershipRequest, UserInfo>
+public sealed class ReassignStackOwnershipEndpoint(IStackStore stacks) : Endpoint<ReassignStackOwnershipRequest, UserInfo>
 {
     public override void Configure()
     {
@@ -28,11 +29,24 @@ public sealed class ReassignStackOwnershipEndpoint : Endpoint<ReassignStackOwner
         );
     }
 
-    public override Task HandleAsync(ReassignStackOwnershipRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ReassignStackOwnershipRequest req, CancellationToken ct)
     {
-        // TODO: implement ReassignStackOwnership
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/ownership
-        // Should produce: UserInfo
-        throw new NotImplementedException("Endpoint ReassignStackOwnership not implemented.");
+        var coords = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        var login = req.Body?.GithubLogin;
+        if (string.IsNullOrWhiteSpace(login))
+        {
+            AddError("The new owner's githubLogin is required.", "githubLogin");
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+
+        var stack = stacks.SetOwner(coords, login);
+        if (stack is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(ConsoleActor.For(login, req.Body!.Name), ct);
     }
 }
