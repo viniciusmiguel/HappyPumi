@@ -466,6 +466,14 @@ export const api = {
   teams: (org: string) => get<{ teams?: Team[] }>(`/orgs/${org}/teams`, { teams: [] }),
   createTeam: (org: string, name: string, displayName: string, description: string) =>
     postJson<Team>(`/orgs/${org}/teams/pulumi`, { name, displayName, description }),
+  // Rename / re-describe a team. newName is optional; omit it to keep the same name.
+  updateTeam: (org: string, team: string, body: { newName?: string; newDisplayName?: string; newDescription?: string }) =>
+    patchJson(`/orgs/${org}/teams/${team}`, body),
+  deleteTeam: (org: string, team: string) => del(`/orgs/${org}/teams/${team}`),
+  teamRoles: (org: string, team: string) =>
+    get<{ roles?: Role[] }>(`/orgs/${org}/teams/${team}/roles`, { roles: [] }),
+  enableTeamRoles: (org: string, team: string) =>
+    postJson<Role>(`/orgs/${org}/teams/${team}/enable-team-roles`, {}),
   policyPacks: (org: string) => get<{ policyPacks?: PolicyPack[] }>(`/orgs/${org}/policypacks`, { policyPacks: [] }),
 
   // Platform / management surfaces

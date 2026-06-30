@@ -38,6 +38,13 @@ public interface IIdentityStore
     /// <summary>Creates a team. Returns null when one of that name already exists.</summary>
     StoredTeam? CreateTeam(string org, string name, string displayName, string description, string kind);
 
+    /// <summary>
+    /// Renames and/or re-describes a team. Non-null <paramref name="newName"/> renames the team (carrying its
+    /// members and role grants); null fields are left unchanged. Returns the updated team, or null when the
+    /// team is missing or <paramref name="newName"/> collides with an existing team.
+    /// </summary>
+    StoredTeam? UpdateTeam(string org, string teamName, string? newName, string? displayName, string? description);
+
     bool DeleteTeam(string org, string teamName);
 
     /// <summary>Adds a member to a team. Returns false when the team does not exist.</summary>

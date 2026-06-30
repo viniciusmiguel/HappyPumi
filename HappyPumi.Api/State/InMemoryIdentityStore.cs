@@ -85,6 +85,35 @@ public sealed class InMemoryIdentityStore : IIdentityStore
         return Org(org).Teams.TryAdd(name, team) ? team : null;
     }
 
+    public StoredTeam? UpdateTeam(string org, string teamName, string? newName, string? displayName, string? description)
+    {
+        var state = Org(org);
+        if (!state.Teams.TryGetValue(teamName, out var team))
+            return null;
+        if (displayName is not null) team.DisplayName = displayName;
+        if (description is not null) team.Description = description;
+        if (string.IsNullOrWhiteSpace(newName) || newName == teamName)
+            return team;
+        return Rename(state, team, teamName, newName);
+    }
+
+    /// <summary>Re-keys a team under <paramref name="newName"/>, carrying its members and role grants.</summary>
+    private static StoredTeam? Rename(OrgState state, StoredTeam team, string oldName, string newName)
+    {
+        var renamed = new StoredTeam
+        {
+            Name = newName, DisplayName = team.DisplayName, Description = team.Description, Kind = team.Kind,
+        };
+        renamed.Members.AddRange(team.Members);
+        renamed.RoleIds.AddRange(team.RoleIds);
+        if (!state.Teams.TryAdd(newName, renamed))
+            return null; // target name already taken
+        state.Teams.TryRemove(oldName, out _);
+        if (state.TeamRoles.TryRemove(oldName, out var roles))
+            state.TeamRoles[newName] = roles;
+        return renamed;
+    }
+
     public bool DeleteTeam(string org, string teamName)
     {
         Org(org).TeamRoles.TryRemove(teamName, out _);

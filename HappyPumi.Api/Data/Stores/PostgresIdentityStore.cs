@@ -137,6 +137,41 @@ public sealed class PostgresIdentityStore(HappyPumiDbContext db) : IIdentityStor
         return new StoredTeam { Name = name, DisplayName = displayName, Description = description, Kind = kind };
     }
 
+    public StoredTeam? UpdateTeam(string org, string teamName, string? newName, string? displayName, string? description)
+    {
+        var row = db.Teams.FirstOrDefault(t => t.Org == org && t.Name == teamName);
+        if (row is null)
+            return null;
+        if (displayName is not null) row.DisplayName = displayName;
+        if (description is not null) row.Description = description;
+        if (!string.IsNullOrWhiteSpace(newName) && newName != teamName)
+            return RenameRow(org, row, teamName, newName!);
+        db.SaveChanges();
+        return ToTeam(row, org);
+    }
+
+    /// <summary>Re-keys a team row under <paramref name="newName"/> (the name is part of the PK), carrying its
+    /// members and re-pointing its role grants. Returns null when the new name is already taken.</summary>
+    private StoredTeam? RenameRow(string org, TeamRow row, string oldName, string newName)
+    {
+        if (db.Teams.Any(t => t.Org == org && t.Name == newName))
+            return null;
+        var moved = new TeamRow
+        {
+            Org = org, Name = newName, DisplayName = row.DisplayName,
+            Description = row.Description, Kind = row.Kind, Members = row.Members,
+        };
+        db.Teams.Remove(row);
+        db.Teams.Add(moved);
+        foreach (var grant in db.TeamRoles.Where(t => t.Org == org && t.TeamName == oldName).ToList())
+        {
+            db.TeamRoles.Remove(grant);
+            db.TeamRoles.Add(new TeamRoleRow { Org = org, TeamName = newName, RoleId = grant.RoleId });
+        }
+        db.SaveChanges();
+        return ToTeam(moved, org);
+    }
+
     public bool DeleteTeam(string org, string teamName)
     {
         var row = db.Teams.FirstOrDefault(t => t.Org == org && t.Name == teamName);
