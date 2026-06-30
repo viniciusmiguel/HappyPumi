@@ -221,6 +221,23 @@ export interface ChangeGateInput {
   };
   target: { entityType: string; actionTypes: string[]; qualifiedName?: string };
 }
+// Change requests (change-requests PR3): a PR-like review flow wrapping an ESC environment draft. A CR moves
+// through draft → submitted → applied | closed, accrues an approval/comment/revision timeline, and is gated by
+// change gates whose approval thresholds must be met before apply commits the draft as a new env revision.
+export interface ChangeRequestUser { githubLogin?: string; name?: string; avatarUrl?: string; }
+export interface ChangeRequestTarget { entityType: string; project?: string; name?: string; }
+export interface ChangeRequest {
+  id: string; orgID?: string; action: string; description?: string; status: string;
+  latestRevisionNumber?: number; createdAt?: string; createdBy?: ChangeRequestUser; entity?: ChangeRequestTarget;
+}
+export interface ChangeRequestGateRule { ruleType: string; requiredApprovals?: number; approvers?: ChangeRequestUser[]; }
+export interface ChangeRequestApplicableGate { id: string; name: string; satisfied: boolean; ruleDetails: ChangeRequestGateRule; }
+export interface ChangeRequestGateEvaluation { satisfied: boolean; applicableGates?: ChangeRequestApplicableGate[]; }
+export interface ChangeRequestDetail extends ChangeRequest { gateEvaluation?: ChangeRequestGateEvaluation; }
+export interface ChangeRequestEvent {
+  eventType: string; comment?: string; revisionNumber?: number; createdBy?: ChangeRequestUser; createdAt?: string;
+}
+export interface ChangeRequestApplyResult { entityURL?: string; message?: string; }
 // Cloud accounts (Settings PR6): the ESC cloud-setup OAuth surface — initiate a provider OAuth flow and
 // list the accounts/subscriptions/projects connected for aws / azure / gcp.
 export interface CloudAccount { id: string; name: string; number?: number; roles?: string[]; }
@@ -595,6 +612,19 @@ export const api = {
   updateChangeGate: (org: string, id: string, body: ChangeGateInput) =>
     putJson<ChangeGate>(`/change-gates/${org}/${id}`, body),
   deleteChangeGate: (org: string, id: string) => del(`/change-gates/${org}/${id}`),
+  changeRequests: (org: string) =>
+    get<{ changeRequests?: ChangeRequest[] }>(`/change-requests/${org}`, { changeRequests: [] }),
+  changeRequest: (org: string, id: string) =>
+    get<ChangeRequestDetail | null>(`/change-requests/${org}/${id}`, null),
+  changeRequestEvents: (org: string, id: string) =>
+    get<{ events?: ChangeRequestEvent[] }>(`/change-requests/${org}/${id}/events`, { events: [] }),
+  submitChangeRequest: (org: string, id: string) => postVoid(`/change-requests/${org}/${id}/submit`, {}),
+  applyChangeRequest: (org: string, id: string) =>
+    postJson<ChangeRequestApplyResult>(`/change-requests/${org}/${id}/apply`, {}),
+  closeChangeRequest: (org: string, id: string) => postVoid(`/change-requests/${org}/${id}/close`, {}),
+  commentChangeRequest: (org: string, id: string, comment: string) =>
+    postVoid(`/change-requests/${org}/${id}/comments`, { comment }),
+  // approveChangeRequest / unapproveChangeRequest are defined above (shared with the ESC open-request flow).
 
   // Cloud accounts (Settings PR6): initiate a provider OAuth flow (returns a redirect URL) and list the
   // connected accounts per provider. The accounts fetchers fall back to an empty list so the page renders.

@@ -35,6 +35,7 @@ import CloudAccounts from "./pages/CloudAccounts";
 import SamlSso from "./pages/SamlSso";
 import EncryptionKeys from "./pages/EncryptionKeys";
 import ChangeGates from "./pages/ChangeGates";
+import ChangeRequests from "./pages/ChangeRequests";
 
 /** Redirects to /login (remembering where you were) when there's no stored token. */
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -72,6 +73,7 @@ export default function App() {
         <Route path="/platform/templates" element={<Templates />} />
 
         <Route path="/management/approvals" element={<Approvals />} />
+        <Route path="/management/change-requests" element={<ChangeRequests />} />
         <Route path="/management/accounts" element={<Accounts />} />
         <Route path="/management/version-control" element={<VersionControl />} />
         <Route path="/management/policies" element={<Policies />} />
