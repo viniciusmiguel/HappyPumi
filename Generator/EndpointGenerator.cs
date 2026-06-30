@@ -143,8 +143,13 @@ public sealed class EndpointGenerator
                 if (!first) w.Line();
                 w.XmlDoc(info.BodyDescription ?? "Request body.");
                 w.Line("[FromBody]");
-                var init = TypeMapper.IsReferenceTypeExpression(bt) ? " = default!;" : "";
-                w.Line($"public {bt} Body {{ get; set; }}{init}");
+                // The wrapper class is named "{opName}Request". When the body schema's generated type has the
+                // SAME simple name (a Contracts DTO named identically, e.g. operationId "TransferStack" + a
+                // "TransferStackRequest" body schema), an unqualified reference binds to this wrapper itself —
+                // an unusable, recursive Body. Fully-qualify it to the contracts namespace to disambiguate.
+                var bodyType = bt == $"{opName}Request" ? $"{contractsNs}.{bt}" : bt;
+                var init = TypeMapper.IsReferenceTypeExpression(bodyType) ? " = default!;" : "";
+                w.Line($"public {bodyType} Body {{ get; set; }}{init}");
             }
         }
         return w.ToString();
