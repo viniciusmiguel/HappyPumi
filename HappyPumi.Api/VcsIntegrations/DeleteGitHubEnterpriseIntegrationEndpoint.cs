@@ -8,18 +8,19 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.VcsIntegrations;
 
 /// <summary>
 /// DeleteGitHubEnterpriseIntegration
 /// </summary>
-public sealed class DeleteGitHubEnterpriseIntegrationEndpoint : Endpoint<DeleteGitHubEnterpriseIntegrationRequest>
+public sealed class DeleteGitHubEnterpriseIntegrationEndpoint(IVcsIntegrationStore store) : Endpoint<DeleteGitHubEnterpriseIntegrationRequest>
 {
     public override void Configure()
     {
         Delete("/api/console/orgs/{orgName}/integrations/github-enterprise/{integrationId}");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:update");
         Description(b => b
             .WithTags("VCS Integrations")
             .WithSummary("DeleteGitHubEnterpriseIntegration")
@@ -28,10 +29,15 @@ public sealed class DeleteGitHubEnterpriseIntegrationEndpoint : Endpoint<DeleteG
         );
     }
 
-    public override Task HandleAsync(DeleteGitHubEnterpriseIntegrationRequest req, CancellationToken ct)
+    public override async Task HandleAsync(DeleteGitHubEnterpriseIntegrationRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteGitHubEnterpriseIntegration
-        // HTTP: DELETE /api/console/orgs/{orgName}/integrations/github-enterprise/{integrationId}
-        throw new NotImplementedException("Endpoint DeleteGitHubEnterpriseIntegration not implemented.");
+        var found = store.Get(req.OrgName, req.IntegrationId);
+        if (found is null || found.Kind != "github-enterprise")
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        store.Delete(req.OrgName, req.IntegrationId);
+        await Send.NoContentAsync(ct);
     }
 }

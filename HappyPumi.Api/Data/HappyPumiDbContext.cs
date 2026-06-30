@@ -47,6 +47,7 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
     public DbSet<EnvironmentRotationEventRow> EnvironmentRotationEvents => Set<EnvironmentRotationEventRow>();
     public DbSet<EnvironmentWebhookDeliveryRow> EnvironmentWebhookDeliveries => Set<EnvironmentWebhookDeliveryRow>();
     public DbSet<RegistryArtifactRow> RegistryArtifacts => Set<RegistryArtifactRow>();
+    public DbSet<VcsIntegrationRow> VcsIntegrations => Set<VcsIntegrationRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -276,5 +277,12 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
         });
 
         b.Entity<RegistryArtifactRow>(e => e.HasKey(x => x.Key));
+
+        b.Entity<VcsIntegrationRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.Org, x.Kind }); // integrations are listed per org, filtered by kind
+            e.Property(x => x.Settings).AsJsonb();
+        });
     }
 }

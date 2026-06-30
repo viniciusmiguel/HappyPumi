@@ -8,18 +8,20 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.VcsIntegrations;
 
 namespace HappyPumi.Api.Endpoints.VcsIntegrations;
 
 /// <summary>
 /// UpdateGitHubIntegration
 /// </summary>
-public sealed class UpdateGitHubIntegrationEndpoint : Endpoint<UpdateGitHubIntegrationRequest>
+public sealed class UpdateGitHubIntegrationEndpoint(IVcsIntegrationStore store) : Endpoint<UpdateGitHubIntegrationRequest>
 {
     public override void Configure()
     {
         Patch("/api/console/orgs/{orgName}/integrations/github/{integrationId}");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:update");
         Description(b => b
             .WithTags("VCS Integrations")
             .WithSummary("UpdateGitHubIntegration")
@@ -28,10 +30,15 @@ public sealed class UpdateGitHubIntegrationEndpoint : Endpoint<UpdateGitHubInteg
         );
     }
 
-    public override Task HandleAsync(UpdateGitHubIntegrationRequest req, CancellationToken ct)
+    public override async Task HandleAsync(UpdateGitHubIntegrationRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateGitHubIntegration
-        // HTTP: PATCH /api/console/orgs/{orgName}/integrations/github/{integrationId}
-        throw new NotImplementedException("Endpoint UpdateGitHubIntegration not implemented.");
+        var found = store.Get(req.OrgName, req.IntegrationId);
+        if (found is null || found.Kind != "github")
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        store.UpdateSettings(req.OrgName, req.IntegrationId, VcsIntegrationMapper.Merge(found.Settings, req.Body));
+        await Send.NoContentAsync(ct);
     }
 }

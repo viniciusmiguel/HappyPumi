@@ -6,20 +6,23 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.VcsIntegrations;
 
 namespace HappyPumi.Api.Endpoints.VcsIntegrations;
 
 /// <summary>
 /// ListAllVCSIntegrations
 /// </summary>
-public sealed class ListAllVcsIntegrationsEndpoint : Endpoint<ListAllVcsIntegrationsRequest, ListVcsIntegrationSummariesResponse>
+public sealed class ListAllVcsIntegrationsEndpoint(IVcsIntegrationStore store) : Endpoint<ListAllVcsIntegrationsRequest, ListVcsIntegrationSummariesResponse>
 {
     public override void Configure()
     {
         Get("/api/console/orgs/{orgName}/integrations");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:read");
         Description(b => b
             .WithTags("VCS Integrations")
             .WithSummary("ListAllVCSIntegrations")
@@ -30,9 +33,9 @@ public sealed class ListAllVcsIntegrationsEndpoint : Endpoint<ListAllVcsIntegrat
 
     public override Task HandleAsync(ListAllVcsIntegrationsRequest req, CancellationToken ct)
     {
-        // TODO: implement ListAllVcsIntegrations
-        // HTTP: GET /api/console/orgs/{orgName}/integrations
-        // Should produce: ListVcsIntegrationSummariesResponse
-        throw new NotImplementedException("Endpoint ListAllVcsIntegrations not implemented.");
+        var integrations = store.List(req.OrgName)
+            .Select(VcsIntegrationMapper.ToSummary)
+            .ToList();
+        return Send.OkAsync(new ListVcsIntegrationSummariesResponse { Integrations = integrations }, ct);
     }
 }

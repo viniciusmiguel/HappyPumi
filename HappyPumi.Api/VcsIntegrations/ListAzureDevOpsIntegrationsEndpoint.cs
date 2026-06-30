@@ -6,20 +6,23 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.VcsIntegrations;
 
 namespace HappyPumi.Api.Endpoints.VcsIntegrations;
 
 /// <summary>
 /// ListAzureDevOpsIntegrations
 /// </summary>
-public sealed class ListAzureDevOpsIntegrationsEndpoint : Endpoint<ListAzureDevOpsIntegrationsRequest, ListAzureDevOpsIntegrationsResponse>
+public sealed class ListAzureDevOpsIntegrationsEndpoint(IVcsIntegrationStore store) : Endpoint<ListAzureDevOpsIntegrationsRequest, ListAzureDevOpsIntegrationsResponse>
 {
     public override void Configure()
     {
         Get("/api/console/orgs/{orgName}/integrations/azure-devops");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:read");
         Description(b => b
             .WithTags("VCS Integrations")
             .WithSummary("ListAzureDevOpsIntegrations")
@@ -30,9 +33,9 @@ public sealed class ListAzureDevOpsIntegrationsEndpoint : Endpoint<ListAzureDevO
 
     public override Task HandleAsync(ListAzureDevOpsIntegrationsRequest req, CancellationToken ct)
     {
-        // TODO: implement ListAzureDevOpsIntegrations
-        // HTTP: GET /api/console/orgs/{orgName}/integrations/azure-devops
-        // Should produce: ListAzureDevOpsIntegrationsResponse
-        throw new NotImplementedException("Endpoint ListAzureDevOpsIntegrations not implemented.");
+        var integrations = store.List(req.OrgName, "azure-devops")
+            .Select(VcsIntegrationMapper.ToAzureDetails)
+            .ToList();
+        return Send.OkAsync(new ListAzureDevOpsIntegrationsResponse { Integrations = integrations }, ct);
     }
 }
