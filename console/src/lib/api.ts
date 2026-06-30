@@ -200,6 +200,9 @@ export interface EscValue { value: unknown; secret?: boolean; }
 export interface CheckEnvResponse { properties?: Record<string, EscValue>; schema?: unknown; diagnostics?: unknown[]; }
 export interface EnvTag { name: string; value: string; editorLogin?: string; modified?: string; }
 export interface EnvWebhook { name: string; displayName?: string; payloadUrl: string; active?: boolean; format?: string; filters?: string[]; }
+export interface StackWebhook { name: string; displayName?: string; payloadUrl: string; active?: boolean; format?: string; filters?: string[]; hasSecret?: boolean; }
+export interface StackWebhookInput { name?: string; displayName?: string; payloadUrl?: string; active?: boolean; format?: string; secret?: string; }
+export interface WebhookDeliveryLog { id: string; kind: string; payload?: string; requestUrl?: string; responseCode?: number; responseBody?: string; duration?: number; timestamp?: number; }
 export interface EnvSchedule { id: string; kind: string; scheduleCron?: string; nextExecution?: string; lastExecuted?: string; paused?: boolean; }
 export interface RotationEvent { id: string; created?: string; completed?: string; errorMessage?: string; preRotationRevision?: number; postRotationRevision?: number; }
 export interface EnvReferrer { environment?: { project?: string; name?: string }; stack?: { projectName?: string; stackName?: string }; insightsAccount?: { name?: string }; }
@@ -295,6 +298,23 @@ export const api = {
   // Moves the stack to another organization (replies 204 on success).
   transferStack: (org: string, project: string, stack: string, toOrg: string) =>
     postVoid(`/stacks/${org}/${project}/${stack}/transfer`, { toOrg }),
+
+  // Stack webhooks (PR1): CRUD + delivery history, ping, and redeliver. The secret is write-only
+  // (only `hasSecret` is returned). Ping/redeliver perform real POSTs and return the delivery result.
+  stackWebhooks: (org: string, project: string, stack: string) =>
+    get<StackWebhook[]>(`/stacks/${org}/${project}/${stack}/hooks`, []),
+  createStackWebhook: (org: string, project: string, stack: string, hook: StackWebhookInput) =>
+    postJson<StackWebhook>(`/stacks/${org}/${project}/${stack}/hooks`, { active: true, format: "raw", ...hook }),
+  updateStackWebhook: (org: string, project: string, stack: string, name: string, patch: StackWebhookInput) =>
+    patchJson(`/stacks/${org}/${project}/${stack}/hooks/${name}`, patch),
+  deleteStackWebhook: (org: string, project: string, stack: string, name: string) =>
+    del(`/stacks/${org}/${project}/${stack}/hooks/${name}`),
+  stackWebhookDeliveries: (org: string, project: string, stack: string, name: string) =>
+    get<WebhookDeliveryLog[]>(`/stacks/${org}/${project}/${stack}/hooks/${name}/deliveries`, []),
+  pingStackWebhook: (org: string, project: string, stack: string, name: string) =>
+    postJson<WebhookDeliveryLog>(`/stacks/${org}/${project}/${stack}/hooks/${name}/ping`, {}),
+  redeliverStackWebhookEvent: (org: string, project: string, stack: string, name: string, event: string) =>
+    postJson<WebhookDeliveryLog>(`/stacks/${org}/${project}/${stack}/hooks/${name}/deliveries/${event}/redeliver`, {}),
 
   // Deployments
   orgDeployments: (org: string) =>
