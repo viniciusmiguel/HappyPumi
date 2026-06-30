@@ -7,14 +7,17 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using HappyPumi.Api.Auth;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// UpdateSAMLOrganizationAdmins
 /// </summary>
-public sealed class UpdateSamlOrganizationAdminsEndpoint : Endpoint<UpdateSamlOrganizationAdminsRequest>
+public sealed class UpdateSamlOrganizationAdminsEndpoint(ISamlConfigStore store, IAuditLog audit)
+    : Endpoint<UpdateSamlOrganizationAdminsRequest>
 {
     public override void Configure()
     {
@@ -28,10 +31,15 @@ public sealed class UpdateSamlOrganizationAdminsEndpoint : Endpoint<UpdateSamlOr
         );
     }
 
-    public override Task HandleAsync(UpdateSamlOrganizationAdminsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(UpdateSamlOrganizationAdminsRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateSamlOrganizationAdmins
-        // HTTP: POST /api/orgs/{orgName}/saml/admins/{userLogin}
-        throw new NotImplementedException("Endpoint UpdateSamlOrganizationAdmins not implemented.");
+        if (!store.AddAdmin(req.OrgName, req.UserLogin))
+        {
+            await Send.ErrorsAsync(404, ct); // no SAML config for the org yet
+            return;
+        }
+        audit.Record(req.OrgName, "saml.adminAdded", $"Added SAML admin '{req.UserLogin}'.",
+            RequestActor.From(User)?.Name ?? "happypumi");
+        await Send.NoContentAsync(ct);
     }
 }

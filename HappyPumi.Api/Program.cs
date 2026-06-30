@@ -72,6 +72,8 @@ bld.Services.AddScoped<IWebhookDeliveryStore, PostgresWebhookDeliveryStore>();  
 bld.Services.AddScoped<IOrgWebhookStore, PostgresOrgWebhookStore>();                                           // organization webhook definitions
 bld.Services.AddScoped<IAccessTokenStore, PostgresAccessTokenStore>();                                         // personal/org/team access tokens (records only)
 bld.Services.AddScoped<ICmkStore, PostgresCmkStore>();                                                         // customer-managed keys (BYOK) + KEK migrations
+bld.Services.AddScoped<ISamlConfigStore, PostgresSamlConfigStore>();                                           // per-org SAML/SSO configuration + admins
+bld.Services.AddSingleton<HappyPumi.Api.Endpoints.Organizations.ISamlAssertionValidator, HappyPumi.Api.Endpoints.Organizations.SamlAssertionValidator>(); // real XML-DSig assertion verification
 // Shared event-fired webhook dispatcher: a typed HttpClient (owned seam, swappable in tests) + the per-format
 // body formatters (raw default). SSRF deny-list comes from Webhooks:BlockedHosts.
 bld.Services.AddSingleton<HappyPumi.Api.Webhooks.IWebhookPayloadFormatter, HappyPumi.Api.Webhooks.RawFormatter>();
