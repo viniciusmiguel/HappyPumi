@@ -6,20 +6,26 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Vcs;
 
 namespace HappyPumi.Api.Endpoints.VcsIntegrations;
 
 /// <summary>
-/// ListVCSBranches
+/// ListVCSBranches — resolves the integration, dispatches to its provider, and lists a repo's branches.
+/// Kinds without a provider yet (azure-devops, PR3) return an empty list rather than failing.
 /// </summary>
-public sealed class ListVcsBranchesEndpoint : Endpoint<ListVcsBranchesRequest, ListVcsBranchesResponse>
+public sealed class ListVcsBranchesEndpoint(IVcsIntegrationStore store, IVcsProviderRegistry registry)
+    : Endpoint<ListVcsBranchesRequest, ListVcsBranchesResponse>
 {
     public override void Configure()
     {
         Get("/api/console/orgs/{orgName}/integrations/{provider}/{integrationId}/repos/{repoId}/branches");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:read");
         Description(b => b
             .WithTags("VCS Integrations")
             .WithSummary("ListVCSBranches")
@@ -28,11 +34,19 @@ public sealed class ListVcsBranchesEndpoint : Endpoint<ListVcsBranchesRequest, L
         );
     }
 
-    public override Task HandleAsync(ListVcsBranchesRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ListVcsBranchesRequest req, CancellationToken ct)
     {
-        // TODO: implement ListVcsBranches
-        // HTTP: GET /api/console/orgs/{orgName}/integrations/{provider}/{integrationId}/repos/{repoId}/branches
-        // Should produce: ListVcsBranchesResponse
-        throw new NotImplementedException("Endpoint ListVcsBranches not implemented.");
+        var integration = store.Get(req.OrgName, req.IntegrationId);
+        if (integration is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        var provider = registry.For(integration.Kind);
+        IReadOnlyList<VcsBranch> branches = provider is null
+            ? System.Array.Empty<VcsBranch>()
+            : await provider.ListBranchesAsync(integration, req.RepoId, ct);
+        await Send.OkAsync(new ListVcsBranchesResponse { Branches = branches.ToList() }, ct);
     }
 }

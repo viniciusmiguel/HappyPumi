@@ -6,20 +6,24 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.Vcs;
 
 namespace HappyPumi.Api.Endpoints.Users;
 
 /// <summary>
-/// ListGitHubOrganizationTeams
+/// ListGitHubOrganizationTeams — proxies <c>GET /orgs/{org}/teams</c> through the GitHub provider. Returns
+/// an empty list when GitHub is unconfigured (no secrets required to call).
 /// </summary>
-public sealed class ListGitHubOrganizationTeamsEndpoint : Endpoint<ListGitHubOrganizationTeamsRequest, ListGitHubOrganizationTeamsResponse>
+public sealed class ListGitHubOrganizationTeamsEndpoint(GitHubVcsProvider github)
+    : Endpoint<ListGitHubOrganizationTeamsRequest, ListGitHubOrganizationTeamsResponse>
 {
     public override void Configure()
     {
         Get("/api/user/github/{ghOrgName}/teams");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:read");
         Description(b => b
             .WithTags("Users")
             .WithSummary("ListGitHubOrganizationTeams")
@@ -28,11 +32,9 @@ public sealed class ListGitHubOrganizationTeamsEndpoint : Endpoint<ListGitHubOrg
         );
     }
 
-    public override Task HandleAsync(ListGitHubOrganizationTeamsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ListGitHubOrganizationTeamsRequest req, CancellationToken ct)
     {
-        // TODO: implement ListGitHubOrganizationTeams
-        // HTTP: GET /api/user/github/{ghOrgName}/teams
-        // Should produce: ListGitHubOrganizationTeamsResponse
-        throw new NotImplementedException("Endpoint ListGitHubOrganizationTeams not implemented.");
+        var teams = await github.ListOrganizationTeamsAsync(req.GhOrgName, integration: null, ct);
+        await Send.OkAsync(new ListGitHubOrganizationTeamsResponse { Teams = teams.ToList() }, ct);
     }
 }

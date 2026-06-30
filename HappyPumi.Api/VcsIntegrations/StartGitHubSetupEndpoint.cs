@@ -7,19 +7,24 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using HappyPumi.Api.Auth;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Vcs;
 
 namespace HappyPumi.Api.Endpoints.VcsIntegrations;
 
 /// <summary>
-/// StartGitHubSetup
+/// StartGitHubSetup — begins a GitHub App install: records a pending integration and returns the
+/// install/setup URL (from <c>Vcs:GitHub:AppInstallUrl</c>) the browser is sent to.
 /// </summary>
-public sealed class StartGitHubSetupEndpoint : Endpoint<StartGitHubSetupRequest, GitHubSetupResponse>
+public sealed class StartGitHubSetupEndpoint(IVcsIntegrationStore store, GitHubVcsProvider github)
+    : Endpoint<StartGitHubSetupRequest, GitHubSetupResponse>
 {
     public override void Configure()
     {
         Post("/api/console/orgs/{orgName}/integrations/github");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:update");
         Description(b => b
             .WithTags("VCS Integrations")
             .WithSummary("StartGitHubSetup")
@@ -30,9 +35,13 @@ public sealed class StartGitHubSetupEndpoint : Endpoint<StartGitHubSetupRequest,
 
     public override Task HandleAsync(StartGitHubSetupRequest req, CancellationToken ct)
     {
-        // TODO: implement StartGitHubSetup
-        // HTTP: POST /api/console/orgs/{orgName}/integrations/github
-        // Should produce: GitHubSetupResponse
-        throw new NotImplementedException("Endpoint StartGitHubSetup not implemented.");
+        store.Create(new StoredVcsIntegration
+        {
+            Id = "pending", // the store assigns the real id
+            Org = req.OrgName,
+            Kind = "github",
+            CreatedBy = RequestActor.From(User)?.Name,
+        });
+        return Send.OkAsync(new GitHubSetupResponse { InstallationUrl = github.AppInstallUrl }, ct);
     }
 }
