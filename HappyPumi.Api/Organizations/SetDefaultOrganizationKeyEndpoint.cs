@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// SetDefaultOrganizationKey
 /// </summary>
-public sealed class SetDefaultOrganizationKeyEndpoint : Endpoint<SetDefaultOrganizationKeyRequest>
+public sealed class SetDefaultOrganizationKeyEndpoint(ICmkStore store) : Endpoint<SetDefaultOrganizationKeyRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,14 @@ public sealed class SetDefaultOrganizationKeyEndpoint : Endpoint<SetDefaultOrgan
         );
     }
 
-    public override Task HandleAsync(SetDefaultOrganizationKeyRequest req, CancellationToken ct)
+    public async override Task HandleAsync(SetDefaultOrganizationKeyRequest req, CancellationToken ct)
     {
-        // TODO: implement SetDefaultOrganizationKey
-        // HTTP: POST /api/orgs/{orgName}/cmk/{keyID}/default
-        throw new NotImplementedException("Endpoint SetDefaultOrganizationKey not implemented.");
+        if (!store.SetDefault(req.OrgName, req.KeyId))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

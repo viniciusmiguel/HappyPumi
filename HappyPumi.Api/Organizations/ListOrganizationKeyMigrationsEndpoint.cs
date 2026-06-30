@@ -6,15 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// ListOrganizationKeyMigrations
 /// </summary>
-public sealed class ListOrganizationKeyMigrationsEndpoint : Endpoint<ListOrganizationKeyMigrationsRequest, List<KeyEncryptionKeyMigration>>
+public sealed class ListOrganizationKeyMigrationsEndpoint(ICmkStore store) : Endpoint<ListOrganizationKeyMigrationsRequest, List<KeyEncryptionKeyMigration>>
 {
     public override void Configure()
     {
@@ -28,11 +30,11 @@ public sealed class ListOrganizationKeyMigrationsEndpoint : Endpoint<ListOrganiz
         );
     }
 
-    public override Task HandleAsync(ListOrganizationKeyMigrationsRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ListOrganizationKeyMigrationsRequest req, CancellationToken ct)
     {
-        // TODO: implement ListOrganizationKeyMigrations
-        // HTTP: GET /api/orgs/{orgName}/cmk/migration
-        // Should produce: List<KeyEncryptionKeyMigration>
-        throw new NotImplementedException("Endpoint ListOrganizationKeyMigrations not implemented.");
+        var migrations = store.ListMigrations(req.OrgName)
+            .Select(m => new KeyEncryptionKeyMigration { Id = m.Id, State = m.State })
+            .ToList();
+        await Send.OkAsync(migrations, ct);
     }
 }

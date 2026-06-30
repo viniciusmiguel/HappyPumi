@@ -51,6 +51,8 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
     public DbSet<RegistryArtifactRow> RegistryArtifacts => Set<RegistryArtifactRow>();
     public DbSet<VcsIntegrationRow> VcsIntegrations => Set<VcsIntegrationRow>();
     public DbSet<AccessTokenRow> AccessTokens => Set<AccessTokenRow>();
+    public DbSet<CmkRow> CustomerManagedKeys => Set<CmkRow>();
+    public DbSet<KeyMigrationRow> KeyMigrations => Set<KeyMigrationRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -311,6 +313,18 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
         {
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.Scope, x.OwnerKey }); // tokens are listed/revoked per (scope, owner)
+        });
+
+        b.Entity<CmkRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.Org, x.Id }); // keys are listed/looked up per org
+        });
+
+        b.Entity<KeyMigrationRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.Org, x.Created }); // migrations are listed per org, newest first
         });
     }
 }
