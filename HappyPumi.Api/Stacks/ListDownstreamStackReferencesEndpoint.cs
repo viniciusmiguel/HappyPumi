@@ -6,15 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// ListDownstreamStackReferences
 /// </summary>
-public sealed class ListDownstreamStackReferencesEndpoint : Endpoint<ListDownstreamStackReferencesRequest, ListDownstreamStackReferencesResponse>
+public sealed class ListDownstreamStackReferencesEndpoint(IStackStore stacks) : Endpoint<ListDownstreamStackReferencesRequest, ListDownstreamStackReferencesResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,17 @@ public sealed class ListDownstreamStackReferencesEndpoint : Endpoint<ListDownstr
         );
     }
 
-    public override Task HandleAsync(ListDownstreamStackReferencesRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ListDownstreamStackReferencesRequest req, CancellationToken ct)
     {
-        // TODO: implement ListDownstreamStackReferences
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/downstreamreferences
-        // Should produce: ListDownstreamStackReferencesResponse
-        throw new NotImplementedException("Endpoint ListDownstreamStackReferences not implemented.");
+        var target = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        if (stacks.Find(target) is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        var refs = StackReferenceScanner.DownstreamOf(target, stacks.All())
+            .Select(c => StackReferenceScanner.ToReference(c, stacks)).ToList();
+        await Send.OkAsync(new ListDownstreamStackReferencesResponse { ReferencedStacks = refs }, ct);
     }
 }

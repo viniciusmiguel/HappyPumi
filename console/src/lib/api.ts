@@ -127,7 +127,8 @@ export interface Resource {
   inputs?: Record<string, unknown>; outputs?: Record<string, unknown>;
 }
 export interface ResourcesResponse { region?: string; version?: number; resources: { resource: Resource }[]; }
-export interface StackOverview { referencedStacks?: unknown[]; resources?: ResourcesResponse; tags?: Record<string, string>; }
+export interface StackRef { name: string; organization: string; routingProject: string; version: number; }
+export interface StackOverview { referencedStacks?: StackRef[]; resources?: ResourcesResponse; tags?: Record<string, string>; }
 
 export interface DeploymentJob { status: string; started?: string; lastUpdated?: string; steps?: DeploymentStep[]; }
 export interface DeploymentStep { name: string; status: string; started?: string; lastUpdated?: string; isComplete?: boolean; }
@@ -225,6 +226,11 @@ export const api = {
   // Console overview aggregation (resources + tags + referenced stacks).
   stackOverview: (org: string, project: string, stack: string) =>
     get<StackOverview | null>(`/console/stacks/${org}/${project}/${stack}/overview`, null),
+  // Stack references (PR5): upstream = stacks this one reads; downstream = stacks that read this one.
+  stackUpstreamRefs: (org: string, project: string, stack: string) =>
+    get<{ referencedStacks: StackRef[] }>(`/stacks/${org}/${project}/${stack}/upstreamreferences`, { referencedStacks: [] }),
+  stackDownstreamRefs: (org: string, project: string, stack: string) =>
+    get<{ referencedStacks: StackRef[] }>(`/stacks/${org}/${project}/${stack}/downstreamreferences`, { referencedStacks: [] }),
   // Update detail (PR2): per-version summary, timeline (focal update + previews), and the engine-event stream.
   stackUpdateSummary: (org: string, project: string, stack: string, version: number) =>
     get<UpdateSummaryDetail>(`/stacks/${org}/${project}/${stack}/updates/${version}/summary`, {}),

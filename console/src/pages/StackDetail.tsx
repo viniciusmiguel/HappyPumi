@@ -14,12 +14,14 @@ import { Resources } from "./stack/Resources";
 import { Updates } from "./stack/Updates";
 import { Activity } from "./stack/Activity";
 import { Access } from "./stack/Access";
+import { References } from "./stack/References";
 
 const TABS = [
   { key: "overview", label: "Overview" },
   { key: "readme", label: "README" },
   { key: "updates", label: "Updates" },
   { key: "activity", label: "Activity" },
+  { key: "references", label: "References" },
   { key: "deployments", label: "Deployments" },
   { key: "resources", label: "Resources" },
   { key: "settings", label: "Settings" },
@@ -85,6 +87,7 @@ export default function StackDetail() {
         {active === "readme" && <Readme project={project} />}
         {active === "updates" && <Updates org={org} project={project} stack={stack} updates={updates} />}
         {active === "activity" && <Activity org={org} project={project} stack={stack} />}
+        {active === "references" && <References org={org} project={project} stack={stack} />}
         {active === "deployments" && <Deployments deps={deps} project={project} stack={stack} />}
         {active === "resources" && <Resources org={org} project={project} stack={stack} resources={resources} />}
         {active === "settings" && <Settings meta={meta} onDelete={() => setConfirmDelete(true)} />}
