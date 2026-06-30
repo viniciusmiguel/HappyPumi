@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// UpdateStackNotificationSettings
 /// </summary>
-public sealed class UpdateStackNotificationSettingsEndpoint : Endpoint<UpdateStackNotificationSettingsRequest, StackMetadata>
+public sealed class UpdateStackNotificationSettingsEndpoint(IStackStore stacks)
+    : Endpoint<UpdateStackNotificationSettingsRequest, StackMetadata>
 {
     public override void Configure()
     {
@@ -28,11 +30,21 @@ public sealed class UpdateStackNotificationSettingsEndpoint : Endpoint<UpdateSta
         );
     }
 
-    public override Task HandleAsync(UpdateStackNotificationSettingsRequest req, CancellationToken ct)
+    public async override Task HandleAsync(UpdateStackNotificationSettingsRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateStackNotificationSettings
-        // HTTP: PATCH /api/stacks/{orgName}/{projectName}/{stackName}/notifications/settings
-        // Should produce: StackMetadata
-        throw new NotImplementedException("Endpoint UpdateStackNotificationSettings not implemented.");
+        var coords = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        var settings = new StackNotificationSettings
+        {
+            NotifyUpdateFailure = req.Body.NotifyUpdateFailure,
+            NotifyUpdateSuccess = req.Body.NotifyUpdateSuccess,
+        };
+        var stack = stacks.SetNotificationSettings(coords, settings);
+        if (stack is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(GetStackMetadataEndpoint.BuildMetadata(stack), ct);
     }
 }

@@ -53,7 +53,8 @@ public sealed class GetStackMetadataEndpoint(IStackStore stacks) : Endpoint<GetS
             Version = stack.Version,
             ResourceCount = resourceCount,
             Tags = stack.Tags,
-            NotificationSettings = new StackNotificationSettings(),
+            NotificationSettings = stack.NotificationSettings ?? new StackNotificationSettings(),
+            OwnedBy = stack.Owner is null ? ConsoleActor.Default : ConsoleActor.For(stack.Owner, null),
             LastUpdate = ToLastUpdate(stack),
         };
     }

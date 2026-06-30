@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// TransferStack
 /// </summary>
-public sealed class TransferStackEndpoint : Endpoint<TransferStackRequest>
+public sealed class TransferStackEndpoint(IStackStore stacks) : Endpoint<TransferStackRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,34 @@ public sealed class TransferStackEndpoint : Endpoint<TransferStackRequest>
         );
     }
 
-    public override Task HandleAsync(TransferStackRequest req, CancellationToken ct)
+    public async override Task HandleAsync(TransferStackRequest req, CancellationToken ct)
     {
-        // TODO: implement TransferStack
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/transfer
-        throw new NotImplementedException("Endpoint TransferStack not implemented.");
+        if (string.IsNullOrWhiteSpace(req.Body?.ToOrg))
+        {
+            AddError("The destination organization 'toOrg' is required.", "toOrg");
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+
+        // Body fields override the route coordinates for the source stack (per the spec's optional from* fields).
+        var from = new StackCoordinates(
+            string.IsNullOrWhiteSpace(req.Body.FromOrg) ? req.OrgName : req.Body.FromOrg,
+            string.IsNullOrWhiteSpace(req.Body.ProjectName) ? req.ProjectName : req.Body.ProjectName,
+            string.IsNullOrWhiteSpace(req.Body.StackName) ? req.StackName : req.Body.StackName);
+
+        var moved = stacks.Transfer(from, req.Body.ToOrg, out var collision);
+        if (collision)
+        {
+            await Send.ResultAsync(Microsoft.AspNetCore.Http.Results.Conflict(
+                new { message = $"A stack '{from.Project}/{from.Stack}' already exists in organization '{req.Body.ToOrg}'." }));
+            return;
+        }
+        if (moved is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

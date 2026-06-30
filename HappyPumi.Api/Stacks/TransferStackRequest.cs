@@ -38,5 +38,5 @@ public sealed class TransferStackRequest
     /// Request body.
     /// </summary>
     [FromBody]
-    public TransferStackRequest Body { get; set; } = default!;
+    public Contracts.TransferStackRequest Body { get; set; } = default!;
 }

@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// UpsertStacksAnnotations
 /// </summary>
-public sealed class UpsertStacksAnnotationsEndpoint : Endpoint<UpsertStacksAnnotationsRequest>
+public sealed class UpsertStacksAnnotationsEndpoint(IStackAnnotationStore annotations) : Endpoint<UpsertStacksAnnotationsRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,10 @@ public sealed class UpsertStacksAnnotationsEndpoint : Endpoint<UpsertStacksAnnot
         );
     }
 
-    public override Task HandleAsync(UpsertStacksAnnotationsRequest req, CancellationToken ct)
+    public async override Task HandleAsync(UpsertStacksAnnotationsRequest req, CancellationToken ct)
     {
-        // TODO: implement UpsertStacksAnnotations
-        // HTTP: PATCH /api/stacks/{orgName}/{projectName}/{stackName}/annotations/{kind}
-        throw new NotImplementedException("Endpoint UpsertStacksAnnotations not implemented.");
+        var coords = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        annotations.Set(coords, req.Kind, req.Body);
+        await Send.NoContentAsync(ct);
     }
 }

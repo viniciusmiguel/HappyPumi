@@ -28,11 +28,46 @@ public sealed class GetStackStarterWorkflowEndpoint : Endpoint<GetStackStarterWo
         );
     }
 
-    public override Task HandleAsync(GetStackStarterWorkflowRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetStackStarterWorkflowRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStackStarterWorkflow
-        // HTTP: POST /api/stacks/{orgName}/{projectName}/{stackName}/workflow
-        // Should produce: GetStackStarterWorkflowResponse
-        throw new NotImplementedException("Endpoint GetStackStarterWorkflow not implemented.");
+        // No persistence: the workflow is rendered from the request + the stack coordinates. Only GitHub
+        // Actions is offered today; other CI systems are a 400 ("CI system is not specified / unsupported").
+        var ci = req.Body?.CiSystem;
+        if (!string.Equals(ci, "github", System.StringComparison.OrdinalIgnoreCase))
+        {
+            AddError($"Unsupported ciSystem '{ci}'. Only 'github' is currently supported.", "ciSystem");
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+
+        var stackRef = $"{req.OrgName}/{req.ProjectName}/{req.StackName}";
+        var workDir = string.IsNullOrWhiteSpace(req.Body!.WorkingDirectory) ? "." : req.Body.WorkingDirectory;
+        await Send.OkAsync(new GetStackStarterWorkflowResponse { Content = GitHubWorkflow(stackRef, workDir) }, ct);
+    }
+
+    /// <summary>Renders a minimal GitHub Actions workflow that runs <c>pulumi up</c> for the stack on push to main.</summary>
+    private static string GitHubWorkflow(string stackRef, string workDir)
+    {
+        // A non-interpolated raw literal so GitHub's `${{ secrets.* }}` expression syntax is emitted verbatim.
+        const string template = """
+            name: Pulumi
+            on:
+              push:
+                branches: [main]
+            jobs:
+              up:
+                runs-on: ubuntu-latest
+                steps:
+                  - uses: actions/checkout@v4
+                  - uses: pulumi/actions@v5
+                    with:
+                      command: up
+                      stack-name: __STACK__
+                      work-dir: __WORKDIR__
+                    env:
+                      PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+            """;
+        return template.Replace("__STACK__", stackRef).Replace("__WORKDIR__", workDir);
     }
 }

@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// UpdateStackTag
 /// </summary>
-public sealed class UpdateStackTagEndpoint : Endpoint<UpdateStackTagRequest>
+public sealed class UpdateStackTagEndpoint(IStackStore stacks) : Endpoint<UpdateStackTagRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,18 @@ public sealed class UpdateStackTagEndpoint : Endpoint<UpdateStackTagRequest>
         );
     }
 
-    public override Task HandleAsync(UpdateStackTagRequest req, CancellationToken ct)
+    public async override Task HandleAsync(UpdateStackTagRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateStackTag
-        // HTTP: PATCH /api/stacks/{orgName}/{projectName}/{stackName}/tags/{tagName}
-        throw new NotImplementedException("Endpoint UpdateStackTag not implemented.");
+        // Updating a tag only makes sense for one that exists; an unknown stack or tag is 404 (mirrors DeleteStackTag).
+        var coords = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        var stack = stacks.Find(coords);
+        if (stack is null || !stack.Tags.ContainsKey(req.TagName))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        stacks.SetTag(coords, req.TagName, req.Body.Value);
+        await Send.NoContentAsync(ct);
     }
 }

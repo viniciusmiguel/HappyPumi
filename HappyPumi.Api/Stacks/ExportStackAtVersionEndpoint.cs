@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// ExportStackAtVersion
 /// </summary>
-public sealed class ExportStackAtVersionEndpoint : Endpoint<ExportStackAtVersionRequest, AppUntypedDeployment>
+public sealed class ExportStackAtVersionEndpoint(IStackStore stacks, IUpdateStore updates)
+    : Endpoint<ExportStackAtVersionRequest, AppUntypedDeployment>
 {
     public override void Configure()
     {
@@ -28,11 +30,31 @@ public sealed class ExportStackAtVersionEndpoint : Endpoint<ExportStackAtVersion
         );
     }
 
-    public override Task HandleAsync(ExportStackAtVersionRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ExportStackAtVersionRequest req, CancellationToken ct)
     {
-        // TODO: implement ExportStackAtVersion
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/export/{version}
-        // Should produce: AppUntypedDeployment
-        throw new NotImplementedException("Endpoint ExportStackAtVersion not implemented.");
+        var coords = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        var stack = stacks.Find(coords);
+        if (stack is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        // The current version reads off the stack (empty deployment when never deployed, like ExportStack);
+        // a historical version is recovered from that update's promoted checkpoint, and 404 when unknown.
+        if (req.Version == stack.Version)
+        {
+            await Send.OkAsync(stack.Deployment ?? DeploymentFactory.Empty(), ct);
+            return;
+        }
+
+        var checkpoint = updates.FindByVersion(coords, req.Version)?.Checkpoint;
+        if (checkpoint is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(checkpoint, ct);
     }
 }

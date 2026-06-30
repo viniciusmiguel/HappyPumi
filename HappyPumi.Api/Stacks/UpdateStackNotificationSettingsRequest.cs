@@ -38,5 +38,5 @@ public sealed class UpdateStackNotificationSettingsRequest
     /// Request body.
     /// </summary>
     [FromBody]
-    public UpdateStackNotificationSettingsRequest Body { get; set; } = default!;
+    public Contracts.UpdateStackNotificationSettingsRequest Body { get; set; } = default!;
 }
