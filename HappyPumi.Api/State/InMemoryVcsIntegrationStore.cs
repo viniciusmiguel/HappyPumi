@@ -25,6 +25,7 @@ public sealed class InMemoryVcsIntegrationStore : IVcsIntegrationStore
             AccountId = integration.AccountId,
             AvatarUrl = integration.AvatarUrl,
             AzureProject = integration.AzureProject,
+            Credential = integration.Credential,
             Settings = integration.Settings,
             Created = integration.Created,
             CreatedBy = integration.CreatedBy,
@@ -47,6 +48,14 @@ public sealed class InMemoryVcsIntegrationStore : IVcsIntegrationStore
         if (!_state.TryGetValue((org, id), out var found))
             return null;
         found.Settings = settings;
+        return found;
+    }
+
+    public StoredVcsIntegration? SetCredential(string org, string id, string credential)
+    {
+        if (!_state.TryGetValue((org, id), out var found))
+            return null;
+        found.Credential = credential;
         return found;
     }
 
