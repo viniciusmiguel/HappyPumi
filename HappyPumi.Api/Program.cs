@@ -53,6 +53,7 @@ bld.Services.AddDbContext<HappyPumiDbContext>(o => o
 // Persistence seams (ADR-0005), now PostgreSQL-backed. Scoped to share the request's DbContext.
 bld.Services.AddScoped<IStackStore, PostgresStackStore>();
 bld.Services.AddScoped<IUpdateStore, PostgresUpdateStore>();
+bld.Services.AddScoped<IStackPermissionStore, PostgresStackPermissionStore>(); // per-stack access grants (collaborators/teams)
 bld.Services.AddScoped<IIdentityStore, PostgresIdentityStore>();
 bld.Services.AddScoped<IPackageRegistry, PostgresPackageRegistry>();
 bld.Services.AddScoped<ITemplateRegistry, PostgresTemplateRegistry>();
