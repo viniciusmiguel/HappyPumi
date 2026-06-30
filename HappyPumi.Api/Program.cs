@@ -23,6 +23,7 @@ using HappyPumi.Api.Esc.Rotators.Postgres;
 using HappyPumi.Api.Esc.Rotators.MySql;
 using HappyPumi.Api.Secrets;
 using HappyPumi.Api.State;
+using HappyPumi.Api.Vcs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 
@@ -77,6 +78,11 @@ bld.Services.AddScoped<IVcsIntegrationStore, PostgresVcsIntegrationStore>(); // 
 bld.Services.AddScoped<IOidcIssuerStore, PostgresOidcIssuerStore>();   // identity providers (OIDC issuers)
 bld.Services.AddScoped<IApprovalRuleStore, PostgresApprovalRuleStore>(); // approval rules
 bld.Services.AddScoped<UpdateLifecycle>();
+
+// VCS providers (ADR-0009): real-REST GitHub behind the IVcsProvider seam, resolved by integration kind.
+// Typed HttpClient so tests can swap the primary handler; config-gated (Vcs:GitHub:*) so it runs without secrets.
+bld.Services.AddHttpClient<GitHubVcsProvider>();
+bld.Services.AddScoped<IVcsProviderRegistry, VcsProviderRegistry>();
 
 // ESC engine: dynamic-value providers (fn::open) + the open-session lifecycle. Providers and their
 // registry are singletons (stateless wrappers over cloud SDKs); EscOpener is scoped because it reads

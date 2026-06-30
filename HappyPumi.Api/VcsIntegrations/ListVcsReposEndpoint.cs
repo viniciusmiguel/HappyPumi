@@ -6,20 +6,26 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Vcs;
 
 namespace HappyPumi.Api.Endpoints.VcsIntegrations;
 
 /// <summary>
-/// ListVCSRepos
+/// ListVCSRepos — resolves the integration record, dispatches to the provider for its <c>Kind</c>, and
+/// lists repos. Kinds without a provider yet (azure-devops, PR3) return an empty list rather than failing.
 /// </summary>
-public sealed class ListVcsReposEndpoint : Endpoint<ListVcsReposRequest, ListVcsReposResponse>
+public sealed class ListVcsReposEndpoint(IVcsIntegrationStore store, IVcsProviderRegistry registry)
+    : Endpoint<ListVcsReposRequest, ListVcsReposResponse>
 {
     public override void Configure()
     {
         Get("/api/console/orgs/{orgName}/integrations/{provider}/{integrationId}/repos");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:read");
         Description(b => b
             .WithTags("VCS Integrations")
             .WithSummary("ListVCSRepos")
@@ -28,11 +34,19 @@ public sealed class ListVcsReposEndpoint : Endpoint<ListVcsReposRequest, ListVcs
         );
     }
 
-    public override Task HandleAsync(ListVcsReposRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ListVcsReposRequest req, CancellationToken ct)
     {
-        // TODO: implement ListVcsRepos
-        // HTTP: GET /api/console/orgs/{orgName}/integrations/{provider}/{integrationId}/repos
-        // Should produce: ListVcsReposResponse
-        throw new NotImplementedException("Endpoint ListVcsRepos not implemented.");
+        var integration = store.Get(req.OrgName, req.IntegrationId);
+        if (integration is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        var provider = registry.For(integration.Kind);
+        IReadOnlyList<VcsRepo> repos = provider is null
+            ? System.Array.Empty<VcsRepo>()
+            : await provider.ListReposAsync(integration, ct);
+        await Send.OkAsync(new ListVcsReposResponse { Repos = repos.ToList() }, ct);
     }
 }

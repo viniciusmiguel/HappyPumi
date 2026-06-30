@@ -6,20 +6,26 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Vcs;
 
 namespace HappyPumi.Api.Endpoints.VcsIntegrations;
 
 /// <summary>
-/// GetGitHubAccess
+/// GetGitHubAccess — reports whether GitHub is configured/accessible: <c>hasUserToken</c> from the
+/// provider's access check, plus the org's existing integration records (<c>hasIntegration</c> / available
+/// orgs). Safe to call without secrets (reports "not configured").
 /// </summary>
-public sealed class GetGitHubAccessEndpoint : Endpoint<GetGitHubAccessRequest, VcsGitHubAccessResponse>
+public sealed class GetGitHubAccessEndpoint(IVcsIntegrationStore store, GitHubVcsProvider github)
+    : Endpoint<GetGitHubAccessRequest, VcsGitHubAccessResponse>
 {
     public override void Configure()
     {
         Get("/api/console/orgs/{orgName}/integrations/github/access-status");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:read");
         Description(b => b
             .WithTags("VCS Integrations")
             .WithSummary("GetGitHubAccess")
@@ -28,11 +34,21 @@ public sealed class GetGitHubAccessEndpoint : Endpoint<GetGitHubAccessRequest, V
         );
     }
 
-    public override Task HandleAsync(GetGitHubAccessRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetGitHubAccessRequest req, CancellationToken ct)
     {
-        // TODO: implement GetGitHubAccess
-        // HTTP: GET /api/console/orgs/{orgName}/integrations/github/access-status
-        // Should produce: VcsGitHubAccessResponse
-        throw new NotImplementedException("Endpoint GetGitHubAccess not implemented.");
+        var configured = await github.IsConfiguredAsync(ct);
+        var integrations = store.List(req.OrgName, "github");
+        var orgs = integrations
+            .Select(i => i.AccountName)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name!)
+            .Distinct()
+            .ToList();
+        await Send.OkAsync(new VcsGitHubAccessResponse
+        {
+            AvailableOrgs = orgs,
+            HasIntegration = integrations.Count > 0,
+            HasUserToken = configured,
+        }, ct);
     }
 }
