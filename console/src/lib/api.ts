@@ -164,7 +164,15 @@ export interface PolicyPack { name: string; displayName?: string; versions?: unk
 export interface Service { name: string; description?: string; organizationName?: string; created?: string; }
 export interface AuditEvent { event: string; description: string; actorName?: string; sourceIP?: string; timestamp?: number; }
 export interface CloudAccount { name: string; provider: string; description?: string; created?: string; }
-export interface VcsConnection { name: string; kind: string; created?: string; }
+export interface VcsIntegrationSummary {
+  id: string;
+  name?: string;
+  vcsProvider: string;
+  baseUrl?: string;
+  host?: string;
+  avatarUrl?: string;
+  hasIndividualAccess: boolean;
+}
 export interface OidcIssuer { name: string; url: string; created?: string; }
 export interface ApprovalRule { name: string; stackPattern: string; requiredApprovals: number; enabled?: boolean; created?: string; }
 export interface PolicyViolation {
@@ -392,9 +400,10 @@ export const api = {
   cloudAccounts: (org: string) => get<{ accounts?: CloudAccount[] }>(`/orgs/${org}/cloud-accounts`, { accounts: [] }),
   createCloudAccount: (org: string, name: string, provider: string, description: string) =>
     postJson<unknown>(`/orgs/${org}/cloud-accounts`, { name, provider, description }),
-  vcsConnections: (org: string) => get<{ connections?: VcsConnection[] }>(`/orgs/${org}/vcs-connections`, { connections: [] }),
-  createVcsConnection: (org: string, name: string, kind: string) =>
-    postJson<unknown>(`/orgs/${org}/vcs-connections`, { name, kind }),
+  vcsIntegrations: (org: string) =>
+    get<{ integrations?: VcsIntegrationSummary[] }>(`/console/orgs/${org}/integrations`, { integrations: [] }),
+  deleteVcsIntegration: (org: string, provider: string, id: string) =>
+    del(`/console/orgs/${org}/integrations/${provider}/${id}`),
   oidcIssuers: (org: string) => get<{ issuers?: OidcIssuer[] }>(`/orgs/${org}/oidc-issuers`, { issuers: [] }),
   createOidcIssuer: (org: string, name: string, url: string) =>
     postJson<unknown>(`/orgs/${org}/oidc-issuers`, { name, url }),
