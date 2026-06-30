@@ -316,6 +316,23 @@ export const api = {
   redeliverStackWebhookEvent: (org: string, project: string, stack: string, name: string, event: string) =>
     postJson<WebhookDeliveryLog>(`/stacks/${org}/${project}/${stack}/hooks/${name}/deliveries/${event}/redeliver`, {}),
 
+  // Organization webhooks (PR2): same shape as stack webhooks, scoped to the org. The secret is write-only
+  // (only `hasSecret` is returned). Org webhooks also fire on org-wide stack activity. Ping/redeliver POST for real.
+  orgWebhooks: (org: string) =>
+    get<StackWebhook[]>(`/orgs/${org}/hooks`, []),
+  createOrgWebhook: (org: string, hook: StackWebhookInput) =>
+    postJson<StackWebhook>(`/orgs/${org}/hooks`, { active: true, format: "raw", ...hook }),
+  updateOrgWebhook: (org: string, name: string, patch: StackWebhookInput) =>
+    patchJson(`/orgs/${org}/hooks/${name}`, patch),
+  deleteOrgWebhook: (org: string, name: string) =>
+    del(`/orgs/${org}/hooks/${name}`),
+  orgWebhookDeliveries: (org: string, name: string) =>
+    get<WebhookDeliveryLog[]>(`/orgs/${org}/hooks/${name}/deliveries`, []),
+  pingOrgWebhook: (org: string, name: string) =>
+    postJson<WebhookDeliveryLog>(`/orgs/${org}/hooks/${name}/ping`, {}),
+  redeliverOrgWebhookEvent: (org: string, name: string, event: string) =>
+    postJson<WebhookDeliveryLog>(`/orgs/${org}/hooks/${name}/deliveries/${event}/redeliver`, {}),
+
   // Deployments
   orgDeployments: (org: string) =>
     get<{ deployments?: Deployment[] }>(`/orgs/${org}/deployments`, { deployments: [] }),

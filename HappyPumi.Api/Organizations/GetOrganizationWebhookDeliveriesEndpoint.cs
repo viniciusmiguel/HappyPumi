@@ -7,14 +7,18 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Webhooks;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// GetOrganizationWebhookDeliveries
 /// </summary>
-public sealed class GetOrganizationWebhookDeliveriesEndpoint : Endpoint<GetOrganizationWebhookDeliveriesRequest, List<WebhookDelivery>>
+public sealed class GetOrganizationWebhookDeliveriesEndpoint(IWebhookDeliveryStore deliveries, IOrgWebhookStore webhooks)
+    : Endpoint<GetOrganizationWebhookDeliveriesRequest, List<WebhookDelivery>>
 {
     public override void Configure()
     {
@@ -28,11 +32,10 @@ public sealed class GetOrganizationWebhookDeliveriesEndpoint : Endpoint<GetOrgan
         );
     }
 
-    public override Task HandleAsync(GetOrganizationWebhookDeliveriesRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetOrganizationWebhookDeliveriesRequest req, CancellationToken ct)
     {
-        // TODO: implement GetOrganizationWebhookDeliveries
-        // HTTP: GET /api/orgs/{orgName}/hooks/{hookName}/deliveries
-        // Should produce: List<WebhookDelivery>
-        throw new NotImplementedException("Endpoint GetOrganizationWebhookDeliveries not implemented.");
+        var url = webhooks.Get(req.OrgName, req.HookName)?.PayloadUrl ?? "";
+        var stored = deliveries.List(new WebhookScope("org", req.OrgName), req.HookName);
+        await Send.OkAsync(stored.Select(d => WebhookDeliveryMapper.ToContract(d, url)).ToList(), ct);
     }
 }

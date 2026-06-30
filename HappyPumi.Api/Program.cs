@@ -69,13 +69,23 @@ bld.Services.AddSingleton<HappyPumi.Api.Webhooks.IWebhookSender, HappyPumi.Api.W
 bld.Services.AddScoped<HappyPumi.Api.Webhooks.IWebhookDeliveryLog, PostgresWebhookDeliveryLog>(); // delivery log (Postgres)
 bld.Services.AddScoped<HappyPumi.Api.Webhooks.WebhookDeliveryService>();                                       // ping/redeliver orchestration (ESC env)
 bld.Services.AddScoped<IWebhookDeliveryStore, PostgresWebhookDeliveryStore>();                                 // shared webhook delivery history (stack/org/env)
+bld.Services.AddScoped<IOrgWebhookStore, PostgresOrgWebhookStore>();                                           // organization webhook definitions
 // Shared event-fired webhook dispatcher: a typed HttpClient (owned seam, swappable in tests) + the per-format
 // body formatters (raw default). SSRF deny-list comes from Webhooks:BlockedHosts.
 bld.Services.AddSingleton<HappyPumi.Api.Webhooks.IWebhookPayloadFormatter, HappyPumi.Api.Webhooks.RawFormatter>();
 bld.Services.AddSingleton<HappyPumi.Api.Webhooks.IWebhookPayloadFormatter, HappyPumi.Api.Webhooks.SlackFormatter>();
 bld.Services.AddSingleton<HappyPumi.Api.Webhooks.IWebhookPayloadFormatter, HappyPumi.Api.Webhooks.MsTeamsFormatter>();
 bld.Services.AddSingleton<HappyPumi.Api.Webhooks.IWebhookPayloadFormatter, HappyPumi.Api.Webhooks.PulumiDeploymentsFormatter>();
-bld.Services.AddHttpClient<HappyPumi.Api.Webhooks.IWebhookDispatcher, HappyPumi.Api.Webhooks.WebhookDispatcher>();
+// Webhook delivery must fail fast and NOT inherit the standard resilience handler (AddServiceDefaults
+// applies retries+backoff to every client): a failed delivery is recorded for manual redelivery, not
+// retried in-band while blocking the update path. Short timeout so a slow endpoint can't stall firing.
+// RemoveAllResilienceHandlers is the only per-client opt-out from the global default; it is marked
+// [Experimental] (EXTEXP0001) but API-stable for this use — suppress just that diagnostic here.
+#pragma warning disable EXTEXP0001
+bld.Services.AddHttpClient<HappyPumi.Api.Webhooks.IWebhookDispatcher, HappyPumi.Api.Webhooks.WebhookDispatcher>(
+        c => c.Timeout = TimeSpan.FromSeconds(5))
+    .RemoveAllResilienceHandlers();
+#pragma warning restore EXTEXP0001
 bld.Services.AddScoped<HappyPumi.Api.Webhooks.StackWebhookTrigger>(); // best-effort firing on update/deployment events
 bld.Services.AddScoped<IArtifactStore, PostgresArtifactStore>();       // registry artifact blobs (publish)
 bld.Services.AddScoped<IPolicyFindingStore, PostgresPolicyFindingStore>(); // policy violations (events → findings)
