@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Linq;
 
 namespace HappyPumi.Api.State;
 
@@ -25,6 +26,10 @@ public sealed class InMemoryUpdateStore : IUpdateStore
 
     public StoredUpdate? Find(string updateId)
         => _updates.TryGetValue(updateId, out var update) ? update : null;
+
+    public StoredUpdate? FindByVersion(StackCoordinates stack, long version)
+        => _updates.Values.FirstOrDefault(u =>
+            u.Coordinates == stack && u.Version == version && !u.DryRun);
 
     // The stored record is the live object, so mutations are already visible; nothing to persist.
     public void Save(StoredUpdate update) { }

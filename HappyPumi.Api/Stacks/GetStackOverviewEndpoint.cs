@@ -6,15 +6,18 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetStackOverview
 /// </summary>
-public sealed class GetStackOverviewEndpoint : Endpoint<GetStackOverviewRequest, StackOverviewResponse>
+public sealed class GetStackOverviewEndpoint(IStackStore stacks) : Endpoint<GetStackOverviewRequest, StackOverviewResponse>
 {
     public override void Configure()
     {
@@ -28,11 +31,22 @@ public sealed class GetStackOverviewEndpoint : Endpoint<GetStackOverviewRequest,
         );
     }
 
-    public override Task HandleAsync(GetStackOverviewRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetStackOverviewRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStackOverview
-        // HTTP: GET /api/console/stacks/{orgName}/{projectName}/{stackName}/overview
-        // Should produce: StackOverviewResponse
-        throw new NotImplementedException("Endpoint GetStackOverview not implemented.");
+        var stack = stacks.Find(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName));
+        if (stack is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        var resources = StackResources.Extract(stack.Deployment).Select(r => new ResourceInfo { Resource = r }).ToList();
+        await Send.OkAsync(new StackOverviewResponse
+        {
+            // ReferencedStacks is populated by the stack-references PR; empty here keeps the contract stable.
+            ReferencedStacks = new List<StackReference>(),
+            Resources = new GetStackResourcesResponse { Region = "", Version = stack.Version, Resources = resources },
+            Tags = new Dictionary<string, string>(stack.Tags),
+        }, ct);
     }
 }

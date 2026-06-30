@@ -6,15 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetStackResource
 /// </summary>
-public sealed class GetStackResourceEndpoint : Endpoint<GetStackResourceRequest, GetStackResourceResponse>
+public sealed class GetStackResourceEndpoint(IStackStore stacks, IUpdateStore updates) : Endpoint<GetStackResourceRequest, GetStackResourceResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,27 @@ public sealed class GetStackResourceEndpoint : Endpoint<GetStackResourceRequest,
         );
     }
 
-    public override Task HandleAsync(GetStackResourceRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetStackResourceRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStackResource
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/resources/{version}/{urn}
-        // Should produce: GetStackResourceResponse
-        throw new NotImplementedException("Endpoint GetStackResource not implemented.");
+        var coords = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        var stack = stacks.Find(coords);
+        if (stack is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        var deployment = req.Version == stack.Version ? stack.Deployment : updates.FindByVersion(coords, req.Version)?.Checkpoint;
+        var resource = StackResources.Extract(deployment).FirstOrDefault(r => r.Urn == req.Urn);
+        if (resource is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(new GetStackResourceResponse
+        {
+            Region = "", Version = req.Version, Resource = new ResourceInfo { Resource = resource },
+        }, ct);
     }
 }

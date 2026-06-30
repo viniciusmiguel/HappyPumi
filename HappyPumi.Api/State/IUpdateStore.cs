@@ -16,6 +16,12 @@ public interface IUpdateStore
     StoredUpdate? Find(string updateId);
 
     /// <summary>
+    /// Returns the succeeded (non-dry-run) update at the given stack version, or null. Used to recover the
+    /// resource checkpoint for a historical version (per-version resource views).
+    /// </summary>
+    StoredUpdate? FindByVersion(StackCoordinates stack, long version);
+
+    /// <summary>
     /// Persists mutations made to a record obtained from <see cref="Find"/> or <see cref="Create"/>. A
     /// no-op for in-memory (the record is live); writes the row for durable stores.
     /// </summary>

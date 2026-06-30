@@ -31,6 +31,14 @@ public sealed class PostgresUpdateStore(HappyPumiDbContext db) : IUpdateStore
         return row is null ? null : ToStored(row);
     }
 
+    public StoredUpdate? FindByVersion(StackCoordinates stack, long version)
+    {
+        var row = db.Updates.AsNoTracking().FirstOrDefault(u =>
+            u.Org == stack.Org && u.Project == stack.Project && u.Stack == stack.Stack
+            && u.Version == version && !u.DryRun);
+        return row is null ? null : ToStored(row);
+    }
+
     public void Save(StoredUpdate update)
     {
         var row = db.Updates.FirstOrDefault(u => u.UpdateId == update.UpdateId);

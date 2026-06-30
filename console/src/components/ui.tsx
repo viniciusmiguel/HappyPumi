@@ -46,10 +46,11 @@ export function PrimaryButton({ children, icon: Icon, onClick }: { children: Rea
 }
 
 /** Simple data table. Columns render a cell from a row. */
-export function Table<T>({ columns, rows, empty }: {
+export function Table<T>({ columns, rows, empty, onRowClick }: {
   columns: { header: string; cell: (row: T) => ReactNode; className?: string }[];
   rows: T[];
   empty?: ReactNode;
+  onRowClick?: (row: T) => void;
 }) {
   if (rows.length === 0 && empty) return <>{empty}</>;
   return (
@@ -62,7 +63,8 @@ export function Table<T>({ columns, rows, empty }: {
         </thead>
         <tbody>
           {rows.map((row, i) => (
-            <tr key={i} className="border-b border-line/60 transition-colors hover:bg-hover">
+            <tr key={i} onClick={onRowClick ? () => onRowClick(row) : undefined}
+              className={`border-b border-line/60 transition-colors hover:bg-hover ${onRowClick ? "cursor-pointer" : ""}`}>
               {columns.map((c) => <td key={c.header} className={`px-6 py-3 ${c.className ?? ""}`}>{c.cell(row)}</td>)}
             </tr>
           ))}
