@@ -6,7 +6,7 @@ import {
   Server, Package, LayoutTemplate, Boxes,
   CheckSquare, Cloud, GitBranch, ClipboardList,
   Users, UsersRound, KeyRound, Fingerprint, Plug, CreditCard, Settings,
-  Webhook, ChevronRight,
+  Webhook, ChevronRight, Key,
 } from "lucide-react";
 
 export interface NavItem { label: string; to: string; icon: LucideIcon; }
@@ -50,6 +50,7 @@ export const sections: NavSection[] = [
       { label: "Identity providers", to: "/settings/identity", icon: Fingerprint },
       { label: "Integrations", to: "/settings/integrations", icon: Plug },
       { label: "Webhooks", to: "/settings/webhooks", icon: Webhook },
+      { label: "Access tokens", to: "/settings/tokens", icon: Key },
       { label: "Billing & usage", to: "/settings/billing", icon: CreditCard },
     ],
   },

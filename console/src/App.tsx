@@ -29,6 +29,7 @@ import AuditLogs from "./pages/AuditLogs";
 import Identity from "./pages/Identity";
 import Billing from "./pages/Billing";
 import Webhooks from "./pages/Webhooks";
+import AccessTokens from "./pages/AccessTokens";
 
 /** Redirects to /login (remembering where you were) when there's no stored token. */
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -77,6 +78,7 @@ export default function App() {
         <Route path="/settings/identity" element={<Identity />} />
         <Route path="/settings/integrations" element={<Integrations />} />
         <Route path="/settings/webhooks" element={<Webhooks />} />
+        <Route path="/settings/tokens" element={<AccessTokens />} />
         <Route path="/settings/billing" element={<Billing />} />
 
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
