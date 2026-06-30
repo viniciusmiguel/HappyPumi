@@ -56,6 +56,8 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
     public DbSet<SamlConfigRow> SamlConfigs => Set<SamlConfigRow>();
     public DbSet<ConnectedCloudAccountRow> ConnectedCloudAccounts => Set<ConnectedCloudAccountRow>();
     public DbSet<ChangeGateRow> ChangeGates => Set<ChangeGateRow>();
+    public DbSet<ChangeRequestRow> ChangeRequests => Set<ChangeRequestRow>();
+    public DbSet<ChangeRequestEventRow> ChangeRequestEvents => Set<ChangeRequestEventRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -347,6 +349,18 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
             e.HasKey(x => new { x.Org, x.Id }); // gates are listed/looked up per org
             e.Property(x => x.EligibleApprovers).AsJsonb();
             e.Property(x => x.ActionTypes).AsJsonb();
+        });
+
+        b.Entity<ChangeRequestRow>(e =>
+        {
+            e.HasKey(x => new { x.Org, x.Id }); // change requests are listed/looked up per org
+            e.Property(x => x.Approvers).AsJsonb();
+        });
+
+        b.Entity<ChangeRequestEventRow>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.Org, x.ChangeRequestId }); // the events endpoint lists one CR's timeline
         });
     }
 }
