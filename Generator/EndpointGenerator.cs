@@ -23,6 +23,14 @@ public sealed class EndpointGenerator
     private readonly string _rootNs;
     private readonly TypeMapper _mapper;
 
+    /// <summary>
+    /// OpenAPI tags whose operations are intentionally NOT scaffolded — product surfaces HappyPumi will
+    /// never implement. Without this, re-running the generator would re-create their stub endpoints.
+    /// "AI Agents" = Pulumi Neo / agent tasks (the <c>/api/preview/agents</c> surface).
+    /// </summary>
+    public static readonly IReadOnlySet<string> ExcludedTags =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "AI Agents" };
+
     public EndpointGenerator(OpenApiDocument doc, string rootNs)
     {
         _doc = doc;
@@ -43,6 +51,7 @@ public sealed class EndpointGenerator
             foreach (var (method, op) in pathItem.Operations)
             {
                 var tag = op.Tags?.FirstOrDefault()?.Name ?? "Default";
+                if (ExcludedTags.Contains(tag)) continue; // intentionally not implemented (see ExcludedTags)
                 var tagFolder = Naming.TypeName(tag);
                 var dir = Path.Combine(outDir, tagFolder);
                 Directory.CreateDirectory(dir);

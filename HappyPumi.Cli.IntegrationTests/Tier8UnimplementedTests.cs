@@ -50,13 +50,12 @@ public sealed class Tier8UnimplementedTests(HappyPumiServer server) : CliTestBas
     [Fact(Skip = "template list resolves registry templates; ListTemplates wired but CLI flow needs publish first")]
     public Task TemplateList() => Task.CompletedTask;
 
-    // ---- VCS, agent pools, AI/Neo, raw api passthrough ----
+    // ---- VCS, agent pools, raw api passthrough ----
+    // (Neo / AI-agent task endpoints were removed — HappyPumi will not implement them; see
+    //  Generator EndpointGenerator.ExcludedTags.)
 
     [Fact(Skip = "needs ListOrgAgentPool/CreateOrgAgentPool (Workflows)")]
     public Task DeploymentAgentPools() => Task.CompletedTask;
-
-    [Fact(Skip = "neo drives AI agent task endpoints (CreateTasks/StreamTaskEvents) — Tier 8 AI")]
-    public Task Neo() => Task.CompletedTask;
 
     [Fact(Skip = "`pulumi do` interacts directly with cloud resources; out of scope for HappyPumi")]
     public Task Do() => Task.CompletedTask;
