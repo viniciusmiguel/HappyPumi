@@ -11,10 +11,16 @@ using HappyPumi.Api.State;
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
-/// UnapproveChangeRequest — withdraws the caller's approval of an open-access request and revokes any grant
-/// it produced, so the requester can no longer open the gated environment until re-approved.
+/// UnapproveChangeRequest — dispatch-by-ID. When the id resolves to a change request, the caller's approval is
+/// withdrawn. Otherwise the id is treated as an ESC open-access request and the existing logic runs unchanged:
+/// the approval is withdrawn and any grant it produced is revoked, so the requester can no longer open the
+/// gated environment until re-approved.
 /// </summary>
-public sealed class UnapproveEndpoint(IEscOpenRequestStore requests, IAuditLog audit) : Endpoint<UnapproveRequest>
+public sealed class UnapproveEndpoint(
+    IChangeRequestStore changeRequests,
+    IChangeRequestEventStore events,
+    IEscOpenRequestStore requests,
+    IAuditLog audit) : Endpoint<UnapproveRequest>
 {
     public override void Configure()
     {
@@ -24,6 +30,28 @@ public sealed class UnapproveEndpoint(IEscOpenRequestStore requests, IAuditLog a
     }
 
     public override async Task HandleAsync(UnapproveRequest req, CancellationToken ct)
+    {
+        var cr = changeRequests.Get(req.OrgName, req.ChangeRequestId);
+        if (cr is not null)
+        {
+            await UnapproveChangeRequestAsync(req, cr, ct);
+            return;
+        }
+
+        await UnapproveOpenRequestAsync(req, ct);
+    }
+
+    private async Task UnapproveChangeRequestAsync(UnapproveRequest req, StoredChangeRequest cr, CancellationToken ct)
+    {
+        var approver = User.Identity?.Name ?? "happypumi";
+        var updated = changeRequests.Update(req.OrgName, cr.Id, c => c.Approvers.RemoveAll(a => a == approver))!;
+        events.Append(ChangeRequestActivity.Event(updated, "unapproved_by_user", approver));
+        audit.Record(req.OrgName, "changeRequest.unapprove",
+            $"Withdrew approval of change request '{req.ChangeRequestId}' for '{cr.TargetProject}/{cr.TargetEnv}'", approver);
+        await Send.NoContentAsync(ct);
+    }
+
+    private async Task UnapproveOpenRequestAsync(UnapproveRequest req, CancellationToken ct)
     {
         var location = requests.Locate(req.OrgName, req.ChangeRequestId);
         if (location is null)

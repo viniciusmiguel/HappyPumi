@@ -1,6 +1,7 @@
 // Implemented by hand (ESC drafts). The generator would overwrite this body; preserve it.
 #nullable enable
 
+using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,7 +13,8 @@ using HappyPumi.Api.State;
 namespace HappyPumi.Api.Endpoints.Environments;
 
 /// <summary>CreateEnvironmentDraft — stores a proposed definition change (raw YAML body) as a change request.</summary>
-public sealed class CreateEnvironmentDraftEndpoint(IEnvironmentStore environments, IEscDraftStore drafts)
+public sealed class CreateEnvironmentDraftEndpoint(
+    IEnvironmentStore environments, IEscDraftStore drafts, IChangeRequestStore changeRequests)
     : Endpoint<CreateEnvironmentDraftRequest, ChangeRequestRef>
 {
     public override void Configure()
@@ -40,6 +42,20 @@ public sealed class CreateEnvironmentDraftEndpoint(IEnvironmentStore environment
         using var reader = new StreamReader(HttpContext.Request.Body);
         var yaml = await reader.ReadToEndAsync(ct);
         var id = drafts.Create(coords, yaml, env.CurrentRevision);
+        // The change-request id is the draft id: register a CR record wrapping this env draft (PR2).
+        changeRequests.Create(new StoredChangeRequest
+        {
+            Id = id,
+            Org = req.OrgName,
+            Action = "update",
+            Description = "",
+            TargetProject = req.ProjectName,
+            TargetEnv = req.EnvName,
+            Status = "draft",
+            LatestRevisionNumber = env.CurrentRevision,
+            CreatedBy = User.Identity?.Name ?? "happypumi",
+            CreatedAt = DateTime.UtcNow,
+        });
         await Send.OkAsync(new ChangeRequestRef { ChangeRequestId = id, LatestRevisionNumber = env.CurrentRevision }, ct);
     }
 }

@@ -12,10 +12,17 @@ using HappyPumi.Api.State;
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
-/// ApproveChangeRequest — records an approval for an open-access request. Once approvals reach the matching
-/// approval rule's threshold, a time-limited grant is issued so the requester can open the gated environment.
+/// ApproveChangeRequest — dispatch-by-ID. When the id resolves to a change request, the caller's approval is
+/// recorded (subject to separation-of-duties). Otherwise the id is treated as an ESC open-access request and
+/// the existing secret-reveal grant logic runs unchanged: once approvals reach the matching rule's threshold,
+/// a time-limited grant is issued so the requester can open the gated environment.
 /// </summary>
-public sealed class ApproveEndpoint(IEscOpenRequestStore requests, EscOpenGate gate, IAuditLog audit) : Endpoint<ApproveRequest>
+public sealed class ApproveEndpoint(
+    IChangeRequestStore changeRequests,
+    IChangeRequestEventStore events,
+    IEscOpenRequestStore requests,
+    EscOpenGate gate,
+    IAuditLog audit) : Endpoint<ApproveRequest>
 {
     private const long DefaultGrantSeconds = 3600;
 
@@ -27,6 +34,40 @@ public sealed class ApproveEndpoint(IEscOpenRequestStore requests, EscOpenGate g
     }
 
     public override async Task HandleAsync(ApproveRequest req, CancellationToken ct)
+    {
+        var cr = changeRequests.Get(req.OrgName, req.ChangeRequestId);
+        if (cr is not null)
+        {
+            await ApproveChangeRequestAsync(req, cr, ct);
+            return;
+        }
+
+        await ApproveOpenRequestAsync(req, ct);
+    }
+
+    private async Task ApproveChangeRequestAsync(ApproveRequest req, StoredChangeRequest cr, CancellationToken ct)
+    {
+        var approver = User.Identity?.Name ?? "happypumi";
+        if (approver == cr.CreatedBy)
+        {
+            // Separation of duties: the creator cannot approve their own change request.
+            await Send.ResultAsync(Microsoft.AspNetCore.Http.Results.Json(
+                new { code = 403, message = "You cannot approve your own change request." }, statusCode: 403));
+            return;
+        }
+
+        var updated = changeRequests.Update(req.OrgName, cr.Id, c =>
+        {
+            if (!c.Approvers.Contains(approver))
+                c.Approvers.Add(approver);
+        })!;
+        events.Append(ChangeRequestActivity.Event(updated, "approved_by_user", approver));
+        audit.Record(req.OrgName, "changeRequest.approve",
+            $"Approved change request '{req.ChangeRequestId}' for '{cr.TargetProject}/{cr.TargetEnv}'", approver);
+        await Send.ResultAsync(Microsoft.AspNetCore.Http.Results.Ok(new { approvals = updated.Approvers.Count }));
+    }
+
+    private async Task ApproveOpenRequestAsync(ApproveRequest req, CancellationToken ct)
     {
         var location = requests.Locate(req.OrgName, req.ChangeRequestId);
         if (location is null)
