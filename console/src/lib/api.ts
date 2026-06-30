@@ -201,6 +201,11 @@ export const api = {
     get<Stack>(`/stacks/${org}/${project}/${stack}/metadata`, { orgName: org, projectName: project, stackName: stack }),
   stackUpdates: (org: string, project: string, stack: string) =>
     get<{ updates?: UpdateInfo[] }>(`/stacks/${org}/${project}/${stack}/updates`, { updates: [] }),
+  // Paginated activity feed (updates projected newest-first).
+  stackActivity: (org: string, project: string, stack: string, page = 1, pageSize = 25) =>
+    get<{ activity: { update?: UpdateInfo }[]; total: number; itemsPerPage: number }>(
+      `/stacks/${org}/${project}/${stack}/activity?page=${page}&pageSize=${pageSize}`,
+      { activity: [], total: 0, itemsPerPage: pageSize }),
   stackResources: (org: string, project: string, stack: string) =>
     get<ResourcesResponse>(`/stacks/${org}/${project}/${stack}/resources/latest`, { resources: [] }),
   stackResourceCount: (org: string, project: string, stack: string) =>
