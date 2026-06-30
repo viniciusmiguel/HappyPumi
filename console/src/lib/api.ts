@@ -210,6 +210,10 @@ export interface StackWebhookInput { name?: string; displayName?: string; payloa
 export interface AccessToken { id: string; name?: string; description?: string; createdBy?: string; created?: string; lastUsed?: number; expires?: number; admin?: boolean; }
 export interface ListAccessTokensResponse { tokens?: AccessToken[]; }
 export interface CreatedAccessToken { id: string; tokenValue: string; }
+// Customer-managed keys (BYOK, settings PR4): state is "default" | "active" | "disabled".
+export interface AwsKmsConfig { keyArn: string; roleArn?: string; }
+export interface OrgKey { id: string; name: string; keyType: string; state?: string; awsKms?: AwsKmsConfig; }
+export interface CreateOrgKeyBody { name: string; keyType: string; awsKms?: AwsKmsConfig; }
 export interface WebhookDeliveryLog { id: string; kind: string; payload?: string; requestUrl?: string; responseCode?: number; responseBody?: string; duration?: number; timestamp?: number; }
 export interface EnvSchedule { id: string; kind: string; scheduleCron?: string; nextExecution?: string; lastExecuted?: string; paused?: boolean; }
 export interface RotationEvent { id: string; created?: string; completed?: string; errorMessage?: string; preRotationRevision?: number; postRotationRevision?: number; }
@@ -355,6 +359,18 @@ export const api = {
     postJson<CreatedAccessToken>(`/orgs/${org}/tokens`, { name, description, expires: 0, admin: false }),
   deleteOrgToken: (org: string, id: string) =>
     del(`/orgs/${org}/tokens/${id}`),
+
+  // Encryption keys (BYOK, settings PR4): customer-managed keys under /orgs/{org}/cmk. Creating a key makes
+  // it the org default; disable-all reverts to service-managed encryption.
+  orgKeys: (org: string) => get<OrgKey[]>(`/orgs/${org}/cmk`, []),
+  createOrgKey: (org: string, body: CreateOrgKeyBody) =>
+    postJson<OrgKey>(`/orgs/${org}/cmk`, body),
+  setDefaultOrgKey: (org: string, id: string) =>
+    postVoid(`/orgs/${org}/cmk/${id}/default`, {}),
+  disableOrgKey: (org: string, id: string) =>
+    postVoid(`/orgs/${org}/cmk/${id}/disable`, {}),
+  disableAllOrgKeys: (org: string) =>
+    postVoid(`/orgs/${org}/cmk/disable`, {}),
 
   // Deployments
   orgDeployments: (org: string) =>
