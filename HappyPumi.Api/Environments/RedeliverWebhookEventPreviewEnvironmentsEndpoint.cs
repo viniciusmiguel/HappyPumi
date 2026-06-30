@@ -8,18 +8,22 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Webhooks;
 
 namespace HappyPumi.Api.Endpoints.Environments;
 
 /// <summary>
 /// RedeliverWebhookEvent
 /// </summary>
-public sealed class RedeliverWebhookEventPreviewEnvironmentsEndpoint : Endpoint<RedeliverWebhookEventPreviewEnvironmentsRequest, WebhookDelivery>
+public sealed class RedeliverWebhookEventPreviewEnvironmentsEndpoint(
+    IEnvironmentWebhookStore webhooks, IWebhookDeliveryStore deliveries, IWebhookDispatcher dispatcher)
+    : Endpoint<RedeliverWebhookEventPreviewEnvironmentsRequest, WebhookDelivery>
 {
     public override void Configure()
     {
         Post("/api/preview/environments/{orgName}/{envName}/hooks/{hookName}/deliveries/{event}/redeliver");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("environment:write");
         Description(b => b
             .WithTags("Environments")
             .WithSummary("RedeliverWebhookEvent")
@@ -28,11 +32,18 @@ public sealed class RedeliverWebhookEventPreviewEnvironmentsEndpoint : Endpoint<
         );
     }
 
-    public override Task HandleAsync(RedeliverWebhookEventPreviewEnvironmentsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(RedeliverWebhookEventPreviewEnvironmentsRequest req, CancellationToken ct)
     {
-        // TODO: implement RedeliverWebhookEventPreviewEnvironments
-        // HTTP: POST /api/preview/environments/{orgName}/{envName}/hooks/{hookName}/deliveries/{event}/redeliver
-        // Should produce: WebhookDelivery
-        throw new NotImplementedException("Endpoint RedeliverWebhookEventPreviewEnvironments not implemented.");
+        var coords = EnvWebhookScope.Coords(req.OrgName, req.EnvName);
+        var scope = EnvWebhookScope.For(coords);
+        var webhook = webhooks.Get(coords, req.HookName);
+        var prior = webhook is null ? null : deliveries.LatestByEvent(scope, req.HookName, req.Event);
+        if (webhook is null || prior is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        var delivery = await dispatcher.SendAsync(scope, WebhookMapper.ToSigningTarget(webhook, coords), req.Event, prior.RequestBody, ct);
+        await Send.OkAsync(WebhookDeliveryMapper.ToContract(delivery, webhook.PayloadUrl), ct);
     }
 }

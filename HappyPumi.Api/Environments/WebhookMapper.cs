@@ -38,4 +38,15 @@ public static class WebhookMapper
         HasSecret = !string.IsNullOrEmpty(webhook.Secret),
         SecretCiphertext = "",
     };
+
+    /// <summary>
+    /// Like <see cref="ToResponse"/> but carries the stored secret so the dispatcher can sign the delivery.
+    /// Used only for ping/redeliver/fire — the result is handed to the dispatcher, never serialized to a client.
+    /// </summary>
+    public static WebhookResponse ToSigningTarget(StoredWebhook webhook, EnvCoordinates env)
+    {
+        var target = ToResponse(webhook, env);
+        target.Secret = webhook.Secret;
+        return target;
+    }
 }

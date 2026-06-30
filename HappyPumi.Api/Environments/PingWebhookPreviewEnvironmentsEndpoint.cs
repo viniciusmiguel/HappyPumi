@@ -7,19 +7,23 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Text.Json;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Webhooks;
 
 namespace HappyPumi.Api.Endpoints.Environments;
 
 /// <summary>
 /// PingWebhook
 /// </summary>
-public sealed class PingWebhookPreviewEnvironmentsEndpoint : Endpoint<PingWebhookPreviewEnvironmentsRequest, WebhookDelivery>
+public sealed class PingWebhookPreviewEnvironmentsEndpoint(IEnvironmentWebhookStore webhooks, IWebhookDispatcher dispatcher)
+    : Endpoint<PingWebhookPreviewEnvironmentsRequest, WebhookDelivery>
 {
     public override void Configure()
     {
         Post("/api/preview/environments/{orgName}/{envName}/hooks/{hookName}/ping");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("environment:write");
         Description(b => b
             .WithTags("Environments")
             .WithSummary("PingWebhook")
@@ -28,11 +32,17 @@ public sealed class PingWebhookPreviewEnvironmentsEndpoint : Endpoint<PingWebhoo
         );
     }
 
-    public override Task HandleAsync(PingWebhookPreviewEnvironmentsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(PingWebhookPreviewEnvironmentsRequest req, CancellationToken ct)
     {
-        // TODO: implement PingWebhookPreviewEnvironments
-        // HTTP: POST /api/preview/environments/{orgName}/{envName}/hooks/{hookName}/ping
-        // Should produce: WebhookDelivery
-        throw new NotImplementedException("Endpoint PingWebhookPreviewEnvironments not implemented.");
+        var coords = EnvWebhookScope.Coords(req.OrgName, req.EnvName);
+        var webhook = webhooks.Get(coords, req.HookName);
+        if (webhook is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        var body = JsonSerializer.Serialize(new { kind = "ping", environment = $"{coords.Org}/{coords.Project}/{coords.Name}" });
+        var delivery = await dispatcher.SendAsync(EnvWebhookScope.For(coords), WebhookMapper.ToSigningTarget(webhook, coords), "ping", body, ct);
+        await Send.OkAsync(WebhookDeliveryMapper.ToContract(delivery, webhook.PayloadUrl), ct);
     }
 }
