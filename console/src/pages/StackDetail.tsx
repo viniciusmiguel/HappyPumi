@@ -7,10 +7,11 @@ import {
 import { useOrg } from "../lib/useOrg";
 import {
   Breadcrumb, Tabs, Badge, StatusDot, Table, Card, SecondaryButton,
-  Avatar, EmptyState, Dropdown, Modal,
+  EmptyState, Dropdown, Modal,
 } from "../components/ui";
 import { Overview } from "./stack/Overview";
 import { Resources } from "./stack/Resources";
+import { Updates } from "./stack/Updates";
 
 const TABS = [
   { key: "overview", label: "Overview" },
@@ -78,7 +79,7 @@ export default function StackDetail() {
       <div className="px-6 py-5">
         {active === "overview" && <Overview org={org} project={project} stack={stack} meta={meta} count={count ?? resources.length} updates={updates} />}
         {active === "readme" && <Readme project={project} />}
-        {active === "updates" && <Updates updates={updates} />}
+        {active === "updates" && <Updates org={org} project={project} stack={stack} updates={updates} />}
         {active === "deployments" && <Deployments deps={deps} project={project} stack={stack} />}
         {active === "resources" && <Resources org={org} project={project} stack={stack} resources={resources} />}
         {active === "settings" && <Settings meta={meta} onDelete={() => setConfirmDelete(true)} />}
@@ -109,55 +110,6 @@ function Readme({ project }: { project: string }) {
         This stack has no README. Add a <code className="rounded bg-bg px-1">Pulumi.README.md</code> to your project to document it here.
       </p>
     </Card>
-  );
-}
-
-function changeCount(u: UpdateInfo): number {
-  if (u.resourceCount != null) return u.resourceCount;
-  const c = u.resourceChanges ?? u.info?.resourceChanges;
-  return c ? Object.values(c).reduce((a, b) => a + (b || 0), 0) : 0;
-}
-
-function updateDay(u: UpdateInfo): string {
-  const ms = (u.endTime ?? u.time ?? 0) * 1000;
-  if (!ms) return "Activity";
-  return "Activity on " + new Date(ms).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
-}
-
-function Updates({ updates }: { updates: UpdateInfo[] }) {
-  if (updates.length === 0) return <EmptyState icon={Layers} title="No updates" description="Run pulumi up to create an update." />;
-  // Group by calendar day, matching the real console's "Activity on <date>" sections.
-  const groups: { day: string; items: UpdateInfo[] }[] = [];
-  for (const u of updates) {
-    const day = updateDay(u);
-    const g = groups.find((x) => x.day === day) ?? (groups.push({ day, items: [] }), groups[groups.length - 1]);
-    g.items.push(u);
-  }
-  return (
-    <div className="space-y-5">
-      {groups.map((g) => (
-        <div key={g.day}>
-          <h3 className="mb-2 text-sm font-semibold text-ink-dim">{g.day}</h3>
-          <div className="space-y-2">
-            {g.items.map((u) => (
-              <div key={u.version} className="rounded-lg border border-line bg-panel">
-                <div className="flex items-center gap-3 px-4 py-3">
-                  <StatusDot status={u.result} />
-                  <div className="flex-1">
-                    <div className="text-sm font-medium">{u.kind ?? "update"} #{u.version} {u.result}</div>
-                    <div className="flex items-center gap-1.5 text-xs text-ink-faint">
-                      <Avatar name={u.requestedBy?.name} size={14} />
-                      {u.requestedBy?.githubLogin ?? u.requestedBy?.name ?? "unknown"} updated {timeAgo(u.endTime ?? u.time)}
-                    </div>
-                  </div>
-                  <Badge>{changeCount(u)}</Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
   );
 }
 

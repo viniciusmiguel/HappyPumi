@@ -107,6 +107,20 @@ export interface UpdateInfo {
   info?: { environment?: Record<string, string>; resourceChanges?: Record<string, number> };
 }
 
+// Update + preview detail (PR2). The engine-event stream is a discriminated union; the console reads the
+// few payloads it renders as a log/timeline (diagnostics, stdout, resource steps, the final summary).
+export interface EngineEvent {
+  type?: string; timestamp?: number;
+  diagnosticEvent?: { message?: string; prefix?: string };
+  stdoutEvent?: { message?: string };
+  resourcePreEvent?: { metadata?: { op?: string; urn?: string; type?: string } };
+  resOutputsEvent?: { metadata?: { op?: string; urn?: string; type?: string } };
+  summaryEvent?: { resourceChanges?: Record<string, number> };
+}
+export interface UpdateSummaryDetail { result?: string; resourceCount?: number; startTime?: number; endTime?: number; }
+export interface UpdateTimeline { update?: UpdateInfo; previews?: UpdateInfo[]; collatedUpdateEvents?: UpdateInfo[]; }
+export interface UpdateEventsResponse { events?: EngineEvent[]; continuationToken?: string; }
+
 export interface Resource {
   urn: string; type: string; custom?: boolean; id?: string | null; parent?: string;
   provider?: string | null; created?: string; modified?: string;
@@ -201,6 +215,16 @@ export const api = {
   // Console overview aggregation (resources + tags + referenced stacks).
   stackOverview: (org: string, project: string, stack: string) =>
     get<StackOverview | null>(`/console/stacks/${org}/${project}/${stack}/overview`, null),
+  // Update detail (PR2): per-version summary, timeline (focal update + previews), and the engine-event stream.
+  stackUpdateSummary: (org: string, project: string, stack: string, version: number) =>
+    get<UpdateSummaryDetail>(`/stacks/${org}/${project}/${stack}/updates/${version}/summary`, {}),
+  stackUpdateTimeline: (org: string, project: string, stack: string, version: number) =>
+    get<UpdateTimeline>(`/stacks/${org}/${project}/${stack}/updates/${version}/timeline`, {}),
+  stackUpdateEvents: (org: string, project: string, stack: string, updateId: string) =>
+    get<UpdateEventsResponse>(`/stacks/${org}/${project}/${stack}/update/${updateId}/events`, { events: [] }),
+  // Preview history for the stack (dry-run updates).
+  stackPreviews: (org: string, project: string, stack: string) =>
+    get<{ updates?: UpdateInfo[] }>(`/stacks/${org}/${project}/${stack}/updates/latest/previews`, { updates: [] }),
 
   // Deployments
   orgDeployments: (org: string) =>
