@@ -78,6 +78,7 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
                 .OnDelete(DeleteBehavior.Cascade);
             e.Property(x => x.Config).AsJsonb();
             e.Property(x => x.Checkpoint).AsJsonb();
+            e.Property(x => x.Events).AsJsonb();
         });
 
         b.Entity<MemberRow>(e => e.HasKey(x => new { x.Org, x.UserLogin }));

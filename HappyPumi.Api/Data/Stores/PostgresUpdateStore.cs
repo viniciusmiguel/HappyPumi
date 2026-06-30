@@ -1,7 +1,9 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using HappyPumi.Api.Contracts;
 using HappyPumi.Api.Data.Entities;
 using HappyPumi.Api.State;
 using Microsoft.EntityFrameworkCore;
@@ -53,7 +55,29 @@ public sealed class PostgresUpdateStore(HappyPumiDbContext db) : IUpdateStore
         row.RequestedByName = update.RequestedByName;
         row.Config = update.Config;
         row.Checkpoint = update.Checkpoint;
+        row.Events = update.Events;
         db.SaveChanges();
+    }
+
+    public IReadOnlyList<StoredUpdate> ListByStack(StackCoordinates stack)
+        => db.Updates.AsNoTracking()
+            .Where(u => u.Org == stack.Org && u.Project == stack.Project && u.Stack == stack.Stack)
+            .ToList().Select(ToStored).ToList();
+
+    public void AppendEvents(string updateId, IReadOnlyList<AppEngineEvent> events)
+    {
+        var row = db.Updates.FirstOrDefault(u => u.UpdateId == updateId);
+        if (row is null)
+            return;
+        // Reassign so EF detects the change to the jsonb column (in-place list mutation is not tracked).
+        row.Events = new List<AppEngineEvent>(row.Events).Concat(events).ToList();
+        db.SaveChanges();
+    }
+
+    public IReadOnlyList<AppEngineEvent> GetEvents(string updateId)
+    {
+        var row = db.Updates.AsNoTracking().FirstOrDefault(u => u.UpdateId == updateId);
+        return row?.Events ?? new List<AppEngineEvent>();
     }
 
     private static UpdateRow ToRow(StoredUpdate u) => new()
@@ -63,7 +87,7 @@ public sealed class PostgresUpdateStore(HappyPumiDbContext db) : IUpdateStore
         Kind = u.Kind, DryRun = u.DryRun, Status = u.Status, Token = u.Token,
         Version = u.Version, StartedAt = u.StartedAt, Message = u.Message,
         RequestedByLogin = u.RequestedByLogin, RequestedByName = u.RequestedByName,
-        Config = u.Config, Checkpoint = u.Checkpoint,
+        Config = u.Config, Checkpoint = u.Checkpoint, Events = u.Events,
     };
 
     private static StoredUpdate ToStored(UpdateRow r) => new()
@@ -74,6 +98,6 @@ public sealed class PostgresUpdateStore(HappyPumiDbContext db) : IUpdateStore
         Status = r.Status, Token = r.Token, Version = r.Version,
         StartedAt = r.StartedAt, Message = r.Message,
         RequestedByLogin = r.RequestedByLogin, RequestedByName = r.RequestedByName,
-        Config = r.Config, Checkpoint = r.Checkpoint,
+        Config = r.Config, Checkpoint = r.Checkpoint, Events = r.Events,
     };
 }
