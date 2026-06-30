@@ -6,15 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetLatestStackResource
 /// </summary>
-public sealed class GetLatestStackResourceEndpoint : Endpoint<GetLatestStackResourceRequest, GetStackResourceResponse>
+public sealed class GetLatestStackResourceEndpoint(IStackStore stacks) : Endpoint<GetLatestStackResourceRequest, GetStackResourceResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,25 @@ public sealed class GetLatestStackResourceEndpoint : Endpoint<GetLatestStackReso
         );
     }
 
-    public override Task HandleAsync(GetLatestStackResourceRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetLatestStackResourceRequest req, CancellationToken ct)
     {
-        // TODO: implement GetLatestStackResource
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/resources/latest/{urn}
-        // Should produce: GetStackResourceResponse
-        throw new NotImplementedException("Endpoint GetLatestStackResource not implemented.");
+        var stack = stacks.Find(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName));
+        if (stack is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        var resource = StackResources.Extract(stack.Deployment).FirstOrDefault(r => r.Urn == req.Urn);
+        if (resource is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(new GetStackResourceResponse
+        {
+            Region = "", Version = stack.Version, Resource = new ResourceInfo { Resource = resource },
+        }, ct);
     }
 }

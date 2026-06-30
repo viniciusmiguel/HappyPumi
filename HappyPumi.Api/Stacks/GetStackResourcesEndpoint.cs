@@ -6,15 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetStackResources
 /// </summary>
-public sealed class GetStackResourcesEndpoint : Endpoint<GetStackResourcesRequest, GetStackResourcesResponse>
+public sealed class GetStackResourcesEndpoint(IStackStore stacks, IUpdateStore updates) : Endpoint<GetStackResourcesRequest, GetStackResourcesResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,25 @@ public sealed class GetStackResourcesEndpoint : Endpoint<GetStackResourcesReques
         );
     }
 
-    public override Task HandleAsync(GetStackResourcesRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetStackResourcesRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStackResources
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/resources/{version}
-        // Should produce: GetStackResourcesResponse
-        throw new NotImplementedException("Endpoint GetStackResources not implemented.");
+        var coords = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        var stack = stacks.Find(coords);
+        if (stack is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        // Latest version reads the stack's current checkpoint; older versions recover theirs from the update.
+        var deployment = req.Version == stack.Version ? stack.Deployment : updates.FindByVersion(coords, req.Version)?.Checkpoint;
+        if (deployment is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        var resources = StackResources.Extract(deployment).Select(r => new ResourceInfo { Resource = r }).ToList();
+        await Send.OkAsync(new GetStackResourcesResponse { Region = "", Version = req.Version, Resources = resources }, ct);
     }
 }
