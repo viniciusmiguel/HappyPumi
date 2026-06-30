@@ -84,6 +84,16 @@ async function del(path: string): Promise<void> {
   if (!res.ok) throw new Error(`DELETE ${path} failed: ${res.status} ${res.statusText}`);
 }
 
+// JSON POST whose endpoint replies 204/empty (no body to parse). Surfaces failures like the write helpers.
+async function postVoid(path: string, body: unknown): Promise<void> {
+  const res = await fetch(`/api${path}`, {
+    method: "POST",
+    headers: { Authorization: authHeader(), "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`POST ${path} failed: ${res.status} ${res.statusText}`);
+}
+
 // ── Shared shapes ────────────────────────────────────────────────────────────
 export interface Organization { githubLogin: string; name?: string; avatarUrl?: string; }
 export interface CurrentUser { githubLogin: string; name?: string; avatarUrl?: string; organizations?: Organization[]; }
@@ -93,10 +103,11 @@ export interface LastUpdate {
   version?: number; result?: string; kind?: string;
   startTime?: number; endTime?: number; time?: number; requestedBy?: Actor;
 }
+export interface NotificationSettings { notifyUpdateSuccess?: boolean; notifyUpdateFailure?: boolean; }
 export interface Stack {
   orgName: string; projectName: string; stackName: string; name?: string;
   resourceCount?: number; version?: number; lastUpdate?: LastUpdate;
-  tags?: Record<string, string>;
+  tags?: Record<string, string>; ownedBy?: Actor; notificationSettings?: NotificationSettings;
 }
 export interface ProjectResponse { project: { name: string; orgName: string; stacks: Stack[] }; continuationToken?: string | null; }
 
@@ -252,6 +263,20 @@ export const api = {
   // Team grant updates are console-namespaced; permission null removes the team's grant.
   updateStackTeamPermission: (org: string, project: string, stack: string, team: string, permission: number | null) =>
     patchJson(`/console/stacks/${org}/${project}/${stack}/teams/${team}`, { permissions: permission }),
+
+  // Stack settings actions (PR6)
+  // Updates the value of an existing tag (the tag must already exist on the stack).
+  updateStackTag: (org: string, project: string, stack: string, name: string, value: string) =>
+    patchJson(`/stacks/${org}/${project}/${stack}/tags/${name}`, { name, value }),
+  // Toggles the per-stack notification preferences; returns void (the caller re-reads metadata).
+  updateStackNotifications: (org: string, project: string, stack: string, settings: NotificationSettings) =>
+    patchJson(`/stacks/${org}/${project}/${stack}/notifications/settings`, settings),
+  // Reassigns ownership to the given login; returns the new owner's identity.
+  reassignStackOwner: (org: string, project: string, stack: string, owner: string) =>
+    postJson<Actor>(`/stacks/${org}/${project}/${stack}/ownership`, { githubLogin: owner, name: owner }),
+  // Moves the stack to another organization (replies 204 on success).
+  transferStack: (org: string, project: string, stack: string, toOrg: string) =>
+    postVoid(`/stacks/${org}/${project}/${stack}/transfer`, { toOrg }),
 
   // Deployments
   orgDeployments: (org: string) =>
