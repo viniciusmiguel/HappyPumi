@@ -183,7 +183,11 @@ export interface AzureDevOpsAccessResponse {
 export interface AzureDevOpsOrganization { id?: string; name: string; accountUrl?: string; hasRequiredPermissions?: boolean; }
 export interface VcsRepo { id: string; name: string; owner: string; }
 export interface VcsBranch { name: string; isProtected: boolean; }
-export interface OidcIssuer { name: string; url: string; created?: string; }
+export interface OidcIssuer {
+  id?: string; name: string; url: string; issuer?: string;
+  thumbprints?: string[]; maxExpiration?: number; created?: string; modified?: string; lastUsed?: string;
+}
+export interface RegisterOidcIssuerBody { name: string; url: string; maxExpiration?: number; }
 export interface ApprovalRule { name: string; stackPattern: string; requiredApprovals: number; enabled?: boolean; created?: string; }
 export interface PolicyViolation {
   id: string; policyName: string; policyPack: string; policyPackTag?: string; level: string;
@@ -510,9 +514,17 @@ export const api = {
     get<{ branches?: VcsBranch[] }>(
       `/console/orgs/${org}/integrations/${provider}/${id}/repos/${encodeURIComponent(repoId)}/branches`,
       { branches: [] }),
-  oidcIssuers: (org: string) => get<{ issuers?: OidcIssuer[] }>(`/orgs/${org}/oidc-issuers`, { issuers: [] }),
+  // OIDC issuers (Settings PR3): the real /oidc/issuers spec surface — register / list / get / delete /
+  // regenerate-thumbprints. The legacy Identity page reuses oidcIssuers/createOidcIssuer against the same store.
+  oidcIssuers: (org: string) =>
+    get<{ oidcIssuers?: OidcIssuer[] }>(`/orgs/${org}/oidc/issuers`, { oidcIssuers: [] }),
   createOidcIssuer: (org: string, name: string, url: string) =>
-    postJson<unknown>(`/orgs/${org}/oidc-issuers`, { name, url }),
+    postJson<OidcIssuer>(`/orgs/${org}/oidc/issuers`, { name, url }),
+  registerOidcIssuer: (org: string, body: RegisterOidcIssuerBody) =>
+    postJson<OidcIssuer>(`/orgs/${org}/oidc/issuers`, body),
+  deleteOidcIssuer: (org: string, id: string) => del(`/orgs/${org}/oidc/issuers/${id}`),
+  regenerateOidcThumbprints: (org: string, id: string) =>
+    postJson<OidcIssuer>(`/orgs/${org}/oidc/issuers/${id}/regenerate-thumbprints`, {}),
   approvalRules: (org: string) => get<{ rules?: ApprovalRule[] }>(`/orgs/${org}/approval-rules`, { rules: [] }),
   createApprovalRule: (org: string, name: string, stackPattern: string, requiredApprovals: number) =>
     postJson<unknown>(`/orgs/${org}/approval-rules`, { name, stackPattern, requiredApprovals }),

@@ -48,6 +48,7 @@ export const sections: NavSection[] = [
       { label: "Teams", to: "/settings/teams", icon: UsersRound },
       { label: "Roles", to: "/settings/roles", icon: KeyRound },
       { label: "Identity providers", to: "/settings/identity", icon: Fingerprint },
+      { label: "OIDC issuers", to: "/settings/oidc-issuers", icon: ShieldCheck },
       { label: "Integrations", to: "/settings/integrations", icon: Plug },
       { label: "Webhooks", to: "/settings/webhooks", icon: Webhook },
       { label: "Access tokens", to: "/settings/tokens", icon: Key },
