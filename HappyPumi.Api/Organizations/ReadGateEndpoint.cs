@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// ReadChangeGate
 /// </summary>
-public sealed class ReadGateEndpoint : Endpoint<ReadGateRequest, ChangeGate>
+public sealed class ReadGateEndpoint(IChangeGateStore gates) : Endpoint<ReadGateRequest, ChangeGate>
 {
     public override void Configure()
     {
@@ -28,11 +29,16 @@ public sealed class ReadGateEndpoint : Endpoint<ReadGateRequest, ChangeGate>
         );
     }
 
-    public override Task HandleAsync(ReadGateRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ReadGateRequest req, CancellationToken ct)
     {
-        // TODO: implement ReadGate
-        // HTTP: GET /api/change-gates/{orgName}/{gateID}
-        // Should produce: ChangeGate
-        throw new NotImplementedException("Endpoint ReadGate not implemented.");
+        var gate = gates.Get(req.OrgName, req.GateId);
+        if (gate is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.StringAsync(ChangeGateJson.Serialize(ChangeGateMapper.ToContract(gate)),
+            contentType: "application/json", cancellation: ct);
     }
 }

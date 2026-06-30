@@ -6,15 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// ListChangeGates
 /// </summary>
-public sealed class ListGatesEndpoint : Endpoint<ListGatesRequest, ListChangeGatesResponse>
+public sealed class ListGatesEndpoint(IChangeGateStore gates) : Endpoint<ListGatesRequest, ListChangeGatesResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,17 @@ public sealed class ListGatesEndpoint : Endpoint<ListGatesRequest, ListChangeGat
         );
     }
 
-    public override Task HandleAsync(ListGatesRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ListGatesRequest req, CancellationToken ct)
     {
-        // TODO: implement ListGates
-        // HTTP: GET /api/change-gates/{orgName}
-        // Should produce: ListChangeGatesResponse
-        throw new NotImplementedException("Endpoint ListGates not implemented.");
+        var matches = gates.List(req.OrgName)
+            .Where(g => req.EntityType is null || g.TargetEntityType == req.EntityType)
+            .Where(g => req.QualifiedName is null || g.QualifiedName == req.QualifiedName);
+        var response = new ListChangeGatesResponse
+        {
+            ContinuationToken = "",
+            Gates = matches.Select(ChangeGateMapper.ToContract).ToList(),
+        };
+        await Send.StringAsync(ChangeGateJson.Serialize(response),
+            contentType: "application/json", cancellation: ct);
     }
 }
