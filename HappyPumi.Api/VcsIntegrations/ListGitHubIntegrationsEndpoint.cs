@@ -6,20 +6,23 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.VcsIntegrations;
 
 namespace HappyPumi.Api.Endpoints.VcsIntegrations;
 
 /// <summary>
 /// ListGitHubIntegrations
 /// </summary>
-public sealed class ListGitHubIntegrationsEndpoint : Endpoint<ListGitHubIntegrationsRequest, ListGitHubIntegrationsResponse>
+public sealed class ListGitHubIntegrationsEndpoint(IVcsIntegrationStore store) : Endpoint<ListGitHubIntegrationsRequest, ListGitHubIntegrationsResponse>
 {
     public override void Configure()
     {
         Get("/api/console/orgs/{orgName}/integrations/github");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:read");
         Description(b => b
             .WithTags("VCS Integrations")
             .WithSummary("ListGitHubIntegrations")
@@ -30,9 +33,9 @@ public sealed class ListGitHubIntegrationsEndpoint : Endpoint<ListGitHubIntegrat
 
     public override Task HandleAsync(ListGitHubIntegrationsRequest req, CancellationToken ct)
     {
-        // TODO: implement ListGitHubIntegrations
-        // HTTP: GET /api/console/orgs/{orgName}/integrations/github
-        // Should produce: ListGitHubIntegrationsResponse
-        throw new NotImplementedException("Endpoint ListGitHubIntegrations not implemented.");
+        var integrations = store.List(req.OrgName, "github")
+            .Select(VcsIntegrationMapper.ToGitHubDetails)
+            .ToList();
+        return Send.OkAsync(new ListGitHubIntegrationsResponse { Integrations = integrations }, ct);
     }
 }
