@@ -22,5 +22,10 @@ public interface IVcsIntegrationStore
     /// <summary>Replaces the settings of an existing record; returns null if it is missing.</summary>
     StoredVcsIntegration? UpdateSettings(string org, string id, VcsIntegrationSettings settings);
 
+    /// <summary>
+    /// Persists a connected account's access token (OAuth completion); returns null if the record is missing.
+    /// </summary>
+    StoredVcsIntegration? SetCredential(string org, string id, string credential);
+
     bool Delete(string org, string id);
 }

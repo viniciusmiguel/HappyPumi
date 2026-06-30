@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
-import { GitBranch, Plus, Trash2 } from "lucide-react";
+import { GitBranch, Plus, Trash2, FolderGit2 } from "lucide-react";
 import { api, type VcsIntegrationSummary } from "../lib/api";
 import { useOrg } from "../lib/useOrg";
 import { PageHeader, Table, EmptyState, PrimaryButton, SecondaryButton, Modal, Badge, Avatar } from "../components/ui";
+import { ConnectModal } from "./vcs/ConnectModal";
+import { RepoBrowser } from "./vcs/RepoBrowser";
 
 // Maps the API's vcsProvider value to a human label for the table.
 const PROVIDER_LABELS: Record<string, string> = {
@@ -21,6 +23,7 @@ export default function VersionControl() {
   const org = useOrg();
   const [integrations, setIntegrations] = useState<VcsIntegrationSummary[]>([]);
   const [pending, setPending] = useState<VcsIntegrationSummary | null>(null);
+  const [browsing, setBrowsing] = useState<VcsIntegrationSummary | null>(null);
   const [showConnect, setShowConnect] = useState(false);
 
   function load() { api.vcsIntegrations(org).then((r) => setIntegrations(r.integrations ?? [])); }
@@ -53,7 +56,10 @@ export default function VersionControl() {
           {
             header: "",
             cell: (i) => (
-              <SecondaryButton icon={Trash2} onClick={() => setPending(i)}>Disconnect</SecondaryButton>
+              <span className="flex justify-end gap-2">
+                <SecondaryButton icon={FolderGit2} onClick={() => setBrowsing(i)}>Browse</SecondaryButton>
+                <SecondaryButton icon={Trash2} onClick={() => setPending(i)}>Disconnect</SecondaryButton>
+              </span>
             ),
           },
         ]}
@@ -70,14 +76,10 @@ export default function VersionControl() {
           </p>
         </Modal>
       )}
+      {browsing && <RepoBrowser org={org} integration={browsing} onClose={() => setBrowsing(null)} />}
       {showConnect && (
-        <Modal title="Connect version control" onClose={() => setShowConnect(false)}
-          footer={<SecondaryButton onClick={() => setShowConnect(false)}>Close</SecondaryButton>}>
-          <p className="text-sm text-ink-faint">
-            Connecting new GitHub and Azure DevOps accounts via OAuth is coming in the next release. For now this page lists and
-            manages existing integrations.
-          </p>
-        </Modal>
+        <ConnectModal org={org} onClose={() => setShowConnect(false)}
+          onDone={() => { setShowConnect(false); load(); }} />
       )}
     </div>
   );

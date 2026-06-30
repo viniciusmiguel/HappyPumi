@@ -173,6 +173,16 @@ export interface VcsIntegrationSummary {
   avatarUrl?: string;
   hasIndividualAccess: boolean;
 }
+export interface GitHubSetupResponse { installationUrl?: string; }
+export interface InitiateOAuthResponse { sessionID: string; url: string; }
+export interface AzureDevOpsAccessResponse {
+  hasIntegration: boolean;
+  hasUserToken: boolean;
+  availableOrgs?: AzureDevOpsOrganization[];
+}
+export interface AzureDevOpsOrganization { id?: string; name: string; accountUrl?: string; hasRequiredPermissions?: boolean; }
+export interface VcsRepo { id: string; name: string; owner: string; }
+export interface VcsBranch { name: string; isProtected: boolean; }
 export interface OidcIssuer { name: string; url: string; created?: string; }
 export interface ApprovalRule { name: string; stackPattern: string; requiredApprovals: number; enabled?: boolean; created?: string; }
 export interface PolicyViolation {
@@ -404,6 +414,28 @@ export const api = {
     get<{ integrations?: VcsIntegrationSummary[] }>(`/console/orgs/${org}/integrations`, { integrations: [] }),
   deleteVcsIntegration: (org: string, provider: string, id: string) =>
     del(`/console/orgs/${org}/integrations/${provider}/${id}`),
+  // GitHub App install: returns the install URL the browser is sent to.
+  startGitHubSetup: (org: string) =>
+    postJson<GitHubSetupResponse>(`/console/orgs/${org}/integrations/github`, {}),
+  // Azure DevOps connect flow: create the record, then run OAuth (initiate -> browser -> complete).
+  createAzureDevOpsSetup: (org: string, organizationName: string, projectId: string) =>
+    postVoid(`/console/orgs/${org}/integrations/azure-devops`, { organizationName, projectId }),
+  initiateAzureDevOpsOAuth: (org: string) =>
+    postJson<InitiateOAuthResponse>(`/console/orgs/${org}/integrations/azure-devops/oauth/initiate`,
+      { provider: { name: "azure-devops" } }),
+  completeAzureDevOpsOAuth: (org: string, code: string, sessionID: string) =>
+    postVoid(`/console/orgs/${org}/integrations/azure-devops/oauth/complete`,
+      { code, sessionID, provider: { name: "azure-devops" } }),
+  azureDevOpsAccessStatus: (org: string) =>
+    get<AzureDevOpsAccessResponse>(`/console/orgs/${org}/integrations/azure-devops/access-status`,
+      { hasIntegration: false, hasUserToken: false, availableOrgs: [] }),
+  // Per-integration repo browser (generic dispatch by provider kind).
+  vcsRepos: (org: string, provider: string, id: string) =>
+    get<{ repos?: VcsRepo[] }>(`/console/orgs/${org}/integrations/${provider}/${id}/repos`, { repos: [] }),
+  vcsBranches: (org: string, provider: string, id: string, repoId: string) =>
+    get<{ branches?: VcsBranch[] }>(
+      `/console/orgs/${org}/integrations/${provider}/${id}/repos/${encodeURIComponent(repoId)}/branches`,
+      { branches: [] }),
   oidcIssuers: (org: string) => get<{ issuers?: OidcIssuer[] }>(`/orgs/${org}/oidc-issuers`, { issuers: [] }),
   createOidcIssuer: (org: string, name: string, url: string) =>
     postJson<unknown>(`/orgs/${org}/oidc-issuers`, { name, url }),

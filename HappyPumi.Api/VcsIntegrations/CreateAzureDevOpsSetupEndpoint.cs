@@ -7,19 +7,24 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using HappyPumi.Api.Auth;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.VcsIntegrations;
 
 /// <summary>
-/// CreateAzureDevOpsSetup
+/// CreateAzureDevOpsSetup — records an azure-devops integration for the org from the request body's
+/// Azure DevOps organization/project. The OAuth access token is attached later by
+/// <c>CompleteAzureDevOpsOAuth</c>. The base url is derived as <c>https://dev.azure.com/{org}</c>.
 /// </summary>
-public sealed class CreateAzureDevOpsSetupEndpoint : Endpoint<CreateAzureDevOpsSetupRequest>
+public sealed class CreateAzureDevOpsSetupEndpoint(IVcsIntegrationStore store)
+    : Endpoint<CreateAzureDevOpsSetupRequest>
 {
     public override void Configure()
     {
         Post("/api/console/orgs/{orgName}/integrations/azure-devops");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:update");
         Description(b => b
             .WithTags("VCS Integrations")
             .WithSummary("CreateAzureDevOpsSetup")
@@ -28,10 +33,29 @@ public sealed class CreateAzureDevOpsSetupEndpoint : Endpoint<CreateAzureDevOpsS
         );
     }
 
-    public override Task HandleAsync(CreateAzureDevOpsSetupRequest req, CancellationToken ct)
+    public override async Task HandleAsync(CreateAzureDevOpsSetupRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateAzureDevOpsSetup
-        // HTTP: POST /api/console/orgs/{orgName}/integrations/azure-devops
-        throw new NotImplementedException("Endpoint CreateAzureDevOpsSetup not implemented.");
+        var adoOrg = req.Body?.OrganizationName;
+        store.Create(new StoredVcsIntegration
+        {
+            Id = "pending", // the store assigns the real id
+            Org = req.OrgName,
+            Kind = "azure-devops",
+            Name = adoOrg,
+            AccountName = adoOrg,
+            AzureProject = req.Body?.ProjectId,
+            BaseUrl = string.IsNullOrWhiteSpace(adoOrg) ? null : $"https://dev.azure.com/{adoOrg}",
+            Settings = ToSettings(req.Body),
+            CreatedBy = RequestActor.From(User)?.Name,
+        });
+        await Send.NoContentAsync(ct);
     }
+
+    private static VcsIntegrationSettings ToSettings(UpdateAzureDevOpsAppIntegrationRequest? body) => new()
+    {
+        DisableDetailedDiff = body?.DisableDetailedDiff ?? false,
+        DisablePrComments = body?.DisablePrComments ?? false,
+        DisableNeoSummaries = body?.DisableNeoSummaries ?? false,
+        DisableCodeAccessForReviews = body?.DisableCodeAccessForReviews ?? false,
+    };
 }

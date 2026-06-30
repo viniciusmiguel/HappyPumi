@@ -30,6 +30,13 @@ public sealed class StoredVcsIntegration
     /// <summary>Azure DevOps project name.</summary>
     public string? AzureProject { get; set; }
 
+    /// <summary>
+    /// Write-only OAuth/PAT access token for the connected account (ADR-0009). Set by
+    /// <c>CompleteAzureDevOpsOAuth</c> via <see cref="IVcsIntegrationStore.SetCredential"/>; the providers
+    /// use it as the bearer for real VCS REST calls. Never projected into a response contract.
+    /// </summary>
+    public string? Credential { get; set; }
+
     public VcsIntegrationSettings Settings { get; set; } = new();
     public DateTime Created { get; set; } = DateTime.UtcNow;
     public string? CreatedBy { get; set; }

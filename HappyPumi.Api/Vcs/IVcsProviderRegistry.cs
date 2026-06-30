@@ -8,13 +8,20 @@ namespace HappyPumi.Api.Vcs;
 /// </summary>
 public interface IVcsProviderRegistry
 {
-    /// <summary>Returns the provider for the kind, or null when none is wired (e.g. azure-devops lands in PR3).</summary>
+    /// <summary>Returns the provider for the kind, or null when none is wired.</summary>
     IVcsProvider? For(string kind);
 }
 
-/// <summary>Maps integration kinds to providers. GitHub serves both <c>github</c> and <c>github-enterprise</c>.</summary>
-public sealed class VcsProviderRegistry(GitHubVcsProvider github) : IVcsProviderRegistry
+/// <summary>
+/// Maps integration kinds to providers. GitHub serves both <c>github</c> and <c>github-enterprise</c>;
+/// Azure DevOps serves <c>azure-devops</c>.
+/// </summary>
+public sealed class VcsProviderRegistry(GitHubVcsProvider github, AzureDevOpsVcsProvider azureDevOps) : IVcsProviderRegistry
 {
-    public IVcsProvider? For(string kind) =>
-        kind is "github" or "github-enterprise" ? github : null;
+    public IVcsProvider? For(string kind) => kind switch
+    {
+        "github" or "github-enterprise" => github,
+        "azure-devops" => azureDevOps,
+        _ => null,
+    };
 }

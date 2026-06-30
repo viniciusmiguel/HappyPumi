@@ -79,9 +79,11 @@ bld.Services.AddScoped<IOidcIssuerStore, PostgresOidcIssuerStore>();   // identi
 bld.Services.AddScoped<IApprovalRuleStore, PostgresApprovalRuleStore>(); // approval rules
 bld.Services.AddScoped<UpdateLifecycle>();
 
-// VCS providers (ADR-0009): real-REST GitHub behind the IVcsProvider seam, resolved by integration kind.
-// Typed HttpClient so tests can swap the primary handler; config-gated (Vcs:GitHub:*) so it runs without secrets.
+// VCS providers (ADR-0009): real-REST GitHub + Azure DevOps behind the IVcsProvider seam, resolved by
+// integration kind. Typed HttpClients so tests can swap the primary handler; config-gated (Vcs:GitHub:* /
+// Vcs:AzureDevOps:*) so they run without secrets.
 bld.Services.AddHttpClient<GitHubVcsProvider>();
+bld.Services.AddHttpClient<AzureDevOpsVcsProvider>();
 bld.Services.AddScoped<IVcsProviderRegistry, VcsProviderRegistry>();
 
 // ESC engine: dynamic-value providers (fn::open) + the open-session lifecycle. Providers and their

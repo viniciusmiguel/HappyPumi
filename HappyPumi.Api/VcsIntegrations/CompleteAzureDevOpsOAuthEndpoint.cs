@@ -4,22 +4,28 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Vcs;
 
 namespace HappyPumi.Api.Endpoints.VcsIntegrations;
 
 /// <summary>
-/// CompleteAzureDevOpsOAuth
+/// CompleteAzureDevOpsOAuth — exchanges the authorization <c>code</c> for an access token via the provider
+/// and persists it onto the org's most-recent azure-devops integration record (the bearer for later REST
+/// calls). Returns the empty success contract; tokens are write-only and never echoed back.
 /// </summary>
-public sealed class CompleteAzureDevOpsOAuthEndpoint : Endpoint<CompleteAzureDevOpsOAuthRequest, CompleteOAuthResponse>
+public sealed class CompleteAzureDevOpsOAuthEndpoint(IVcsIntegrationStore store, AzureDevOpsVcsProvider azureDevOps)
+    : Endpoint<CompleteAzureDevOpsOAuthRequest, CompleteOAuthResponse>
 {
     public override void Configure()
     {
         Post("/api/console/orgs/{orgName}/integrations/azure-devops/oauth/complete");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:update");
         Description(b => b
             .WithTags("VCS Integrations")
             .WithSummary("CompleteAzureDevOpsOAuth")
@@ -28,11 +34,12 @@ public sealed class CompleteAzureDevOpsOAuthEndpoint : Endpoint<CompleteAzureDev
         );
     }
 
-    public override Task HandleAsync(CompleteAzureDevOpsOAuthRequest req, CancellationToken ct)
+    public override async Task HandleAsync(CompleteAzureDevOpsOAuthRequest req, CancellationToken ct)
     {
-        // TODO: implement CompleteAzureDevOpsOAuth
-        // HTTP: POST /api/console/orgs/{orgName}/integrations/azure-devops/oauth/complete
-        // Should produce: CompleteOAuthResponse
-        throw new NotImplementedException("Endpoint CompleteAzureDevOpsOAuth not implemented.");
+        var token = await azureDevOps.ExchangeCodeAsync(req.Body?.Code ?? "", ct);
+        var target = store.List(req.OrgName, "azure-devops").LastOrDefault();
+        if (token is not null && target is not null)
+            store.SetCredential(req.OrgName, target.Id, token);
+        await Send.OkAsync(new CompleteOAuthResponse(), ct);
     }
 }

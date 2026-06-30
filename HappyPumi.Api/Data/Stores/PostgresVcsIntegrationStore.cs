@@ -18,7 +18,8 @@ public sealed class PostgresVcsIntegrationStore(HappyPumiDbContext db) : IVcsInt
             Id = Guid.NewGuid().ToString(), Org = integration.Org, Kind = integration.Kind,
             Name = integration.Name, BaseUrl = integration.BaseUrl, AccountName = integration.AccountName,
             AccountId = integration.AccountId, AvatarUrl = integration.AvatarUrl,
-            AzureProject = integration.AzureProject, Settings = integration.Settings,
+            AzureProject = integration.AzureProject, Credential = integration.Credential,
+            Settings = integration.Settings,
             Created = integration.Created, CreatedBy = integration.CreatedBy,
         };
         db.VcsIntegrations.Add(row);
@@ -47,6 +48,16 @@ public sealed class PostgresVcsIntegrationStore(HappyPumiDbContext db) : IVcsInt
         return Map(row);
     }
 
+    public StoredVcsIntegration? SetCredential(string org, string id, string credential)
+    {
+        var row = Row(org, id);
+        if (row is null)
+            return null;
+        row.Credential = credential;
+        db.SaveChanges();
+        return Map(row);
+    }
+
     public bool Delete(string org, string id)
     {
         var row = Row(org, id);
@@ -64,6 +75,7 @@ public sealed class PostgresVcsIntegrationStore(HappyPumiDbContext db) : IVcsInt
     {
         Id = r.Id, Org = r.Org, Kind = r.Kind, Name = r.Name, BaseUrl = r.BaseUrl,
         AccountName = r.AccountName, AccountId = r.AccountId, AvatarUrl = r.AvatarUrl,
-        AzureProject = r.AzureProject, Settings = r.Settings, Created = r.Created, CreatedBy = r.CreatedBy,
+        AzureProject = r.AzureProject, Credential = r.Credential, Settings = r.Settings,
+        Created = r.Created, CreatedBy = r.CreatedBy,
     };
 }

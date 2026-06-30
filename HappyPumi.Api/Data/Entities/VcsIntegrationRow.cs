@@ -22,6 +22,10 @@ public sealed class VcsIntegrationRow
     public long? AccountId { get; set; }
     public string? AvatarUrl { get; set; }
     public string? AzureProject { get; set; }
+
+    /// <summary>Write-only OAuth/PAT access token for the connected account (set on OAuth completion).</summary>
+    public string? Credential { get; set; }
+
     public DateTime Created { get; set; } = DateTime.UtcNow;
     public string? CreatedBy { get; set; }
 
