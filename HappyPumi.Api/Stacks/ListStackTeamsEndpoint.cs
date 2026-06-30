@@ -4,17 +4,21 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using HappyPumi.Api.Auth;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// ListStackTeams
 /// </summary>
-public sealed class ListStackTeamsEndpoint : Endpoint<ListStackTeamsRequest, ListTeamsByStackResponse>
+public sealed class ListStackTeamsEndpoint(IStackStore stacks, IStackPermissionStore permissions, IIdentityStore identity)
+    : Endpoint<ListStackTeamsRequest, ListTeamsByStackResponse>
 {
     public override void Configure()
     {
@@ -28,11 +32,20 @@ public sealed class ListStackTeamsEndpoint : Endpoint<ListStackTeamsRequest, Lis
         );
     }
 
-    public override Task HandleAsync(ListStackTeamsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ListStackTeamsRequest req, CancellationToken ct)
     {
-        // TODO: implement ListStackTeams
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/teams
-        // Should produce: ListTeamsByStackResponse
-        throw new NotImplementedException("Endpoint ListStackTeams not implemented.");
+        var coordinates = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        if (stacks.Find(coordinates) is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        var caller = RequestActor.From(User)?.Login;
+        var teams = permissions.ListTeams(coordinates)
+            .Select(t => StackPermissionMapper.ToStackTeam(
+                t.TeamName, t.Permission, identity.GetTeam(req.OrgName, t.TeamName), caller))
+            .ToList();
+        await Send.OkAsync(new ListTeamsByStackResponse { ProjectName = req.ProjectName, Teams = teams }, ct);
     }
 }

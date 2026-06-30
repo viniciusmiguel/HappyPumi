@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// DeleteStackPermission
 /// </summary>
-public sealed class DeleteStackPermissionEndpoint : Endpoint<DeleteStackPermissionRequest>
+public sealed class DeleteStackPermissionEndpoint(IStackStore stacks, IStackPermissionStore permissions)
+    : Endpoint<DeleteStackPermissionRequest>
 {
     public override void Configure()
     {
@@ -28,10 +30,21 @@ public sealed class DeleteStackPermissionEndpoint : Endpoint<DeleteStackPermissi
         );
     }
 
-    public override Task HandleAsync(DeleteStackPermissionRequest req, CancellationToken ct)
+    public override async Task HandleAsync(DeleteStackPermissionRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteStackPermission
-        // HTTP: DELETE /api/stacks/{orgName}/{projectName}/{stackName}/collaborators/{userName}
-        throw new NotImplementedException("Endpoint DeleteStackPermission not implemented.");
+        var coordinates = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        if (stacks.Find(coordinates) is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        if (!permissions.RemoveUser(coordinates, req.UserName))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }

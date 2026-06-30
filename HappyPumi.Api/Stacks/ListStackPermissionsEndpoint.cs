@@ -4,17 +4,20 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// ListStackPermissions
 /// </summary>
-public sealed class ListStackPermissionsEndpoint : Endpoint<ListStackPermissionsRequest, ListStackCollaboratorsResponse>
+public sealed class ListStackPermissionsEndpoint(IStackStore stacks, IStackPermissionStore permissions)
+    : Endpoint<ListStackPermissionsRequest, ListStackCollaboratorsResponse>
 {
     public override void Configure()
     {
@@ -28,11 +31,22 @@ public sealed class ListStackPermissionsEndpoint : Endpoint<ListStackPermissions
         );
     }
 
-    public override Task HandleAsync(ListStackPermissionsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ListStackPermissionsRequest req, CancellationToken ct)
     {
-        // TODO: implement ListStackPermissions
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/collaborators
-        // Should produce: ListStackCollaboratorsResponse
-        throw new NotImplementedException("Endpoint ListStackPermissions not implemented.");
+        var coordinates = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        if (stacks.Find(coordinates) is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        var users = permissions.ListUsers(coordinates)
+            .Select(u => StackPermissionMapper.ToUserPermission(u.Name, u.Permission))
+            .ToList();
+        await Send.OkAsync(new ListStackCollaboratorsResponse
+        {
+            StackCreatorUserName = permissions.GetStackCreator(coordinates),
+            Users = users,
+        }, ct);
     }
 }

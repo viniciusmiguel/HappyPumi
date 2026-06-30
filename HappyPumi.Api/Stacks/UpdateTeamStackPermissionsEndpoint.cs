@@ -8,13 +8,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// UpdateTeamStackPermissions
 /// </summary>
-public sealed class UpdateTeamStackPermissionsEndpoint : Endpoint<UpdateTeamStackPermissionsRequest>
+public sealed class UpdateTeamStackPermissionsEndpoint(
+    IStackStore stacks, IStackPermissionStore permissions, IIdentityStore identity)
+    : Endpoint<UpdateTeamStackPermissionsRequest>
 {
     public override void Configure()
     {
@@ -28,10 +31,22 @@ public sealed class UpdateTeamStackPermissionsEndpoint : Endpoint<UpdateTeamStac
         );
     }
 
-    public override Task HandleAsync(UpdateTeamStackPermissionsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(UpdateTeamStackPermissionsRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateTeamStackPermissions
-        // HTTP: PATCH /api/console/stacks/{orgName}/{projectName}/{stackName}/teams/{teamName}
-        throw new NotImplementedException("Endpoint UpdateTeamStackPermissions not implemented.");
+        var coordinates = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        if (stacks.Find(coordinates) is null || identity.GetTeam(req.OrgName, req.TeamName) is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        // A null permission removes the team's grant on the stack (contract: "removes the stack from the team").
+        var permission = req.Body?.Permissions;
+        if (permission is null)
+            permissions.RemoveTeam(coordinates, req.TeamName);
+        else
+            permissions.SetTeamPermission(coordinates, req.TeamName, permission.Value);
+
+        await Send.NoContentAsync(ct);
     }
 }

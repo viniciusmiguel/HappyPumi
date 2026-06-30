@@ -4,17 +4,21 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// ListMemberStackPermissions
 /// </summary>
-public sealed class ListMemberStackPermissionsEndpoint : Endpoint<ListMemberStackPermissionsRequest, ListMemberStackPermissionsResponse>
+public sealed class ListMemberStackPermissionsEndpoint(
+    IStackStore stacks, IStackPermissionStore permissions, IIdentityStore identity)
+    : Endpoint<ListMemberStackPermissionsRequest, ListMemberStackPermissionsResponse>
 {
     public override void Configure()
     {
@@ -28,11 +32,47 @@ public sealed class ListMemberStackPermissionsEndpoint : Endpoint<ListMemberStac
         );
     }
 
-    public override Task HandleAsync(ListMemberStackPermissionsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ListMemberStackPermissionsRequest req, CancellationToken ct)
     {
-        // TODO: implement ListMemberStackPermissions
-        // HTTP: GET /api/console/orgs/{orgName}/members/{userLogin}/stacks/{projectName}/{stackName}
-        // Should produce: ListMemberStackPermissionsResponse
-        throw new NotImplementedException("Endpoint ListMemberStackPermissions not implemented.");
+        var coordinates = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        if (stacks.Find(coordinates) is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        var member = identity.ListMembers(req.OrgName).FirstOrDefault(m => m.UserLogin == req.UserLogin);
+        var explicitPermission = permissions.GetUserPermission(coordinates, req.UserLogin);
+        var teamPermissions = TeamPermissionsFor(coordinates, req.OrgName, req.UserLogin);
+
+        // A user must be known to the org in some way (member, explicit grant, or team grant) — else 404.
+        if (member is null && explicitPermission is null && teamPermissions.Count == 0)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(new ListMemberStackPermissionsResponse
+        {
+            ExplicitPermission = explicitPermission ?? StackPermissionLevel.None,
+            OrganizationDefault = StackPermissionLevel.Read,
+            OrganizationRole = member?.Role ?? "member",
+            TeamPermissions = teamPermissions,
+            UserInfo = StackPermissionMapper.ToUserInfo(req.UserLogin),
+        }, ct);
+    }
+
+    /// <summary>The stack's team grants whose team the user belongs to, mapped to wire <see cref="TeamPermission"/>.</summary>
+    private List<TeamPermission> TeamPermissionsFor(StackCoordinates coordinates, string org, string userLogin)
+    {
+        var result = new List<TeamPermission>();
+        foreach (var (teamName, permission) in permissions.ListTeams(coordinates))
+        {
+            var team = identity.GetTeam(org, teamName);
+            if (team is null || !team.Members.Contains(userLogin))
+                continue;
+            result.Add(new TeamPermission { Permission = permission, Team = TeamMapper.ToTeam(team) });
+        }
+        return result;
     }
 }
