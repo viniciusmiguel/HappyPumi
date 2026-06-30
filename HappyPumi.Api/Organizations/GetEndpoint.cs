@@ -16,7 +16,7 @@ namespace HappyPumi.Api.Endpoints.Organizations;
 /// wired yet, so the evaluation defaults to "satisfied / no blocking gates" (PR3 supplies the real one).
 /// Serialized with <see cref="ChangeGateJson"/> because the response carries the polymorphic <c>TargetEntity</c>.
 /// </summary>
-public sealed class GetEndpoint(IChangeRequestStore changeRequests) : Endpoint<GetRequest, GetChangeRequestResponse>
+public sealed class GetEndpoint(IChangeRequestStore changeRequests, ChangeGateEvaluator evaluator) : Endpoint<GetRequest, GetChangeRequestResponse>
 {
     public override void Configure()
     {
@@ -39,7 +39,7 @@ public sealed class GetEndpoint(IChangeRequestStore changeRequests) : Endpoint<G
             return;
         }
 
-        var evaluation = new ChangeRequestGateEvaluation { Satisfied = true, ApplicableGates = new() };
+        var evaluation = evaluator.Evaluate(cr).Eval;
         await Send.StringAsync(ChangeGateJson.Serialize(ChangeRequestMapper.ToResponse(cr, evaluation)),
             contentType: "application/json", cancellation: ct);
     }
