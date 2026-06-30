@@ -8,18 +8,20 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Environments;
 
 /// <summary>
 /// DeleteWebhook
 /// </summary>
-public sealed class DeleteWebhookPreviewEnvironmentsEndpoint : Endpoint<DeleteWebhookPreviewEnvironmentsRequest>
+public sealed class DeleteWebhookPreviewEnvironmentsEndpoint(IEnvironmentWebhookStore webhooks)
+    : Endpoint<DeleteWebhookPreviewEnvironmentsRequest>
 {
     public override void Configure()
     {
         Delete("/api/preview/environments/{orgName}/{envName}/hooks/{hookName}");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("environment:write");
         Description(b => b
             .WithTags("Environments")
             .WithSummary("DeleteWebhook")
@@ -28,10 +30,14 @@ public sealed class DeleteWebhookPreviewEnvironmentsEndpoint : Endpoint<DeleteWe
         );
     }
 
-    public override Task HandleAsync(DeleteWebhookPreviewEnvironmentsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(DeleteWebhookPreviewEnvironmentsRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteWebhookPreviewEnvironments
-        // HTTP: DELETE /api/preview/environments/{orgName}/{envName}/hooks/{hookName}
-        throw new NotImplementedException("Endpoint DeleteWebhookPreviewEnvironments not implemented.");
+        var coords = EnvWebhookScope.Coords(req.OrgName, req.EnvName);
+        if (!webhooks.Delete(coords, req.HookName))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        await Send.NoContentAsync(ct);
     }
 }

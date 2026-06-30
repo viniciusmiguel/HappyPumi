@@ -3,11 +3,13 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
 using HappyPumi.Api.State;
+using HappyPumi.Api.Webhooks;
 
 namespace HappyPumi.Api.Endpoints.Environments;
 
@@ -28,7 +30,8 @@ public sealed class UpdateEnvironmentInput : IPlainTextRequest
 /// UpdateEnvironment — replaces the definition YAML (recording a new revision). The body is raw YAML; an
 /// unparseable definition is rejected with an error diagnostic rather than persisted.
 /// </summary>
-public sealed class UpdateEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore environments, IAuditLog audit)
+public sealed class UpdateEnvironmentEscEnvironmentsEndpoint(
+    IEnvironmentStore environments, IAuditLog audit, IEnvironmentWebhookStore webhooks, IWebhookDispatcher dispatcher)
     : Endpoint<UpdateEnvironmentInput, UpdateEnvironmentResponse>
 {
     public override void Configure()
@@ -64,8 +67,25 @@ public sealed class UpdateEnvironmentEscEnvironmentsEndpoint(IEnvironmentStore e
         var updated = environments.UpdateYaml(coords, yaml, login, login);
         audit.Record(req.OrgName, "environment.update",
             $"Updated environment '{req.ProjectName}/{req.EnvName}' (revision {updated?.CurrentRevision ?? 0})", login);
+        await FireUpdatedAsync(coords, updated?.CurrentRevision ?? 0, ct);
         EscHeaders.SetRevision(HttpContext, updated?.CurrentRevision ?? 0); // the CLI parses the new revision from the response
         await Send.OkAsync(new UpdateEnvironmentResponse { Diagnostics = new List<EnvironmentDiagnostic>() }, ct);
+    }
+
+    // Best-effort: notify the env's webhooks of the new revision. The dispatcher records (never throws) on
+    // delivery failure; we also swallow any resolution error so a webhook can never fault the update itself.
+    private async Task FireUpdatedAsync(EnvCoordinates coords, long revision, CancellationToken ct)
+    {
+        try
+        {
+            var hooks = webhooks.List(coords).Select(w => WebhookMapper.ToSigningTarget(w, coords));
+            var payload = new { kind = "env_updated", environment = $"{coords.Org}/{coords.Project}/{coords.Name}", revision };
+            await dispatcher.FireAsync(EnvWebhookScope.For(coords), hooks, "env_updated", payload, ct);
+        }
+        catch
+        {
+            // firing is observability, not part of the update contract — never surface its failure
+        }
     }
 
     // Reject a definition that does not parse; the offending parser message is surfaced to the editor.

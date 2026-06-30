@@ -4,22 +4,26 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Webhooks;
 
 namespace HappyPumi.Api.Endpoints.Environments;
 
 /// <summary>
 /// GetWebhookDeliveries
 /// </summary>
-public sealed class GetWebhookDeliveriesPreviewEnvironmentsEndpoint : Endpoint<GetWebhookDeliveriesPreviewEnvironmentsRequest, List<WebhookDelivery>>
+public sealed class GetWebhookDeliveriesPreviewEnvironmentsEndpoint(IWebhookDeliveryStore deliveries, IEnvironmentWebhookStore webhooks)
+    : Endpoint<GetWebhookDeliveriesPreviewEnvironmentsRequest, List<WebhookDelivery>>
 {
     public override void Configure()
     {
         Get("/api/preview/environments/{orgName}/{envName}/hooks/{hookName}/deliveries");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("environment:read");
         Description(b => b
             .WithTags("Environments")
             .WithSummary("GetWebhookDeliveries")
@@ -28,11 +32,11 @@ public sealed class GetWebhookDeliveriesPreviewEnvironmentsEndpoint : Endpoint<G
         );
     }
 
-    public override Task HandleAsync(GetWebhookDeliveriesPreviewEnvironmentsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetWebhookDeliveriesPreviewEnvironmentsRequest req, CancellationToken ct)
     {
-        // TODO: implement GetWebhookDeliveriesPreviewEnvironments
-        // HTTP: GET /api/preview/environments/{orgName}/{envName}/hooks/{hookName}/deliveries
-        // Should produce: List<WebhookDelivery>
-        throw new NotImplementedException("Endpoint GetWebhookDeliveriesPreviewEnvironments not implemented.");
+        var coords = EnvWebhookScope.Coords(req.OrgName, req.EnvName);
+        var url = webhooks.Get(coords, req.HookName)?.PayloadUrl ?? "";
+        var stored = deliveries.List(EnvWebhookScope.For(coords), req.HookName);
+        await Send.OkAsync(stored.Select(d => WebhookDeliveryMapper.ToContract(d, url)).ToList(), ct);
     }
 }

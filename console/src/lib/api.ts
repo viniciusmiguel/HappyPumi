@@ -199,7 +199,8 @@ export interface EnvRevision { number: number; created?: string; creatorLogin?: 
 export interface EscValue { value: unknown; secret?: boolean; }
 export interface CheckEnvResponse { properties?: Record<string, EscValue>; schema?: unknown; diagnostics?: unknown[]; }
 export interface EnvTag { name: string; value: string; editorLogin?: string; modified?: string; }
-export interface EnvWebhook { name: string; displayName?: string; payloadUrl: string; active?: boolean; format?: string; filters?: string[]; }
+export interface EnvWebhook { name: string; displayName?: string; payloadUrl: string; active?: boolean; format?: string; filters?: string[]; hasSecret?: boolean; }
+export interface EnvWebhookInput { name?: string; displayName?: string; payloadUrl?: string; active?: boolean; format?: string; secret?: string; }
 export interface StackWebhook { name: string; displayName?: string; payloadUrl: string; active?: boolean; format?: string; filters?: string[]; hasSecret?: boolean; }
 export interface StackWebhookInput { name?: string; displayName?: string; payloadUrl?: string; active?: boolean; format?: string; secret?: string; }
 export interface WebhookDeliveryLog { id: string; kind: string; payload?: string; requestUrl?: string; responseCode?: number; responseBody?: string; duration?: number; timestamp?: number; }
@@ -378,13 +379,23 @@ export const api = {
     postJson<unknown>(`/esc/environments/${org}/${project}/${name}/tags`, { name: tag, value }),
   deleteEnvironmentTag: (org: string, project: string, name: string, tag: string) =>
     del(`/esc/environments/${org}/${project}/${name}/tags/${tag}`),
-  // Webhooks
+  // Environment webhooks (PR3): CRUD + delivery history, ping, and redeliver, scoped to an ESC environment.
+  // The secret is write-only (only `hasSecret` is returned). Ping/redeliver perform real POSTs and a real env
+  // update fires an `env_updated` delivery. Project-aware path; an env webhook shares the env's coordinates.
   environmentWebhooks: (org: string, project: string, name: string) =>
     get<EnvWebhook[]>(`/esc/environments/${org}/${project}/${name}/hooks`, []),
-  createEnvironmentWebhook: (org: string, project: string, name: string, hook: { name: string; payloadUrl: string; displayName?: string; format?: string }) =>
-    postJson<unknown>(`/esc/environments/${org}/${project}/${name}/hooks`, { active: true, format: "raw", ...hook }),
+  createEnvironmentWebhook: (org: string, project: string, name: string, hook: EnvWebhookInput) =>
+    postJson<EnvWebhook>(`/esc/environments/${org}/${project}/${name}/hooks`, { active: true, format: "raw", ...hook }),
+  updateEnvironmentWebhook: (org: string, project: string, name: string, hook: string, patch: EnvWebhookInput) =>
+    patchJson(`/esc/environments/${org}/${project}/${name}/hooks/${hook}`, patch),
   deleteEnvironmentWebhook: (org: string, project: string, name: string, hook: string) =>
     del(`/esc/environments/${org}/${project}/${name}/hooks/${hook}`),
+  environmentWebhookDeliveries: (org: string, project: string, name: string, hook: string) =>
+    get<WebhookDeliveryLog[]>(`/esc/environments/${org}/${project}/${name}/hooks/${hook}/deliveries`, []),
+  pingEnvironmentWebhook: (org: string, project: string, name: string, hook: string) =>
+    postJson<WebhookDeliveryLog>(`/esc/environments/${org}/${project}/${name}/hooks/${hook}/ping`, {}),
+  redeliverEnvironmentWebhookEvent: (org: string, project: string, name: string, hook: string, event: string) =>
+    postJson<WebhookDeliveryLog>(`/esc/environments/${org}/${project}/${name}/hooks/${hook}/deliveries/${event}/redeliver`, {}),
   // Scheduled actions (rotation / deletion)
   environmentSchedules: (org: string, project: string, name: string) =>
     get<{ schedules?: EnvSchedule[] }>(`/esc/environments/${org}/${project}/${name}/schedules`, { schedules: [] }),

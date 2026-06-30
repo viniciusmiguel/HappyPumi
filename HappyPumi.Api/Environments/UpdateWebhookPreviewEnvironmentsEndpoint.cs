@@ -8,18 +8,20 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Environments;
 
 /// <summary>
 /// UpdateWebhook
 /// </summary>
-public sealed class UpdateWebhookPreviewEnvironmentsEndpoint : Endpoint<UpdateWebhookPreviewEnvironmentsRequest, WebhookResponse>
+public sealed class UpdateWebhookPreviewEnvironmentsEndpoint(IEnvironmentWebhookStore webhooks)
+    : Endpoint<UpdateWebhookPreviewEnvironmentsRequest, WebhookResponse>
 {
     public override void Configure()
     {
         Patch("/api/preview/environments/{orgName}/{envName}/hooks/{hookName}");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("environment:write");
         Description(b => b
             .WithTags("Environments")
             .WithSummary("UpdateWebhook")
@@ -28,11 +30,15 @@ public sealed class UpdateWebhookPreviewEnvironmentsEndpoint : Endpoint<UpdateWe
         );
     }
 
-    public override Task HandleAsync(UpdateWebhookPreviewEnvironmentsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(UpdateWebhookPreviewEnvironmentsRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateWebhookPreviewEnvironments
-        // HTTP: PATCH /api/preview/environments/{orgName}/{envName}/hooks/{hookName}
-        // Should produce: WebhookResponse
-        throw new NotImplementedException("Endpoint UpdateWebhookPreviewEnvironments not implemented.");
+        var coords = EnvWebhookScope.Coords(req.OrgName, req.EnvName);
+        var updated = webhooks.Update(coords, req.HookName, WebhookMapper.FromContract(req.Body)); // secret kept when omitted
+        if (updated is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        await Send.OkAsync(WebhookMapper.ToResponse(updated, coords), ct);
     }
 }

@@ -8,18 +8,21 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using Microsoft.AspNetCore.Http;
 
 namespace HappyPumi.Api.Endpoints.Environments;
 
 /// <summary>
 /// CreateWebhook
 /// </summary>
-public sealed class CreateWebhookPreviewEnvironmentsEndpoint : Endpoint<CreateWebhookPreviewEnvironmentsRequest, WebhookResponse>
+public sealed class CreateWebhookPreviewEnvironmentsEndpoint(IEnvironmentWebhookStore webhooks)
+    : Endpoint<CreateWebhookPreviewEnvironmentsRequest, WebhookResponse>
 {
     public override void Configure()
     {
         Post("/api/preview/environments/{orgName}/{envName}/hooks");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("environment:write");
         Description(b => b
             .WithTags("Environments")
             .WithSummary("CreateWebhook")
@@ -28,11 +31,21 @@ public sealed class CreateWebhookPreviewEnvironmentsEndpoint : Endpoint<CreateWe
         );
     }
 
-    public override Task HandleAsync(CreateWebhookPreviewEnvironmentsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(CreateWebhookPreviewEnvironmentsRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateWebhookPreviewEnvironments
-        // HTTP: POST /api/preview/environments/{orgName}/{envName}/hooks
-        // Should produce: WebhookResponse
-        throw new NotImplementedException("Endpoint CreateWebhookPreviewEnvironments not implemented.");
+        if (string.IsNullOrWhiteSpace(req.Body?.Name) || string.IsNullOrWhiteSpace(req.Body.PayloadUrl))
+        {
+            AddError("'name' and 'payloadUrl' are required.");
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+        var coords = EnvWebhookScope.Coords(req.OrgName, req.EnvName);
+        var created = webhooks.Create(coords, WebhookMapper.FromContract(req.Body));
+        if (created is null)
+        {
+            await Send.ResultAsync(Results.Conflict(new { message = $"Webhook '{req.Body.Name}' already exists." }));
+            return;
+        }
+        await Send.OkAsync(WebhookMapper.ToResponse(created, coords), ct);
     }
 }

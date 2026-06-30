@@ -4,22 +4,25 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Environments;
 
 /// <summary>
 /// ListWebhooks
 /// </summary>
-public sealed class ListWebhooksPreviewEnvironmentsEndpoint : Endpoint<ListWebhooksPreviewEnvironmentsRequest, List<WebhookResponse>>
+public sealed class ListWebhooksPreviewEnvironmentsEndpoint(IEnvironmentWebhookStore webhooks)
+    : Endpoint<ListWebhooksPreviewEnvironmentsRequest, List<WebhookResponse>>
 {
     public override void Configure()
     {
         Get("/api/preview/environments/{orgName}/{envName}/hooks");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("environment:read");
         Description(b => b
             .WithTags("Environments")
             .WithSummary("ListWebhooks")
@@ -28,11 +31,10 @@ public sealed class ListWebhooksPreviewEnvironmentsEndpoint : Endpoint<ListWebho
         );
     }
 
-    public override Task HandleAsync(ListWebhooksPreviewEnvironmentsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ListWebhooksPreviewEnvironmentsRequest req, CancellationToken ct)
     {
-        // TODO: implement ListWebhooksPreviewEnvironments
-        // HTTP: GET /api/preview/environments/{orgName}/{envName}/hooks
-        // Should produce: List<WebhookResponse>
-        throw new NotImplementedException("Endpoint ListWebhooksPreviewEnvironments not implemented.");
+        var coords = EnvWebhookScope.Coords(req.OrgName, req.EnvName);
+        var hooks = webhooks.List(coords).Select(w => WebhookMapper.ToResponse(w, coords)).ToList();
+        await Send.OkAsync(hooks, ct); // ToResponse never echoes the stored secret
     }
 }
