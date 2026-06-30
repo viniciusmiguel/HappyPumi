@@ -188,6 +188,12 @@ export interface OidcIssuer {
   thumbprints?: string[]; maxExpiration?: number; created?: string; modified?: string; lastUsed?: string;
 }
 export interface RegisterOidcIssuerBody { name: string; url: string; maxExpiration?: number; }
+export interface SamlUserInfo { githubLogin: string; name?: string; email?: string; avatarUrl?: string; }
+export interface SamlOrganization {
+  entityId?: string; idpSsoDescriptor: string; nameIdFormat?: string;
+  ssoUrl?: string; validUntil?: string; validationError?: string;
+  organization?: { name?: string; githubLogin?: string };
+}
 export interface ApprovalRule { name: string; stackPattern: string; requiredApprovals: number; enabled?: boolean; created?: string; }
 export interface PolicyViolation {
   id: string; policyName: string; policyPack: string; policyPackTag?: string; level: string;
@@ -541,6 +547,17 @@ export const api = {
   deleteOidcIssuer: (org: string, id: string) => del(`/orgs/${org}/oidc/issuers/${id}`),
   regenerateOidcThumbprints: (org: string, id: string) =>
     postJson<OidcIssuer>(`/orgs/${org}/oidc/issuers/${id}/regenerate-thumbprints`, {}),
+
+  // SAML/SSO (Settings PR5): the real /saml spec surface — read/update the config (IdP metadata XML) and
+  // manage the SAML admins. The ACS endpoint (/saml/acs) is driven by the IdP POST, not the console.
+  samlOrg: (org: string) =>
+    get<SamlOrganization>(`/orgs/${org}/saml`, { idpSsoDescriptor: "" }),
+  updateSamlOrg: (org: string, newIdpSsoDescriptor: string) =>
+    patchJson(`/orgs/${org}/saml`, { newIdpSsoDescriptor }),
+  samlAdmins: (org: string) =>
+    get<{ samlAdmins?: SamlUserInfo[] }>(`/orgs/${org}/saml/admins`, { samlAdmins: [] }),
+  addSamlAdmin: (org: string, login: string) =>
+    postVoid(`/orgs/${org}/saml/admins/${login}`, {}),
   approvalRules: (org: string) => get<{ rules?: ApprovalRule[] }>(`/orgs/${org}/approval-rules`, { rules: [] }),
   createApprovalRule: (org: string, name: string, stackPattern: string, requiredApprovals: number) =>
     postJson<unknown>(`/orgs/${org}/approval-rules`, { name, stackPattern, requiredApprovals }),
