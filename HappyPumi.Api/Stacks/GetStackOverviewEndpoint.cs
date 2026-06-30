@@ -41,10 +41,11 @@ public sealed class GetStackOverviewEndpoint(IStackStore stacks) : Endpoint<GetS
         }
 
         var resources = StackResources.Extract(stack.Deployment).Select(r => new ResourceInfo { Resource = r }).ToList();
+        var referenced = StackReferenceScanner.UpstreamOf(stack)
+            .Select(c => StackReferenceScanner.ToReference(c, stacks)).ToList();
         await Send.OkAsync(new StackOverviewResponse
         {
-            // ReferencedStacks is populated by the stack-references PR; empty here keeps the contract stable.
-            ReferencedStacks = new List<StackReference>(),
+            ReferencedStacks = referenced,
             Resources = new GetStackResourcesResponse { Region = "", Version = stack.Version, Resources = resources },
             Tags = new Dictionary<string, string>(stack.Tags),
         }, ct);
