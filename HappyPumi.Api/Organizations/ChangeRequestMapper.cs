@@ -46,7 +46,8 @@ internal static class ChangeRequestMapper
         EntityType = "environment", Project = c.TargetProject, Name = c.TargetEnv,
     };
 
-    private static UserInfo UserOf(string login) => new()
+    /// <summary>Builds the public <see cref="UserInfo"/> for a login (display name == login, no avatar).</summary>
+    internal static UserInfo UserOf(string login) => new()
     {
         GithubLogin = login, Name = login, AvatarUrl = "",
     };

@@ -6,13 +6,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.Endpoints.Organizations;
 using HappyPumi.Api.Esc;
 using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Environments;
 
 /// <summary>UpdateEnvironmentDraft — replaces a draft's YAML (404 when the change request is unknown).</summary>
-public sealed class UpdateEnvironmentDraftEndpoint(IEscDraftStore drafts)
+public sealed class UpdateEnvironmentDraftEndpoint(
+    IEscDraftStore drafts, IChangeRequestStore changeRequests, ChangeGateEvaluator evaluator)
     : Endpoint<UpdateEnvironmentDraftRequest, ChangeRequestRef>
 {
     public override void Configure()
@@ -37,6 +39,7 @@ public sealed class UpdateEnvironmentDraftEndpoint(IEscDraftStore drafts)
             await Send.NotFoundAsync(ct);
             return;
         }
+        ChangeRequestReapproval.ClearIfRequired(changeRequests, evaluator, req.OrgName, req.ChangeRequestId);
         var draft = drafts.Get(coords, req.ChangeRequestId)!;
         await Send.OkAsync(new ChangeRequestRef { ChangeRequestId = draft.Id, LatestRevisionNumber = draft.BaseRevision }, ct);
     }

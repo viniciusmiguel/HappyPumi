@@ -4,7 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard, Layers, Rocket, ShieldCheck,
   Server, Package, LayoutTemplate, Boxes,
-  CheckSquare, Cloud, GitBranch, ClipboardList,
+  CheckSquare, Cloud, GitBranch, ClipboardList, ClipboardCheck,
   Users, UsersRound, KeyRound, Fingerprint, Plug, CreditCard, Settings,
   Webhook, ChevronRight, Key, Lock,
 } from "lucide-react";
@@ -35,6 +35,7 @@ export const sections: NavSection[] = [
     id: "management", title: "Management", icon: ClipboardList,
     items: [
       { label: "Approvals", to: "/management/approvals", icon: CheckSquare },
+      { label: "Change requests", to: "/management/change-requests", icon: ClipboardCheck },
       { label: "Accounts", to: "/management/accounts", icon: Cloud },
       { label: "Version control", to: "/management/version-control", icon: GitBranch },
       { label: "Policies", to: "/management/policies", icon: ShieldCheck },
