@@ -79,6 +79,16 @@ async function patchJson(path: string, body: unknown): Promise<void> {
   if (!res.ok) throw new Error(`PATCH ${path} failed: ${res.status} ${res.statusText}`);
 }
 
+async function putJson<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`/api${path}`, {
+    method: "PUT",
+    headers: { Authorization: authHeader(), "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`PUT ${path} failed: ${res.status} ${res.statusText}`);
+  return (await res.json()) as T;
+}
+
 async function del(path: string): Promise<void> {
   const res = await fetch(`/api${path}`, { method: "DELETE", headers: { Authorization: authHeader() } });
   if (!res.ok) throw new Error(`DELETE ${path} failed: ${res.status} ${res.statusText}`);
@@ -188,6 +198,29 @@ export interface OidcIssuer {
   thumbprints?: string[]; maxExpiration?: number; created?: string; modified?: string; lastUsed?: string;
 }
 export interface RegisterOidcIssuerBody { name: string; url: string; maxExpiration?: number; }
+// Change gates (change-requests PR1): approval gates that require staged changes to a target entity (today
+// only ESC environments) to collect N approvals before they can be applied.
+export interface ChangeGateRule {
+  ruleType: string;
+  numApprovalsRequired?: number;
+  allowSelfApproval?: boolean;
+  requireReapprovalOnChange?: boolean;
+  eligibleApprovers?: unknown[];
+}
+export interface ChangeGateTarget { entityType: string; actionTypes?: string[]; qualifiedName?: string; }
+export interface ChangeGate { id: string; name: string; enabled: boolean; rule: ChangeGateRule; target: ChangeGateTarget; }
+export interface ChangeGateInput {
+  enabled: boolean;
+  name: string;
+  rule: {
+    ruleType: "approval_required";
+    numApprovalsRequired: number;
+    allowSelfApproval: boolean;
+    requireReapprovalOnChange: boolean;
+    eligibleApprovers: unknown[];
+  };
+  target: { entityType: string; actionTypes: string[]; qualifiedName?: string };
+}
 // Cloud accounts (Settings PR6): the ESC cloud-setup OAuth surface — initiate a provider OAuth flow and
 // list the accounts/subscriptions/projects connected for aws / azure / gcp.
 export interface CloudAccount { id: string; name: string; number?: number; roles?: string[]; }
@@ -552,6 +585,16 @@ export const api = {
   deleteOidcIssuer: (org: string, id: string) => del(`/orgs/${org}/oidc/issuers/${id}`),
   regenerateOidcThumbprints: (org: string, id: string) =>
     postJson<OidcIssuer>(`/orgs/${org}/oidc/issuers/${id}/regenerate-thumbprints`, {}),
+
+  // Change gates (change-requests PR1): list/create/update/delete approval gates for an org. The list falls
+  // back to an empty set so the page renders its empty state; writes surface failures to the user.
+  changeGates: (org: string) =>
+    get<{ gates?: ChangeGate[] }>(`/change-gates/${org}`, { gates: [] }),
+  createChangeGate: (org: string, body: ChangeGateInput) =>
+    postJson<ChangeGate>(`/change-gates/${org}`, body),
+  updateChangeGate: (org: string, id: string, body: ChangeGateInput) =>
+    putJson<ChangeGate>(`/change-gates/${org}/${id}`, body),
+  deleteChangeGate: (org: string, id: string) => del(`/change-gates/${org}/${id}`),
 
   // Cloud accounts (Settings PR6): initiate a provider OAuth flow (returns a redirect URL) and list the
   // connected accounts per provider. The accounts fetchers fall back to an empty list so the page renders.

@@ -55,6 +55,7 @@ export const sections: NavSection[] = [
       { label: "Webhooks", to: "/settings/webhooks", icon: Webhook },
       { label: "Access tokens", to: "/settings/tokens", icon: Key },
       { label: "Encryption keys", to: "/settings/encryption-keys", icon: Lock },
+      { label: "Change gates", to: "/settings/change-gates", icon: CheckSquare },
       { label: "Billing & usage", to: "/settings/billing", icon: CreditCard },
     ],
   },
