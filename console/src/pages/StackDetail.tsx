@@ -13,6 +13,7 @@ import { Overview } from "./stack/Overview";
 import { Resources } from "./stack/Resources";
 import { Updates } from "./stack/Updates";
 import { Activity } from "./stack/Activity";
+import { Access } from "./stack/Access";
 
 const TABS = [
   { key: "overview", label: "Overview" },
@@ -22,6 +23,7 @@ const TABS = [
   { key: "deployments", label: "Deployments" },
   { key: "resources", label: "Resources" },
   { key: "settings", label: "Settings" },
+  { key: "access", label: "Access" },
 ];
 
 export default function StackDetail() {
@@ -86,6 +88,7 @@ export default function StackDetail() {
         {active === "deployments" && <Deployments deps={deps} project={project} stack={stack} />}
         {active === "resources" && <Resources org={org} project={project} stack={stack} resources={resources} />}
         {active === "settings" && <Settings meta={meta} onDelete={() => setConfirmDelete(true)} />}
+        {active === "access" && <Access org={org} project={project} stack={stack} />}
       </div>
 
       {confirmDelete && (

@@ -184,6 +184,11 @@ export interface Team {
   name: string; displayName?: string; description?: string; kind?: string;
   members?: TeamMember[]; roleIds?: string[];
 }
+// Stack access (collaborators + team grants). Permission levels: 0 none, 101 read, 102 write, 103 admin.
+export interface UserPermission { permission: number; user: Actor; }
+export interface StackCollaborators { stackCreatorUserName?: string; users: UserPermission[]; }
+export interface StackTeamGrant { name: string; displayName?: string; description?: string; isMember?: boolean; permission: number; }
+export interface StackTeams { projectName: string; teams: StackTeamGrant[]; }
 
 // ── API ──────────────────────────────────────────────────────────────────────
 export const api = {
@@ -230,6 +235,17 @@ export const api = {
   // Preview history for the stack (dry-run updates).
   stackPreviews: (org: string, project: string, stack: string) =>
     get<{ updates?: UpdateInfo[] }>(`/stacks/${org}/${project}/${stack}/updates/latest/previews`, { updates: [] }),
+
+  // Stack access (collaborators + team grants)
+  stackCollaborators: (org: string, project: string, stack: string) =>
+    get<StackCollaborators>(`/stacks/${org}/${project}/${stack}/collaborators`, { users: [] }),
+  removeStackCollaborator: (org: string, project: string, stack: string, userName: string) =>
+    del(`/stacks/${org}/${project}/${stack}/collaborators/${userName}`),
+  stackTeams: (org: string, project: string, stack: string) =>
+    get<StackTeams>(`/stacks/${org}/${project}/${stack}/teams`, { projectName: project, teams: [] }),
+  // Team grant updates are console-namespaced; permission null removes the team's grant.
+  updateStackTeamPermission: (org: string, project: string, stack: string, team: string, permission: number | null) =>
+    patchJson(`/console/stacks/${org}/${project}/${stack}/teams/${team}`, { permissions: permission }),
 
   // Deployments
   orgDeployments: (org: string) =>
