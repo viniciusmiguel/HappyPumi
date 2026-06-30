@@ -4,22 +4,27 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Vcs;
 
 namespace HappyPumi.Api.Endpoints.VcsIntegrations;
 
 /// <summary>
-/// ListAzureDevOpsOrganizations
+/// ListAzureDevOpsOrganizations — lists the Azure DevOps organizations the org's stored OAuth token can
+/// reach (via the provider). Empty when no token is stored or the provider is unconfigured.
 /// </summary>
-public sealed class ListAzureDevOpsOrganizationsEndpoint : Endpoint<ListAzureDevOpsOrganizationsRequest, List<AzureDevOpsOrganization>>
+public sealed class ListAzureDevOpsOrganizationsEndpoint(IVcsIntegrationStore store, AzureDevOpsVcsProvider azureDevOps)
+    : Endpoint<ListAzureDevOpsOrganizationsRequest, List<AzureDevOpsOrganization>>
 {
     public override void Configure()
     {
         Get("/api/console/orgs/{orgName}/integrations/azure-devops/setup/organizations");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:read");
         Description(b => b
             .WithTags("VCS Integrations")
             .WithSummary("ListAzureDevOpsOrganizations")
@@ -28,11 +33,10 @@ public sealed class ListAzureDevOpsOrganizationsEndpoint : Endpoint<ListAzureDev
         );
     }
 
-    public override Task HandleAsync(ListAzureDevOpsOrganizationsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ListAzureDevOpsOrganizationsRequest req, CancellationToken ct)
     {
-        // TODO: implement ListAzureDevOpsOrganizations
-        // HTTP: GET /api/console/orgs/{orgName}/integrations/azure-devops/setup/organizations
-        // Should produce: List<AzureDevOpsOrganization>
-        throw new NotImplementedException("Endpoint ListAzureDevOpsOrganizations not implemented.");
+        var token = AzureDevOpsToken.For(store, req.OrgName);
+        var orgs = await azureDevOps.ListOrganizationsAsync(token, ct);
+        await Send.OkAsync(orgs.ToList(), ct);
     }
 }

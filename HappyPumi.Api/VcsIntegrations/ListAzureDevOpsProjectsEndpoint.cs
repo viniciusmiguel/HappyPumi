@@ -4,22 +4,27 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Vcs;
 
 namespace HappyPumi.Api.Endpoints.VcsIntegrations;
 
 /// <summary>
-/// ListAzureDevOpsProjects
+/// ListAzureDevOpsProjects — lists the projects in one Azure DevOps organization using the org's stored
+/// OAuth token (via the provider). Empty when no token is stored or the provider is unconfigured.
 /// </summary>
-public sealed class ListAzureDevOpsProjectsEndpoint : Endpoint<ListAzureDevOpsProjectsRequest, List<AzureDevOpsProject>>
+public sealed class ListAzureDevOpsProjectsEndpoint(IVcsIntegrationStore store, AzureDevOpsVcsProvider azureDevOps)
+    : Endpoint<ListAzureDevOpsProjectsRequest, List<AzureDevOpsProject>>
 {
     public override void Configure()
     {
         Get("/api/console/orgs/{orgName}/integrations/azure-devops/setup/organizations/{adoOrgName}/projects");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:read");
         Description(b => b
             .WithTags("VCS Integrations")
             .WithSummary("ListAzureDevOpsProjects")
@@ -28,11 +33,10 @@ public sealed class ListAzureDevOpsProjectsEndpoint : Endpoint<ListAzureDevOpsPr
         );
     }
 
-    public override Task HandleAsync(ListAzureDevOpsProjectsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ListAzureDevOpsProjectsRequest req, CancellationToken ct)
     {
-        // TODO: implement ListAzureDevOpsProjects
-        // HTTP: GET /api/console/orgs/{orgName}/integrations/azure-devops/setup/organizations/{adoOrgName}/projects
-        // Should produce: List<AzureDevOpsProject>
-        throw new NotImplementedException("Endpoint ListAzureDevOpsProjects not implemented.");
+        var token = AzureDevOpsToken.For(store, req.OrgName);
+        var projects = await azureDevOps.ListProjectsAsync(req.AdoOrgName, token, ct);
+        await Send.OkAsync(projects.ToList(), ct);
     }
 }

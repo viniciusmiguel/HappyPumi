@@ -8,18 +8,21 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.Vcs;
 
 namespace HappyPumi.Api.Endpoints.VcsIntegrations;
 
 /// <summary>
-/// InitiateAzureDevOpsOAuth
+/// InitiateAzureDevOpsOAuth — mints a <c>state</c> session id and asks the provider to build the Azure DevOps
+/// authorization URL the browser is sent to. The URL is empty when the OAuth client is unconfigured.
 /// </summary>
-public sealed class InitiateAzureDevOpsOAuthEndpoint : Endpoint<InitiateAzureDevOpsOAuthRequest, InitiateOAuthResponse>
+public sealed class InitiateAzureDevOpsOAuthEndpoint(AzureDevOpsVcsProvider azureDevOps)
+    : Endpoint<InitiateAzureDevOpsOAuthRequest, InitiateOAuthResponse>
 {
     public override void Configure()
     {
         Post("/api/console/orgs/{orgName}/integrations/azure-devops/oauth/initiate");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:update");
         Description(b => b
             .WithTags("VCS Integrations")
             .WithSummary("InitiateAzureDevOpsOAuth")
@@ -28,11 +31,13 @@ public sealed class InitiateAzureDevOpsOAuthEndpoint : Endpoint<InitiateAzureDev
         );
     }
 
-    public override Task HandleAsync(InitiateAzureDevOpsOAuthRequest req, CancellationToken ct)
+    public override async Task HandleAsync(InitiateAzureDevOpsOAuthRequest req, CancellationToken ct)
     {
-        // TODO: implement InitiateAzureDevOpsOAuth
-        // HTTP: POST /api/console/orgs/{orgName}/integrations/azure-devops/oauth/initiate
-        // Should produce: InitiateOAuthResponse
-        throw new NotImplementedException("Endpoint InitiateAzureDevOpsOAuth not implemented.");
+        var state = Guid.NewGuid().ToString("N");
+        await Send.OkAsync(new InitiateOAuthResponse
+        {
+            SessionId = state,
+            Url = azureDevOps.BuildAuthorizationUrl(state),
+        }, ct);
     }
 }

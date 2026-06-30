@@ -4,22 +4,28 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Vcs;
 
 namespace HappyPumi.Api.Endpoints.VcsIntegrations;
 
 /// <summary>
-/// GetAzureDevOpsAccessStatus
+/// GetAzureDevOpsAccessStatus — reports whether the org has an azure-devops integration, whether a user
+/// token is stored, and (when one is) the Azure DevOps orgs that token can reach. Safe without secrets:
+/// no integration / no token degrades to not-accessible rather than throwing.
 /// </summary>
-public sealed class GetAzureDevOpsAccessStatusEndpoint : Endpoint<GetAzureDevOpsAccessStatusRequest, AzureDevOpsAccessResponse>
+public sealed class GetAzureDevOpsAccessStatusEndpoint(IVcsIntegrationStore store, AzureDevOpsVcsProvider azureDevOps)
+    : Endpoint<GetAzureDevOpsAccessStatusRequest, AzureDevOpsAccessResponse>
 {
     public override void Configure()
     {
         Get("/api/console/orgs/{orgName}/integrations/azure-devops/access-status");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Permissions("integrations:read");
         Description(b => b
             .WithTags("VCS Integrations")
             .WithSummary("GetAzureDevOpsAccessStatus")
@@ -28,11 +34,18 @@ public sealed class GetAzureDevOpsAccessStatusEndpoint : Endpoint<GetAzureDevOps
         );
     }
 
-    public override Task HandleAsync(GetAzureDevOpsAccessStatusRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetAzureDevOpsAccessStatusRequest req, CancellationToken ct)
     {
-        // TODO: implement GetAzureDevOpsAccessStatus
-        // HTTP: GET /api/console/orgs/{orgName}/integrations/azure-devops/access-status
-        // Should produce: AzureDevOpsAccessResponse
-        throw new NotImplementedException("Endpoint GetAzureDevOpsAccessStatus not implemented.");
+        var integrations = store.List(req.OrgName, "azure-devops");
+        var token = AzureDevOpsToken.For(store, req.OrgName);
+        var orgs = token is null
+            ? new List<AzureDevOpsOrganization>()
+            : (await azureDevOps.ListOrganizationsAsync(token, ct)).ToList();
+        await Send.OkAsync(new AzureDevOpsAccessResponse
+        {
+            HasIntegration = integrations.Count > 0,
+            HasUserToken = token is not null,
+            AvailableOrgs = orgs,
+        }, ct);
     }
 }
