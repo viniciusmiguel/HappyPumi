@@ -53,6 +53,7 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
     public DbSet<AccessTokenRow> AccessTokens => Set<AccessTokenRow>();
     public DbSet<CmkRow> CustomerManagedKeys => Set<CmkRow>();
     public DbSet<KeyMigrationRow> KeyMigrations => Set<KeyMigrationRow>();
+    public DbSet<SamlConfigRow> SamlConfigs => Set<SamlConfigRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -325,6 +326,12 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
         {
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.Org, x.Created }); // migrations are listed per org, newest first
+        });
+
+        b.Entity<SamlConfigRow>(e =>
+        {
+            e.HasKey(x => x.Org); // one SAML configuration per org
+            e.Property(x => x.Admins).AsJsonb();
         });
     }
 }
