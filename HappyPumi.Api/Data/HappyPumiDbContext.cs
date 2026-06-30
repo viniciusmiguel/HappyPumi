@@ -14,6 +14,7 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
 {
     public DbSet<StackRow> Stacks => Set<StackRow>();
     public DbSet<StackUpdateRow> StackUpdates => Set<StackUpdateRow>();
+    public DbSet<StackPermissionRow> StackPermissions => Set<StackPermissionRow>();
     public DbSet<UpdateRow> Updates => Set<UpdateRow>();
     public DbSet<MemberRow> Members => Set<MemberRow>();
     public DbSet<RoleRow> Roles => Set<RoleRow>();
@@ -66,6 +67,15 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
                 .HasForeignKey(x => new { x.Org, x.Project, x.Stack })
                 .OnDelete(DeleteBehavior.Cascade);
             e.Property(x => x.Config).AsJsonb();
+        });
+
+        b.Entity<StackPermissionRow>(e =>
+        {
+            e.HasKey(x => new { x.Org, x.Project, x.Stack, x.SubjectKind, x.SubjectName });
+            // Grants are cleaned up with their owning stack.
+            e.HasOne<StackRow>().WithMany()
+                .HasForeignKey(x => new { x.Org, x.Project, x.Stack })
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<UpdateRow>(e =>

@@ -36,6 +36,22 @@ public sealed class StackUpdateRow
     public string? RequestedByName { get; set; }
 }
 
+/// <summary>
+/// A per-stack access grant: a user or team mapped to a permission level on one stack. Key:
+/// (Org, Project, Stack, SubjectKind, SubjectName). <see cref="IsCreator"/> flags the stack-creator grant.
+/// </summary>
+public sealed class StackPermissionRow
+{
+    public string Org { get; set; } = default!;
+    public string Project { get; set; } = default!;
+    public string Stack { get; set; } = default!;
+    /// <summary>"user" or "team" — distinguishes the two subject namespaces sharing a name.</summary>
+    public string SubjectKind { get; set; } = default!;
+    public string SubjectName { get; set; } = default!;
+    public long Permission { get; set; }
+    public bool IsCreator { get; set; }
+}
+
 /// <summary>An in-flight/finished update operation (the lifecycle state). Key: UpdateId.</summary>
 public sealed class UpdateRow
 {

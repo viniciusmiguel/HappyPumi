@@ -41,8 +41,9 @@ public sealed class UpdateTeamStackPermissionsRequest
     public string TeamName { get; set; } = default!;
 
     /// <summary>
-    /// Request body.
+    /// Request body. Qualified to the Contracts payload: the generator emitted the colliding simple name
+    /// <c>UpdateTeamStackPermissionsRequest</c>, which would otherwise resolve to this request type itself.
     /// </summary>
     [FromBody]
-    public UpdateTeamStackPermissionsRequest Body { get; set; } = default!;
+    public Contracts.UpdateTeamStackPermissionsRequest Body { get; set; } = default!;
 }
