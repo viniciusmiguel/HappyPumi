@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// CreateOrganizationKey
 /// </summary>
-public sealed class CreateOrganizationKeyEndpoint : Endpoint<CreateOrganizationKeyRequest, CustomerManagedKey>
+public sealed class CreateOrganizationKeyEndpoint(ICmkStore store) : Endpoint<CreateOrganizationKeyRequest, CustomerManagedKey>
 {
     public override void Configure()
     {
@@ -28,11 +29,16 @@ public sealed class CreateOrganizationKeyEndpoint : Endpoint<CreateOrganizationK
         );
     }
 
-    public override Task HandleAsync(CreateOrganizationKeyRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CreateOrganizationKeyRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateOrganizationKey
-        // HTTP: POST /api/orgs/{orgName}/cmk
-        // Should produce: CustomerManagedKey
-        throw new NotImplementedException("Endpoint CreateOrganizationKey not implemented.");
+        var input = req.Body;
+        if (string.IsNullOrWhiteSpace(input?.Name) || string.IsNullOrWhiteSpace(input.KeyType))
+        {
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+
+        var key = store.Create(req.OrgName, input.Name, input.KeyType, input.AwsKms?.KeyArn, input.AwsKms?.RoleArn);
+        await Send.OkAsync(OrganizationKeyMapper.ToContract(key), ct);
     }
 }

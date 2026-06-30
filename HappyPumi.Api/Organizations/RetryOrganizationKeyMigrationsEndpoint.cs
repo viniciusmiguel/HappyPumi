@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// RetryOrganizationKeyMigrations
 /// </summary>
-public sealed class RetryOrganizationKeyMigrationsEndpoint : Endpoint<RetryOrganizationKeyMigrationsRequest>
+public sealed class RetryOrganizationKeyMigrationsEndpoint(ICmkStore store) : Endpoint<RetryOrganizationKeyMigrationsRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,9 @@ public sealed class RetryOrganizationKeyMigrationsEndpoint : Endpoint<RetryOrgan
         );
     }
 
-    public override Task HandleAsync(RetryOrganizationKeyMigrationsRequest req, CancellationToken ct)
+    public async override Task HandleAsync(RetryOrganizationKeyMigrationsRequest req, CancellationToken ct)
     {
-        // TODO: implement RetryOrganizationKeyMigrations
-        // HTTP: POST /api/orgs/{orgName}/cmk/migration/retry
-        throw new NotImplementedException("Endpoint RetryOrganizationKeyMigrations not implemented.");
+        store.RetryMigrations(req.OrgName);
+        await Send.NoContentAsync(ct);
     }
 }

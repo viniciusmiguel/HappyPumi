@@ -6,15 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// ListOrganizationKeys
 /// </summary>
-public sealed class ListOrganizationKeysEndpoint : Endpoint<ListOrganizationKeysRequest, List<CustomerManagedKey>>
+public sealed class ListOrganizationKeysEndpoint(ICmkStore store) : Endpoint<ListOrganizationKeysRequest, List<CustomerManagedKey>>
 {
     public override void Configure()
     {
@@ -28,11 +30,9 @@ public sealed class ListOrganizationKeysEndpoint : Endpoint<ListOrganizationKeys
         );
     }
 
-    public override Task HandleAsync(ListOrganizationKeysRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ListOrganizationKeysRequest req, CancellationToken ct)
     {
-        // TODO: implement ListOrganizationKeys
-        // HTTP: GET /api/orgs/{orgName}/cmk
-        // Should produce: List<CustomerManagedKey>
-        throw new NotImplementedException("Endpoint ListOrganizationKeys not implemented.");
+        var keys = store.List(req.OrgName).Select(OrganizationKeyMapper.ToContract).ToList();
+        await Send.OkAsync(keys, ct);
     }
 }

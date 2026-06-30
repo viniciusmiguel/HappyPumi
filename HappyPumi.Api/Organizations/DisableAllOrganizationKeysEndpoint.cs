@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// DisableAllOrganizationKeys
 /// </summary>
-public sealed class DisableAllOrganizationKeysEndpoint : Endpoint<DisableAllOrganizationKeysRequest>
+public sealed class DisableAllOrganizationKeysEndpoint(ICmkStore store) : Endpoint<DisableAllOrganizationKeysRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,9 @@ public sealed class DisableAllOrganizationKeysEndpoint : Endpoint<DisableAllOrga
         );
     }
 
-    public override Task HandleAsync(DisableAllOrganizationKeysRequest req, CancellationToken ct)
+    public async override Task HandleAsync(DisableAllOrganizationKeysRequest req, CancellationToken ct)
     {
-        // TODO: implement DisableAllOrganizationKeys
-        // HTTP: POST /api/orgs/{orgName}/cmk/disable
-        throw new NotImplementedException("Endpoint DisableAllOrganizationKeys not implemented.");
+        store.DisableAll(req.OrgName);
+        await Send.NoContentAsync(ct);
     }
 }
