@@ -73,6 +73,7 @@ bld.Services.AddScoped<IAuditLog, PostgresAuditLog>();                 // audit 
 bld.Services.AddScoped<IServiceStore, PostgresServiceStore>();         // IDP services
 bld.Services.AddScoped<ICloudAccountStore, PostgresCloudAccountStore>(); // Insights cloud accounts
 bld.Services.AddScoped<IVcsConnectionStore, PostgresVcsConnectionStore>(); // VCS connections (ADR-0009)
+bld.Services.AddScoped<IVcsIntegrationStore, PostgresVcsIntegrationStore>(); // VCS integration records (ADR-0009)
 bld.Services.AddScoped<IOidcIssuerStore, PostgresOidcIssuerStore>();   // identity providers (OIDC issuers)
 bld.Services.AddScoped<IApprovalRuleStore, PostgresApprovalRuleStore>(); // approval rules
 bld.Services.AddScoped<UpdateLifecycle>();
