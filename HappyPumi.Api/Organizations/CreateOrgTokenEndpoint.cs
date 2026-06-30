@@ -7,19 +7,21 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using HappyPumi.Api.Auth;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// CreateOrgToken
 /// </summary>
-public sealed class CreateOrgTokenEndpoint : Endpoint<CreateOrgTokenRequest, CreateAccessTokenResponse>
+public sealed class CreateOrgTokenEndpoint(IAccessTokenStore tokens) : Endpoint<CreateOrgTokenRequest, CreateAccessTokenResponse>
 {
     public override void Configure()
     {
         Post("/api/orgs/{orgName}/tokens");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Policies(AuthPolicies.OrgAdmin); // org token management requires the admin role (ADR-0007)
         Description(b => b
             .WithTags("Organizations")
             .WithSummary("CreateOrgToken")
@@ -28,11 +30,12 @@ public sealed class CreateOrgTokenEndpoint : Endpoint<CreateOrgTokenRequest, Cre
         );
     }
 
-    public override Task HandleAsync(CreateOrgTokenRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CreateOrgTokenRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateOrgToken
-        // HTTP: POST /api/orgs/{orgName}/tokens
-        // Should produce: CreateAccessTokenResponse
-        throw new NotImplementedException("Endpoint CreateOrgToken not implemented.");
+        var createdBy = User.Identity?.Name ?? "happypumi";
+        var name = req.Body?.Name ?? "";
+        var token = tokens.Issue("org", req.OrgName, name, req.Body?.Description ?? "", createdBy,
+            out var plaintext, req.Body?.Expires ?? 0, req.Body?.Admin ?? false, req.Body?.RoleId);
+        await Send.OkAsync(new CreateAccessTokenResponse { Id = token.Id, TokenValue = plaintext }, ct);
     }
 }

@@ -6,20 +6,22 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Users;
 
 /// <summary>
 /// ListPersonalTokens
 /// </summary>
-public sealed class ListPersonalTokensEndpoint : Endpoint<ListPersonalTokensRequest, ListAccessTokensResponse>
+public sealed class ListPersonalTokensEndpoint(IAccessTokenStore tokens) : Endpoint<ListPersonalTokensRequest, ListAccessTokensResponse>
 {
     public override void Configure()
     {
         Get("/api/user/tokens");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        // Any authenticated user manages their own tokens; ownership is keyed off the caller's login (ADR-0007).
         Description(b => b
             .WithTags("Users")
             .WithSummary("ListPersonalTokens")
@@ -28,11 +30,14 @@ public sealed class ListPersonalTokensEndpoint : Endpoint<ListPersonalTokensRequ
         );
     }
 
-    public override Task HandleAsync(ListPersonalTokensRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ListPersonalTokensRequest req, CancellationToken ct)
     {
-        // TODO: implement ListPersonalTokens
-        // HTTP: GET /api/user/tokens
-        // Should produce: ListAccessTokensResponse
-        throw new NotImplementedException("Endpoint ListPersonalTokens not implemented.");
+        var login = User.Identity?.Name ?? "happypumi";
+        var stored = tokens.List("user", login);
+        var filtered = AccessTokenFilter.Apply(stored, req.Filter);
+        await Send.OkAsync(new ListAccessTokensResponse
+        {
+            Tokens = filtered.Select(AccessTokenMapper.ToContract).ToList(),
+        }, ct);
     }
 }

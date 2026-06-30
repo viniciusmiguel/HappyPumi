@@ -6,20 +6,23 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
+using HappyPumi.Api.Auth;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// ListOrgTokens
 /// </summary>
-public sealed class ListOrgTokensEndpoint : Endpoint<ListOrgTokensRequest, ListAccessTokensResponse>
+public sealed class ListOrgTokensEndpoint(IAccessTokenStore tokens) : Endpoint<ListOrgTokensRequest, ListAccessTokensResponse>
 {
     public override void Configure()
     {
         Get("/api/orgs/{orgName}/tokens");
-        AllowAnonymous(); // TODO: replace with your auth policy (e.g. Roles(...), Policies(...))
+        Policies(AuthPolicies.OrgAdmin); // org token management requires the admin role (ADR-0007)
         Description(b => b
             .WithTags("Organizations")
             .WithSummary("ListOrgTokens")
@@ -28,11 +31,13 @@ public sealed class ListOrgTokensEndpoint : Endpoint<ListOrgTokensRequest, ListA
         );
     }
 
-    public override Task HandleAsync(ListOrgTokensRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ListOrgTokensRequest req, CancellationToken ct)
     {
-        // TODO: implement ListOrgTokens
-        // HTTP: GET /api/orgs/{orgName}/tokens
-        // Should produce: ListAccessTokensResponse
-        throw new NotImplementedException("Endpoint ListOrgTokens not implemented.");
+        var stored = tokens.List("org", req.OrgName);
+        var filtered = AccessTokenFilter.Apply(stored, req.Filter);
+        await Send.OkAsync(new ListAccessTokensResponse
+        {
+            Tokens = filtered.Select(AccessTokenMapper.ToContract).ToList(),
+        }, ct);
     }
 }
