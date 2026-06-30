@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// RegenerateThumbprints
 /// </summary>
-public sealed class RegenerateThumbprintsEndpoint : Endpoint<RegenerateThumbprintsRequest, OidcIssuerRegistrationResponse>
+public sealed class RegenerateThumbprintsEndpoint(IOidcIssuerStore issuers, IOidcThumbprintFetcher fetcher)
+    : Endpoint<RegenerateThumbprintsRequest, OidcIssuerRegistrationResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,13 @@ public sealed class RegenerateThumbprintsEndpoint : Endpoint<RegenerateThumbprin
         );
     }
 
-    public override Task HandleAsync(RegenerateThumbprintsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(RegenerateThumbprintsRequest req, CancellationToken ct)
     {
-        // TODO: implement RegenerateThumbprints
-        // HTTP: POST /api/orgs/{orgName}/oidc/issuers/{issuerId}/regenerate-thumbprints
-        // Should produce: OidcIssuerRegistrationResponse
-        throw new NotImplementedException("Endpoint RegenerateThumbprints not implemented.");
+        var issuer = issuers.Get(req.OrgName, req.IssuerId);
+        if (issuer is null) { await Send.NotFoundAsync(ct); return; }
+        var thumbprints = await fetcher.FetchAsync(issuer.Url, ct);
+        if (thumbprints.Count == 0) { await Send.ErrorsAsync(400, ct); return; } // nothing derivable from the issuer
+        var updated = issuers.SetThumbprints(req.OrgName, req.IssuerId, thumbprints);
+        await Send.OkAsync(OidcIssuerMapper.ToResponse(updated!), ct);
     }
 }

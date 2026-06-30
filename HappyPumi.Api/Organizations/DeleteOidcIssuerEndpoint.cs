@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// DeleteOidcIssuer
 /// </summary>
-public sealed class DeleteOidcIssuerEndpoint : Endpoint<DeleteOidcIssuerRequest>
+public sealed class DeleteOidcIssuerEndpoint(IOidcIssuerStore issuers, IAuditLog audit)
+    : Endpoint<DeleteOidcIssuerRequest>
 {
     public override void Configure()
     {
@@ -28,10 +30,11 @@ public sealed class DeleteOidcIssuerEndpoint : Endpoint<DeleteOidcIssuerRequest>
         );
     }
 
-    public override Task HandleAsync(DeleteOidcIssuerRequest req, CancellationToken ct)
+    public override async Task HandleAsync(DeleteOidcIssuerRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteOidcIssuer
-        // HTTP: DELETE /api/orgs/{orgName}/oidc/issuers/{issuerId}
-        throw new NotImplementedException("Endpoint DeleteOidcIssuer not implemented.");
+        if (!issuers.DeleteById(req.OrgName, req.IssuerId)) { await Send.NotFoundAsync(ct); return; }
+        audit.Record(req.OrgName, "identityProvider.delete",
+            $"Removed identity provider '{req.IssuerId}'", Actor.Of(HttpContext));
+        await Send.NoContentAsync(ct);
     }
 }

@@ -6,15 +6,18 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// List
 /// </summary>
-public sealed class ListOrgsOidcIssuersEndpoint : Endpoint<ListOrgsOidcIssuersRequest, ListOidcIssuersResponse>
+public sealed class ListOrgsOidcIssuersEndpoint(IOidcIssuerStore issuers)
+    : Endpoint<ListOrgsOidcIssuersRequest, ListOidcIssuersResponse>
 {
     public override void Configure()
     {
@@ -28,11 +31,9 @@ public sealed class ListOrgsOidcIssuersEndpoint : Endpoint<ListOrgsOidcIssuersRe
         );
     }
 
-    public override Task HandleAsync(ListOrgsOidcIssuersRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ListOrgsOidcIssuersRequest req, CancellationToken ct)
     {
-        // TODO: implement ListOrgsOidcIssuers
-        // HTTP: GET /api/orgs/{orgName}/oidc/issuers
-        // Should produce: ListOidcIssuersResponse
-        throw new NotImplementedException("Endpoint ListOrgsOidcIssuers not implemented.");
+        var list = issuers.List(req.OrgName).Select(OidcIssuerMapper.ToResponse).ToList();
+        await Send.OkAsync(new ListOidcIssuersResponse { OidcIssuers = list }, ct);
     }
 }

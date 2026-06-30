@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// RegisterOidcIssuer
 /// </summary>
-public sealed class RegisterOidcIssuerEndpoint : Endpoint<RegisterOidcIssuerRequest, OidcIssuerRegistrationResponse>
+public sealed class RegisterOidcIssuerEndpoint(IOidcIssuerStore issuers)
+    : Endpoint<RegisterOidcIssuerRequest, OidcIssuerRegistrationResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,16 @@ public sealed class RegisterOidcIssuerEndpoint : Endpoint<RegisterOidcIssuerRequ
         );
     }
 
-    public override Task HandleAsync(RegisterOidcIssuerRequest req, CancellationToken ct)
+    public override async Task HandleAsync(RegisterOidcIssuerRequest req, CancellationToken ct)
     {
-        // TODO: implement RegisterOidcIssuer
-        // HTTP: POST /api/orgs/{orgName}/oidc/issuers
-        // Should produce: OidcIssuerRegistrationResponse
-        throw new NotImplementedException("Endpoint RegisterOidcIssuer not implemented.");
+        var body = req.Body;
+        if (body is null || string.IsNullOrWhiteSpace(body.Name) || string.IsNullOrWhiteSpace(body.Url))
+        {
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+        var row = issuers.Create(req.OrgName, body.Name, body.Url, body.Thumbprints, body.MaxExpiration);
+        if (row is null) { await Send.ErrorsAsync(409, ct); return; } // duplicate issuer name in this org
+        await Send.OkAsync(OidcIssuerMapper.ToResponse(row), ct);
     }
 }
