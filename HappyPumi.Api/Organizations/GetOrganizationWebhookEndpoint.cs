@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// GetOrganizationWebhook
 /// </summary>
-public sealed class GetOrganizationWebhookEndpoint : Endpoint<GetOrganizationWebhookRequest, WebhookResponse>
+public sealed class GetOrganizationWebhookEndpoint(IOrgWebhookStore webhooks)
+    : Endpoint<GetOrganizationWebhookRequest, WebhookResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,14 @@ public sealed class GetOrganizationWebhookEndpoint : Endpoint<GetOrganizationWeb
         );
     }
 
-    public override Task HandleAsync(GetOrganizationWebhookRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetOrganizationWebhookRequest req, CancellationToken ct)
     {
-        // TODO: implement GetOrganizationWebhook
-        // HTTP: GET /api/orgs/{orgName}/hooks/{hookName}
-        // Should produce: WebhookResponse
-        throw new NotImplementedException("Endpoint GetOrganizationWebhook not implemented.");
+        var hook = webhooks.Get(req.OrgName, req.HookName);
+        if (hook is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        await Send.OkAsync(StackWebhookMapper.Sanitized(hook), ct);
     }
 }

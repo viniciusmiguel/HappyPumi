@@ -1,33 +1,43 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using HappyPumi.Api.Contracts;
 using HappyPumi.Api.State;
 using Microsoft.Extensions.Logging;
 
 namespace HappyPumi.Api.Webhooks;
 
 /// <summary>
-/// Best-effort firing of a stack's webhooks on a real event (update completion, deployment status change).
-/// Resolves the stack's webhooks and hands them to the dispatcher. Failures are swallowed (logged) so a
-/// webhook problem can never fault or block the triggering update/deployment.
+/// Best-effort firing of a stack's webhooks on a real event (update completion, deployment status change), plus
+/// the owning organization's webhooks — org webhooks receive org-wide activity, so the same event is fired to
+/// both scopes. Failures are swallowed (logged) per scope so a webhook problem can never fault or block the
+/// triggering update/deployment.
 /// </summary>
 public sealed class StackWebhookTrigger(
-    IDeploymentStore deployments, IWebhookDispatcher dispatcher, ILogger<StackWebhookTrigger> logger)
+    IDeploymentStore deployments, IOrgWebhookStore orgWebhooks,
+    IWebhookDispatcher dispatcher, ILogger<StackWebhookTrigger> logger)
 {
     public async Task FireAsync(StackCoordinates stack, string @event, object payload, CancellationToken ct)
     {
+        await FireScopeAsync(new WebhookScope("stack", stack.Qualified), deployments.ListWebhooks(stack), @event, payload, ct);
+        await FireScopeAsync(new WebhookScope("org", stack.Org), orgWebhooks.List(stack.Org), @event, payload, ct);
+    }
+
+    private async Task FireScopeAsync(
+        WebhookScope scope, IReadOnlyList<WebhookResponse> webhooks, string @event, object payload, CancellationToken ct)
+    {
         try
         {
-            var webhooks = deployments.ListWebhooks(stack);
             if (webhooks.Count == 0)
                 return;
-            await dispatcher.FireAsync(new WebhookScope("stack", stack.Qualified), webhooks, @event, payload, ct);
+            await dispatcher.FireAsync(scope, webhooks, @event, payload, ct);
         }
         catch (Exception ex) // never let a webhook failure bubble into the update/deployment path
         {
-            logger.LogWarning(ex, "Stack webhook firing failed for {Stack} event {Event}", stack.Qualified, @event);
+            logger.LogWarning(ex, "{Scope} webhook firing failed for {Id} event {Event}", scope.Kind, scope.Id, @event);
         }
     }
 

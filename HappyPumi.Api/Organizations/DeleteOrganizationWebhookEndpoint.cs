@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// DeleteOrganizationWebhook
 /// </summary>
-public sealed class DeleteOrganizationWebhookEndpoint : Endpoint<DeleteOrganizationWebhookRequest>
+public sealed class DeleteOrganizationWebhookEndpoint(IOrgWebhookStore webhooks)
+    : Endpoint<DeleteOrganizationWebhookRequest>
 {
     public override void Configure()
     {
@@ -28,10 +30,13 @@ public sealed class DeleteOrganizationWebhookEndpoint : Endpoint<DeleteOrganizat
         );
     }
 
-    public override Task HandleAsync(DeleteOrganizationWebhookRequest req, CancellationToken ct)
+    public async override Task HandleAsync(DeleteOrganizationWebhookRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteOrganizationWebhook
-        // HTTP: DELETE /api/orgs/{orgName}/hooks/{hookName}
-        throw new NotImplementedException("Endpoint DeleteOrganizationWebhook not implemented.");
+        if (!webhooks.Delete(req.OrgName, req.HookName))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        await Send.NoContentAsync(ct);
     }
 }

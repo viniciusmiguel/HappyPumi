@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// CreateOrganizationWebhook
 /// </summary>
-public sealed class CreateOrganizationWebhookEndpoint : Endpoint<CreateOrganizationWebhookRequest, WebhookResponse>
+public sealed class CreateOrganizationWebhookEndpoint(IOrgWebhookStore webhooks)
+    : Endpoint<CreateOrganizationWebhookRequest, WebhookResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,28 @@ public sealed class CreateOrganizationWebhookEndpoint : Endpoint<CreateOrganizat
         );
     }
 
-    public override Task HandleAsync(CreateOrganizationWebhookRequest req, CancellationToken ct)
+    public async override Task HandleAsync(CreateOrganizationWebhookRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateOrganizationWebhook
-        // HTTP: POST /api/orgs/{orgName}/hooks
-        // Should produce: WebhookResponse
-        throw new NotImplementedException("Endpoint CreateOrganizationWebhook not implemented.");
+        var webhook = new WebhookResponse
+        {
+            Name = req.Body?.Name ?? System.Guid.NewGuid().ToString("N"),
+            DisplayName = req.Body?.DisplayName ?? string.Empty,
+            PayloadUrl = req.Body?.PayloadUrl ?? string.Empty,
+            OrganizationName = req.OrgName,
+            Active = req.Body?.Active ?? true,
+            Format = req.Body?.Format,
+            Filters = req.Body?.Filters,
+            Groups = req.Body?.Groups,
+            Secret = req.Body?.Secret,
+            HasSecret = !string.IsNullOrEmpty(req.Body?.Secret),
+            SecretCiphertext = string.Empty,
+        };
+        var created = webhooks.Create(req.OrgName, webhook);
+        if (created is null)
+        {
+            await Send.ErrorsAsync(409, ct); // a webhook of that name already exists
+            return;
+        }
+        await Send.OkAsync(StackWebhookMapper.Sanitized(created), ct);
     }
 }

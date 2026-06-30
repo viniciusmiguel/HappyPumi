@@ -7,14 +7,17 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Linq;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// ListOrganizationWebhooks
 /// </summary>
-public sealed class ListOrganizationWebhooksEndpoint : Endpoint<ListOrganizationWebhooksRequest, List<WebhookResponse>>
+public sealed class ListOrganizationWebhooksEndpoint(IOrgWebhookStore webhooks)
+    : Endpoint<ListOrganizationWebhooksRequest, List<WebhookResponse>>
 {
     public override void Configure()
     {
@@ -28,11 +31,6 @@ public sealed class ListOrganizationWebhooksEndpoint : Endpoint<ListOrganization
         );
     }
 
-    public override Task HandleAsync(ListOrganizationWebhooksRequest req, CancellationToken ct)
-    {
-        // TODO: implement ListOrganizationWebhooks
-        // HTTP: GET /api/orgs/{orgName}/hooks
-        // Should produce: List<WebhookResponse>
-        throw new NotImplementedException("Endpoint ListOrganizationWebhooks not implemented.");
-    }
+    public async override Task HandleAsync(ListOrganizationWebhooksRequest req, CancellationToken ct)
+        => await Send.OkAsync(webhooks.List(req.OrgName).Select(StackWebhookMapper.Sanitized).ToList(), ct); // never echo stored secrets
 }

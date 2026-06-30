@@ -8,13 +8,17 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Webhooks;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// RedeliverOrganizationWebhookEvent
 /// </summary>
-public sealed class RedeliverOrganizationWebhookEventEndpoint : Endpoint<RedeliverOrganizationWebhookEventRequest, WebhookDelivery>
+public sealed class RedeliverOrganizationWebhookEventEndpoint(
+    IOrgWebhookStore webhooks, IWebhookDeliveryStore deliveries, IWebhookDispatcher dispatcher)
+    : Endpoint<RedeliverOrganizationWebhookEventRequest, WebhookDelivery>
 {
     public override void Configure()
     {
@@ -28,11 +32,17 @@ public sealed class RedeliverOrganizationWebhookEventEndpoint : Endpoint<Redeliv
         );
     }
 
-    public override Task HandleAsync(RedeliverOrganizationWebhookEventRequest req, CancellationToken ct)
+    public async override Task HandleAsync(RedeliverOrganizationWebhookEventRequest req, CancellationToken ct)
     {
-        // TODO: implement RedeliverOrganizationWebhookEvent
-        // HTTP: POST /api/orgs/{orgName}/hooks/{hookName}/deliveries/{event}/redeliver
-        // Should produce: WebhookDelivery
-        throw new NotImplementedException("Endpoint RedeliverOrganizationWebhookEvent not implemented.");
+        var webhook = webhooks.Get(req.OrgName, req.HookName);
+        var scope = new WebhookScope("org", req.OrgName);
+        var prior = webhook is null ? null : deliveries.LatestByEvent(scope, req.HookName, req.Event);
+        if (webhook is null || prior is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        var delivery = await dispatcher.SendAsync(scope, webhook, req.Event, prior.RequestBody, ct);
+        await Send.OkAsync(WebhookDeliveryMapper.ToContract(delivery, webhook.PayloadUrl), ct);
     }
 }

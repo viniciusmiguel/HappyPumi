@@ -7,14 +7,18 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using System.Text.Json;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
+using HappyPumi.Api.Webhooks;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// PingOrganizationWebhook
 /// </summary>
-public sealed class PingOrganizationWebhookEndpoint : Endpoint<PingOrganizationWebhookRequest, WebhookDelivery>
+public sealed class PingOrganizationWebhookEndpoint(IOrgWebhookStore webhooks, IWebhookDispatcher dispatcher)
+    : Endpoint<PingOrganizationWebhookRequest, WebhookDelivery>
 {
     public override void Configure()
     {
@@ -28,11 +32,16 @@ public sealed class PingOrganizationWebhookEndpoint : Endpoint<PingOrganizationW
         );
     }
 
-    public override Task HandleAsync(PingOrganizationWebhookRequest req, CancellationToken ct)
+    public async override Task HandleAsync(PingOrganizationWebhookRequest req, CancellationToken ct)
     {
-        // TODO: implement PingOrganizationWebhook
-        // HTTP: POST /api/orgs/{orgName}/hooks/{hookName}/ping
-        // Should produce: WebhookDelivery
-        throw new NotImplementedException("Endpoint PingOrganizationWebhook not implemented.");
+        var webhook = webhooks.Get(req.OrgName, req.HookName);
+        if (webhook is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        var body = JsonSerializer.Serialize(new { kind = "ping", organization = req.OrgName });
+        var delivery = await dispatcher.SendAsync(new WebhookScope("org", req.OrgName), webhook, "ping", body, ct);
+        await Send.OkAsync(WebhookDeliveryMapper.ToContract(delivery, webhook.PayloadUrl), ct);
     }
 }
