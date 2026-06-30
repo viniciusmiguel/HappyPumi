@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// GetSAMLOrganization
 /// </summary>
-public sealed class GetSamlOrganizationEndpoint : Endpoint<GetSamlOrganizationRequest, SamlOrganization>
+public sealed class GetSamlOrganizationEndpoint(ISamlConfigStore store)
+    : Endpoint<GetSamlOrganizationRequest, SamlOrganization>
 {
     public override void Configure()
     {
@@ -28,11 +30,9 @@ public sealed class GetSamlOrganizationEndpoint : Endpoint<GetSamlOrganizationRe
         );
     }
 
-    public override Task HandleAsync(GetSamlOrganizationRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetSamlOrganizationRequest req, CancellationToken ct)
     {
-        // TODO: implement GetSamlOrganization
-        // HTTP: GET /api/orgs/{orgName}/saml
-        // Should produce: SamlOrganization
-        throw new NotImplementedException("Endpoint GetSamlOrganization not implemented.");
+        var config = store.Get(req.OrgName);
+        await Send.OkAsync(SamlOrganizationMapper.ToSamlOrganization(config, req.OrgName), ct);
     }
 }

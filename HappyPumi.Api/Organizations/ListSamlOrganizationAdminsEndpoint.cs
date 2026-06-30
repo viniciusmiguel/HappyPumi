@@ -6,15 +6,18 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// ListSAMLOrganizationAdmins
 /// </summary>
-public sealed class ListSamlOrganizationAdminsEndpoint : Endpoint<ListSamlOrganizationAdminsRequest, ListSamlOrganizationAdminsResponse>
+public sealed class ListSamlOrganizationAdminsEndpoint(ISamlConfigStore store)
+    : Endpoint<ListSamlOrganizationAdminsRequest, ListSamlOrganizationAdminsResponse>
 {
     public override void Configure()
     {
@@ -28,11 +31,14 @@ public sealed class ListSamlOrganizationAdminsEndpoint : Endpoint<ListSamlOrgani
         );
     }
 
-    public override Task HandleAsync(ListSamlOrganizationAdminsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ListSamlOrganizationAdminsRequest req, CancellationToken ct)
     {
-        // TODO: implement ListSamlOrganizationAdmins
-        // HTTP: GET /api/orgs/{orgName}/saml/admins
-        // Should produce: ListSamlOrganizationAdminsResponse
-        throw new NotImplementedException("Endpoint ListSamlOrganizationAdmins not implemented.");
+        var admins = store.ListAdmins(req.OrgName).Select(ToUserInfo).ToList();
+        await Send.OkAsync(new ListSamlOrganizationAdminsResponse { SamlAdmins = admins }, ct);
     }
+
+    private static UserInfo ToUserInfo(string login) => new()
+    {
+        GithubLogin = login, Name = login, Email = $"{login}@example.com", AvatarUrl = "",
+    };
 }
