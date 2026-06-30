@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// DeleteChangeGate
 /// </summary>
-public sealed class DeleteGateEndpoint : Endpoint<DeleteGateRequest>
+public sealed class DeleteGateEndpoint(IChangeGateStore gates, IAuditLog audit) : Endpoint<DeleteGateRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,15 @@ public sealed class DeleteGateEndpoint : Endpoint<DeleteGateRequest>
         );
     }
 
-    public override Task HandleAsync(DeleteGateRequest req, CancellationToken ct)
+    public override async Task HandleAsync(DeleteGateRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteGate
-        // HTTP: DELETE /api/change-gates/{orgName}/{gateID}
-        throw new NotImplementedException("Endpoint DeleteGate not implemented.");
+        if (!gates.Delete(req.OrgName, req.GateId))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        audit.Record(req.OrgName, "changeGate.delete", $"Deleted change gate '{req.GateId}'", Actor.Of(HttpContext));
+        await Send.NoContentAsync(ct);
     }
 }
