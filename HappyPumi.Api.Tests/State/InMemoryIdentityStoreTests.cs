@@ -54,6 +54,51 @@ public sealed class InMemoryIdentityStoreTests
     }
 
     [Fact]
+    public void UpdateTeamChangesDisplayAndDescription()
+    {
+        var store = new InMemoryIdentityStore();
+        store.CreateTeam(Org, "platform", "Platform", "old", "pulumi");
+
+        var updated = store.UpdateTeam(Org, "platform", newName: null, displayName: "Platform Eng", description: "new");
+
+        Assert.Equal("Platform Eng", updated!.DisplayName);
+        Assert.Equal("new", updated.Description);
+        Assert.Equal("platform", updated.Name); // unchanged when newName is null
+        Assert.Null(store.UpdateTeam(Org, "ghost", null, "x", null)); // missing team
+    }
+
+    [Fact]
+    public void UpdateTeamRenameCarriesMembersAndRoleGrants()
+    {
+        var store = new InMemoryIdentityStore();
+        var role = store.CreateRole(Org, new PermissionDescriptorBase { Name = "deployer" });
+        store.CreateTeam(Org, "platform", "Platform", "", "pulumi");
+        store.AddTeamMember(Org, "platform", "alice");
+        store.AssignTeamRole(Org, "platform", role.Id);
+
+        var renamed = store.UpdateTeam(Org, "platform", newName: "infra", displayName: null, description: null);
+
+        Assert.Equal("infra", renamed!.Name);
+        Assert.Contains("alice", renamed.Members);
+        Assert.Contains(role.Id, renamed.RoleIds);
+        Assert.Null(store.GetTeam(Org, "platform")); // the old name is gone
+        Assert.NotNull(store.GetTeam(Org, "infra"));
+        // The role grant followed the rename, so revoking under the new name succeeds.
+        Assert.True(store.RemoveTeamRole(Org, "infra", role.Id));
+    }
+
+    [Fact]
+    public void UpdateTeamRenameToExistingNameReturnsNull()
+    {
+        var store = new InMemoryIdentityStore();
+        store.CreateTeam(Org, "platform", "Platform", "", "pulumi");
+        store.CreateTeam(Org, "infra", "Infra", "", "pulumi");
+
+        Assert.Null(store.UpdateTeam(Org, "platform", newName: "infra", displayName: null, description: null));
+        Assert.NotNull(store.GetTeam(Org, "platform")); // left intact on collision
+    }
+
+    [Fact]
     public void DeletingARoleDropsItsTeamGrant()
     {
         var store = new InMemoryIdentityStore();
