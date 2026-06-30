@@ -15,6 +15,22 @@ public sealed class StackRow
     public Dictionary<string, string> Tags { get; set; } = new();
     public AppStackConfig? Config { get; set; }
     public AppUntypedDeployment? Deployment { get; set; }
+    /// <summary>Stack owner's login (ReassignStackOwnership), or null when unassigned.</summary>
+    public string? Owner { get; set; }
+    /// <summary>Per-stack notification preferences (UpdateStackNotificationSettings), jsonb; null when defaulted.</summary>
+    public StackNotificationSettings? NotificationSettings { get; set; }
+}
+
+/// <summary>A structured annotation attached to a stack, keyed by kind. Payload is free-form jsonb.</summary>
+public sealed class StackAnnotationRow
+{
+    public string Org { get; set; } = default!;
+    public string Project { get; set; } = default!;
+    public string Stack { get; set; } = default!;
+    /// <summary>The annotation kind (e.g. "compliance"); one payload per (stack, kind).</summary>
+    public string Kind { get; set; } = default!;
+    /// <summary>The annotation payload (arbitrary JSON), stored as jsonb.</summary>
+    public string Payload { get; set; } = "{}";
 }
 
 /// <summary>One completed update in a stack's history. Key: UpdateId. Ordered by Version.</summary>

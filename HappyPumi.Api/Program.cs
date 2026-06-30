@@ -54,6 +54,7 @@ bld.Services.AddDbContext<HappyPumiDbContext>(o => o
 bld.Services.AddScoped<IStackStore, PostgresStackStore>();
 bld.Services.AddScoped<IUpdateStore, PostgresUpdateStore>();
 bld.Services.AddScoped<IStackPermissionStore, PostgresStackPermissionStore>(); // per-stack access grants (collaborators/teams)
+bld.Services.AddScoped<IStackAnnotationStore, PostgresStackAnnotationStore>(); // per-stack structured annotations (kind → payload)
 bld.Services.AddScoped<IIdentityStore, PostgresIdentityStore>();
 bld.Services.AddScoped<IPackageRegistry, PostgresPackageRegistry>();
 bld.Services.AddScoped<ITemplateRegistry, PostgresTemplateRegistry>();

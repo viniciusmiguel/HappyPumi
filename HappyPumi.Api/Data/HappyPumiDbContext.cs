@@ -14,6 +14,7 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
 {
     public DbSet<StackRow> Stacks => Set<StackRow>();
     public DbSet<StackUpdateRow> StackUpdates => Set<StackUpdateRow>();
+    public DbSet<StackAnnotationRow> StackAnnotations => Set<StackAnnotationRow>();
     public DbSet<StackPermissionRow> StackPermissions => Set<StackPermissionRow>();
     public DbSet<UpdateRow> Updates => Set<UpdateRow>();
     public DbSet<MemberRow> Members => Set<MemberRow>();
@@ -55,6 +56,17 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
             e.Property(x => x.Tags).AsJsonb();
             e.Property(x => x.Config).AsJsonb();
             e.Property(x => x.Deployment).AsJsonb();
+            e.Property(x => x.NotificationSettings).AsJsonb();
+        });
+
+        b.Entity<StackAnnotationRow>(e =>
+        {
+            e.HasKey(x => new { x.Org, x.Project, x.Stack, x.Kind });
+            e.Property(x => x.Payload).HasColumnType("jsonb");
+            // Annotations are cleaned up with their owning stack.
+            e.HasOne<StackRow>().WithMany()
+                .HasForeignKey(x => new { x.Org, x.Project, x.Stack })
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<StackUpdateRow>(e =>

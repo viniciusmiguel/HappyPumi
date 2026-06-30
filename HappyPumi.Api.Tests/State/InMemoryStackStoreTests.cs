@@ -133,4 +133,59 @@ public sealed class InMemoryStackStoreTests
         Assert.Null(blocked);
         Assert.NotNull(store.Find(Coords("staging")));
     }
+
+    [Fact]
+    public void TransferReKeysUnderTheNewOrgPreservingState()
+    {
+        var store = new InMemoryStackStore();
+        store.TryCreate(NewStack(Coords()));
+        store.SetTag(Coords(), "env", "dev");
+
+        var moved = store.Transfer(Coords(), "other-org", out var collided);
+
+        Assert.False(collided);
+        Assert.Equal("other-org", moved!.Coordinates.Org);
+        Assert.Equal("dev", moved.Tags["env"]);
+        Assert.Null(store.Find(Coords()));
+        Assert.NotNull(store.Find(new StackCoordinates("other-org", "webapp", "dev")));
+    }
+
+    [Fact]
+    public void TransferReportsCollisionWhenDestinationExists()
+    {
+        var store = new InMemoryStackStore();
+        store.TryCreate(NewStack(Coords()));
+        store.TryCreate(NewStack(new StackCoordinates("other-org", "webapp", "dev")));
+
+        var blocked = store.Transfer(Coords(), "other-org", out var collided);
+
+        Assert.True(collided);
+        Assert.Null(blocked);
+        Assert.NotNull(store.Find(Coords()));
+    }
+
+    [Fact]
+    public void TransferReturnsNullWhenSourceMissing()
+        => Assert.Null(new InMemoryStackStore().Transfer(Coords(), "other-org", out _));
+
+    [Fact]
+    public void SetOwnerStoresLoginAndReturnsNullWhenMissing()
+    {
+        var store = new InMemoryStackStore();
+        store.TryCreate(NewStack(Coords()));
+
+        Assert.Equal("alice", store.SetOwner(Coords(), "alice")!.Owner);
+        Assert.Null(store.SetOwner(Coords("ghost"), "alice"));
+    }
+
+    [Fact]
+    public void SetNotificationSettingsStoresSettingsAndReturnsNullWhenMissing()
+    {
+        var store = new InMemoryStackStore();
+        store.TryCreate(NewStack(Coords()));
+        var settings = new StackNotificationSettings { NotifyUpdateFailure = true };
+
+        Assert.True(store.SetNotificationSettings(Coords(), settings)!.NotificationSettings!.NotifyUpdateFailure);
+        Assert.Null(store.SetNotificationSettings(Coords("ghost"), settings));
+    }
 }

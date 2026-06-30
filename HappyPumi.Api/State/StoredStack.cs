@@ -30,4 +30,10 @@ public sealed class StoredStack
 
     /// <summary>Completed updates in chronological order (oldest first); the history endpoints read this.</summary>
     public List<StoredHistoryEntry> History { get; } = new();
+
+    /// <summary>The stack owner's login (set by ReassignStackOwnership), or null when ownership is unassigned.</summary>
+    public string? Owner { get; set; }
+
+    /// <summary>Per-stack notification preferences (set by UpdateStackNotificationSettings), or null when defaulted.</summary>
+    public StackNotificationSettings? NotificationSettings { get; set; }
 }

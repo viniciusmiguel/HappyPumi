@@ -108,13 +108,15 @@ public sealed class InMemoryStackStore : IStackStore
             return null;
         }
 
-        // Re-key under the new coordinates, preserving state/config/history/tags.
+        // Re-key under the new coordinates, preserving state/config/history/tags/owner/notifications.
         var moved = new StoredStack
         {
             Coordinates = to,
             Version = existing.Version,
             Config = existing.Config,
             Deployment = existing.Deployment,
+            Owner = existing.Owner,
+            NotificationSettings = existing.NotificationSettings,
         };
         foreach (var (k, v) in existing.Tags)
             moved.Tags[k] = v;
@@ -126,5 +128,25 @@ public sealed class InMemoryStackStore : IStackStore
         }
         _stacks.TryRemove(from, out _);
         return moved;
+    }
+
+    // Transferring to another org is a re-key that only changes the org segment (mirrors Rename).
+    public StoredStack? Transfer(StackCoordinates source, string destOrg, out bool collision)
+        => Rename(source, source with { Org = destOrg }, out collision);
+
+    public StoredStack? SetOwner(StackCoordinates coordinates, string ownerLogin)
+    {
+        if (!_stacks.TryGetValue(coordinates, out var stack))
+            return null;
+        stack.Owner = ownerLogin;
+        return stack;
+    }
+
+    public StoredStack? SetNotificationSettings(StackCoordinates coordinates, StackNotificationSettings settings)
+    {
+        if (!_stacks.TryGetValue(coordinates, out var stack))
+            return null;
+        stack.NotificationSettings = settings;
+        return stack;
     }
 }
