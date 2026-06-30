@@ -70,6 +70,7 @@ bld.Services.AddScoped<HappyPumi.Api.Webhooks.IWebhookDeliveryLog, PostgresWebho
 bld.Services.AddScoped<HappyPumi.Api.Webhooks.WebhookDeliveryService>();                                       // ping/redeliver orchestration (ESC env)
 bld.Services.AddScoped<IWebhookDeliveryStore, PostgresWebhookDeliveryStore>();                                 // shared webhook delivery history (stack/org/env)
 bld.Services.AddScoped<IOrgWebhookStore, PostgresOrgWebhookStore>();                                           // organization webhook definitions
+bld.Services.AddScoped<IAccessTokenStore, PostgresAccessTokenStore>();                                         // personal/org/team access tokens (records only)
 // Shared event-fired webhook dispatcher: a typed HttpClient (owned seam, swappable in tests) + the per-format
 // body formatters (raw default). SSRF deny-list comes from Webhooks:BlockedHosts.
 bld.Services.AddSingleton<HappyPumi.Api.Webhooks.IWebhookPayloadFormatter, HappyPumi.Api.Webhooks.RawFormatter>();
