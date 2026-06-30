@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.Secrets;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// DecryptProjectValue
 /// </summary>
-public sealed class DecryptProjectValueEndpoint : Endpoint<DecryptProjectValueRequest, AppDecryptValueResponse>
+public sealed class DecryptProjectValueEndpoint(IValueCrypter crypter) : Endpoint<DecryptProjectValueRequest, AppDecryptValueResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,15 @@ public sealed class DecryptProjectValueEndpoint : Endpoint<DecryptProjectValueRe
         );
     }
 
-    public override Task HandleAsync(DecryptProjectValueRequest req, CancellationToken ct)
+    public async override Task HandleAsync(DecryptProjectValueRequest req, CancellationToken ct)
     {
-        // TODO: implement DecryptProjectValue
-        // HTTP: POST /api/projects/{orgName}/{projectName}/decrypt
-        // Should produce: AppDecryptValueResponse
-        throw new NotImplementedException("Endpoint DecryptProjectValue not implemented.");
+        var body = ProjectValueBody.Parse<AppDecryptValueRequest>(req.Body);
+        if (body?.Ciphertext is null)
+        {
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+
+        await Send.OkAsync(new AppDecryptValueResponse { Plaintext = crypter.Decrypt(body.Ciphertext) }, ct);
     }
 }
