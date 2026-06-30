@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// UpdateSummary
 /// </summary>
-public sealed class UpdateSummaryEndpoint : Endpoint<UpdateSummaryRequest, ConsoleUpdateSummary>
+public sealed class UpdateSummaryEndpoint(IUpdateStore updates) : Endpoint<UpdateSummaryRequest, ConsoleUpdateSummary>
 {
     public override void Configure()
     {
@@ -28,11 +29,19 @@ public sealed class UpdateSummaryEndpoint : Endpoint<UpdateSummaryRequest, Conso
         );
     }
 
-    public override Task HandleAsync(UpdateSummaryRequest req, CancellationToken ct)
+    public async override Task HandleAsync(UpdateSummaryRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateSummary
-        // HTTP: GET /api/console/stacks/{orgName}/{projectName}/{stackName}/updates/{updateID}/summary
-        // Should produce: ConsoleUpdateSummary
-        throw new NotImplementedException("Endpoint UpdateSummary not implemented.");
+        var update = updates.Find(req.UpdateId);
+        if (update is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        var count = StackResources.Extract(update.Checkpoint).Count;
+        await Send.OkAsync(new ConsoleUpdateSummary
+        {
+            Summary = ConsoleUpdateSummaryText.For(update.Version, update.Status, count),
+        }, ct);
     }
 }

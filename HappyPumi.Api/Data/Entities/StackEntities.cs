@@ -54,4 +54,7 @@ public sealed class UpdateRow
     public string? RequestedByName { get; set; }
     public Dictionary<string, AppConfigValue>? Config { get; set; }
     public AppUntypedDeployment? Checkpoint { get; set; }
+
+    /// <summary>Engine events recorded by the CLI for this update, in arrival order (jsonb).</summary>
+    public List<AppEngineEvent> Events { get; set; } = new();
 }

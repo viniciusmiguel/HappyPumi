@@ -4,17 +4,19 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// UpdateSummaryHandlerLatest
 /// </summary>
-public sealed class UpdateSummaryHandlerLatestEndpoint : Endpoint<UpdateSummaryHandlerLatestRequest, ConsoleUpdateSummary>
+public sealed class UpdateSummaryHandlerLatestEndpoint(IStackStore stacks) : Endpoint<UpdateSummaryHandlerLatestRequest, ConsoleUpdateSummary>
 {
     public override void Configure()
     {
@@ -28,11 +30,20 @@ public sealed class UpdateSummaryHandlerLatestEndpoint : Endpoint<UpdateSummaryH
         );
     }
 
-    public override Task HandleAsync(UpdateSummaryHandlerLatestRequest req, CancellationToken ct)
+    public async override Task HandleAsync(UpdateSummaryHandlerLatestRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateSummaryHandlerLatest
-        // HTTP: GET /api/console/stacks/{orgName}/{projectName}/{stackName}/updates/latest/summary
-        // Should produce: ConsoleUpdateSummary
-        throw new NotImplementedException("Endpoint UpdateSummaryHandlerLatest not implemented.");
+        var stack = stacks.Find(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName));
+        var entry = stack?.History.LastOrDefault();
+        if (stack is null || entry is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        var count = StackResources.Extract(stack.Deployment).Count;
+        await Send.OkAsync(new ConsoleUpdateSummary
+        {
+            Summary = ConsoleUpdateSummaryText.For(entry.Info.Version, entry.Info.Result, count),
+        }, ct);
     }
 }

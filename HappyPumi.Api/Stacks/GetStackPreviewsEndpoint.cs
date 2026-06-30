@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetStackPreviews
 /// </summary>
-public sealed class GetStackPreviewsEndpoint : Endpoint<GetStackPreviewsRequest, GetStackUpdatesResponse>
+public sealed class GetStackPreviewsEndpoint(IStackStore stacks, IUpdateStore updates) : Endpoint<GetStackPreviewsRequest, GetStackUpdatesResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,21 @@ public sealed class GetStackPreviewsEndpoint : Endpoint<GetStackPreviewsRequest,
         );
     }
 
-    public override Task HandleAsync(GetStackPreviewsRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetStackPreviewsRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStackPreviews
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/updates/{version}/previews
-        // Should produce: GetStackUpdatesResponse
-        throw new NotImplementedException("Endpoint GetStackPreviews not implemented.");
+        var stack = stacks.Find(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName));
+        if (stack is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        var previews = StackTimeline.Previews(updates, stack);
+        await Send.OkAsync(new GetStackUpdatesResponse
+        {
+            Updates = previews,
+            Total = previews.Count,
+            ItemsPerPage = previews.Count,
+        }, ct);
     }
 }

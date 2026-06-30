@@ -44,4 +44,10 @@ public sealed class StoredUpdate
 
     /// <summary>Latest checkpoint PATCHed during the update; promoted to the stack on success.</summary>
     public AppUntypedDeployment? Checkpoint { get; set; }
+
+    /// <summary>
+    /// Engine events recorded by the CLI during this update (RecordEngineEvent[Batch]), in arrival order.
+    /// Backs the update timeline and the preview resource-count summary; empty until events are appended.
+    /// </summary>
+    public List<AppEngineEvent> Events { get; set; } = new();
 }

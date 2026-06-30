@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetStackPreview
 /// </summary>
-public sealed class GetStackPreviewEndpoint : Endpoint<GetStackPreviewRequest, UpdateInfo>
+public sealed class GetStackPreviewEndpoint(IStackStore stacks, IUpdateStore updates) : Endpoint<GetStackPreviewRequest, UpdateInfo>
 {
     public override void Configure()
     {
@@ -28,11 +29,16 @@ public sealed class GetStackPreviewEndpoint : Endpoint<GetStackPreviewRequest, U
         );
     }
 
-    public override Task HandleAsync(GetStackPreviewRequest req, CancellationToken ct)
+    public async override Task HandleAsync(GetStackPreviewRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStackPreview
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/previews/{updateID}
-        // Should produce: UpdateInfo
-        throw new NotImplementedException("Endpoint GetStackPreview not implemented.");
+        var update = updates.Find(req.UpdateId);
+        if (update is null || !update.DryRun)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        var latestVersion = stacks.Find(update.Coordinates)?.Version ?? update.Version;
+        await Send.OkAsync(UpdateInfoMapper.FromPreview(update, latestVersion), ct);
     }
 }
