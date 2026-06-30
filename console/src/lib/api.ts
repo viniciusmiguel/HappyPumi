@@ -113,6 +113,7 @@ export interface Resource {
   inputs?: Record<string, unknown>; outputs?: Record<string, unknown>;
 }
 export interface ResourcesResponse { region?: string; version?: number; resources: { resource: Resource }[]; }
+export interface StackOverview { referencedStacks?: unknown[]; resources?: ResourcesResponse; tags?: Record<string, string>; }
 
 export interface DeploymentJob { status: string; started?: string; lastUpdated?: string; steps?: DeploymentStep[]; }
 export interface DeploymentStep { name: string; status: string; started?: string; lastUpdated?: string; isComplete?: boolean; }
@@ -190,6 +191,16 @@ export const api = {
     get<ResourcesResponse>(`/stacks/${org}/${project}/${stack}/resources/latest`, { resources: [] }),
   stackResourceCount: (org: string, project: string, stack: string) =>
     get<{ resourceCount?: number; version?: number }>(`/stacks/${org}/${project}/${stack}/resources/count`, {}),
+  // Resources as of a specific update version (the per-version resource view).
+  stackResourcesAtVersion: (org: string, project: string, stack: string, version: number) =>
+    get<ResourcesResponse>(`/stacks/${org}/${project}/${stack}/resources/${version}`, { resources: [], version }),
+  // Single resource by URN from the latest checkpoint — backs the resource detail dialog.
+  stackResource: (org: string, project: string, stack: string, urn: string) =>
+    get<{ resource: { resource: Resource }; version: number } | null>(
+      `/stacks/${org}/${project}/${stack}/resources/latest/${encodeURIComponent(urn)}`, null),
+  // Console overview aggregation (resources + tags + referenced stacks).
+  stackOverview: (org: string, project: string, stack: string) =>
+    get<StackOverview | null>(`/console/stacks/${org}/${project}/${stack}/overview`, null),
 
   // Deployments
   orgDeployments: (org: string) =>
