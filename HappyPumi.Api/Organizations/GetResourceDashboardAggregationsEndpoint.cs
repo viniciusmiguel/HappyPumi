@@ -28,11 +28,9 @@ public sealed class GetResourceDashboardAggregationsEndpoint : Endpoint<GetResou
         );
     }
 
-    public override Task HandleAsync(GetResourceDashboardAggregationsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetResourceDashboardAggregationsRequest req, CancellationToken ct)
     {
-        // TODO: implement GetResourceDashboardAggregations
-        // HTTP: GET /api/orgs/{orgName}/search/resources/dashboard
-        // Should produce: ResourceSearchResult
-        throw new NotImplementedException("Endpoint GetResourceDashboardAggregations not implemented.");
+        // No resource store backs the dashboard, so the aggregations/resource set are deterministically empty.
+        await Send.OkAsync(UsageSummaryFactory.EmptySearchResult(), ct);
     }
 }

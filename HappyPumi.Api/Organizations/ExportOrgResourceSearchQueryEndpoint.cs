@@ -28,11 +28,10 @@ public sealed class ExportOrgResourceSearchQueryEndpoint : Endpoint<ExportOrgRes
         );
     }
 
-    public override Task HandleAsync(ExportOrgResourceSearchQueryRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ExportOrgResourceSearchQueryRequest req, CancellationToken ct)
     {
-        // TODO: implement ExportOrgResourceSearchQuery
-        // HTTP: GET /api/orgs/{orgName}/search/resources/export
-        // Should produce: string
-        throw new NotImplementedException("Endpoint ExportOrgResourceSearchQuery not implemented.");
+        // No resource store to export, so the CSV is the header row only (a valid, empty export).
+        await Send.StringAsync(UsageSummaryFactory.ExportCsvHeader,
+            contentType: "text/csv; charset=utf-8", cancellation: ct);
     }
 }

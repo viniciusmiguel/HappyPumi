@@ -28,11 +28,9 @@ public sealed class SearchClusterAvailableEndpoint : Endpoint<SearchClusterAvail
         );
     }
 
-    public override Task HandleAsync(SearchClusterAvailableRequest req, CancellationToken ct)
+    public override async Task HandleAsync(SearchClusterAvailableRequest req, CancellationToken ct)
     {
-        // TODO: implement SearchClusterAvailable
-        // HTTP: HEAD /api/orgs/{orgName}/search
-        // Should produce: bool
-        throw new NotImplementedException("Endpoint SearchClusterAvailable not implemented.");
+        // Search is always "available" (the CLI/console treat this HEAD as a health probe — 200 means up).
+        await Send.OkAsync(true, ct);
     }
 }

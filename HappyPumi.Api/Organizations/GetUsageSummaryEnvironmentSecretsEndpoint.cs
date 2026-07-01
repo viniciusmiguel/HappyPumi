@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// GetUsageSummaryEnvironmentSecrets
 /// </summary>
-public sealed class GetUsageSummaryEnvironmentSecretsEndpoint : Endpoint<GetUsageSummaryEnvironmentSecretsRequest, GetResourceCountSummaryResponse>
+public sealed class GetUsageSummaryEnvironmentSecretsEndpoint(IEnvironmentStore environments)
+    : Endpoint<GetUsageSummaryEnvironmentSecretsRequest, GetResourceCountSummaryResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,11 @@ public sealed class GetUsageSummaryEnvironmentSecretsEndpoint : Endpoint<GetUsag
         );
     }
 
-    public override Task HandleAsync(GetUsageSummaryEnvironmentSecretsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetUsageSummaryEnvironmentSecretsRequest req, CancellationToken ct)
     {
-        // TODO: implement GetUsageSummaryEnvironmentSecrets
-        // HTTP: GET /api/orgs/{orgName}/secrets/summary
-        // Should produce: GetResourceCountSummaryResponse
-        throw new NotImplementedException("Endpoint GetUsageSummaryEnvironmentSecrets not implemented.");
+        // ESC secret *hours* aren't metered; the only real number available is the org's live ESC
+        // environment count, reported as a single summary point.
+        var count = environments.ListByOrg(req.OrgName).Count;
+        await Send.OkAsync(UsageSummaryFactory.EnvironmentCountSummary(count), ct);
     }
 }

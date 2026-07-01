@@ -28,11 +28,9 @@ public sealed class GetOrgResourceSearchV2QueryEndpoint : Endpoint<GetOrgResourc
         );
     }
 
-    public override Task HandleAsync(GetOrgResourceSearchV2QueryRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetOrgResourceSearchV2QueryRequest req, CancellationToken ct)
     {
-        // TODO: implement GetOrgResourceSearchV2Query
-        // HTTP: GET /api/orgs/{orgName}/search/resourcesv2
-        // Should produce: ResourceSearchResult
-        throw new NotImplementedException("Endpoint GetOrgResourceSearchV2Query not implemented.");
+        // No resource store to search, so every query returns an empty result set (total 0).
+        await Send.OkAsync(UsageSummaryFactory.EmptySearchResult(), ct);
     }
 }
