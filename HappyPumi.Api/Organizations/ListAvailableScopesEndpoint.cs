@@ -6,7 +6,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
+using HappyPumi.Api.Auth;
 using HappyPumi.Api.Contracts;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
@@ -16,6 +18,10 @@ namespace HappyPumi.Api.Endpoints.Organizations;
 /// </summary>
 public sealed class ListAvailableScopesEndpoint : Endpoint<ListAvailableScopesRequest, Dictionary<string, List<RbacScopeGroup>>>
 {
+    // The console expects a keyed map of scope groups; we have one flat catalogue (RbacPermissions), so it is
+    // returned under a single deterministic "default" category. Groups are the resource prefix (before ':').
+    private const string Category = "default";
+
     public override void Configure()
     {
         Get("/api/orgs/{orgName}/roles/scopes");
@@ -28,11 +34,22 @@ public sealed class ListAvailableScopesEndpoint : Endpoint<ListAvailableScopesRe
         );
     }
 
-    public override Task HandleAsync(ListAvailableScopesRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ListAvailableScopesRequest req, CancellationToken ct)
     {
-        // TODO: implement ListAvailableScopes
-        // HTTP: GET /api/orgs/{orgName}/roles/scopes
-        // Should produce: Dictionary<string, List<RbacScopeGroup>>
-        throw new NotImplementedException("Endpoint ListAvailableScopes not implemented.");
+        var map = new Dictionary<string, List<RbacScopeGroup>> { [Category] = BuildGroups() };
+        await Send.OkAsync(map, ct);
     }
+
+    private static List<RbacScopeGroup> BuildGroups()
+        => RbacPermissions.All
+            .GroupBy(p => p.Split(':')[0])
+            .OrderBy(g => g.Key)
+            .Select(g => new RbacScopeGroup { Name = g.Key, Scopes = g.Select(ToScope).ToList() })
+            .ToList();
+
+    private static RbacScope ToScope(string permission) => new()
+    {
+        Name = permission,
+        Metadata = new RbacScopeMetadata { Description = $"Grants the '{permission}' permission." },
+    };
 }
