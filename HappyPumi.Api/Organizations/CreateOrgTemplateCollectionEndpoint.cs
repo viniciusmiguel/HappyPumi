@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// CreateOrgTemplateCollection
 /// </summary>
-public sealed class CreateOrgTemplateCollectionEndpoint : Endpoint<CreateOrgTemplateCollectionRequest, TemplateSource>
+public sealed class CreateOrgTemplateCollectionEndpoint(ITemplateSourceStore sources)
+    : Endpoint<CreateOrgTemplateCollectionRequest, TemplateSource>
 {
     public override void Configure()
     {
@@ -28,11 +30,18 @@ public sealed class CreateOrgTemplateCollectionEndpoint : Endpoint<CreateOrgTemp
         );
     }
 
-    public override Task HandleAsync(CreateOrgTemplateCollectionRequest req, CancellationToken ct)
+    public override async Task HandleAsync(CreateOrgTemplateCollectionRequest req, CancellationToken ct)
     {
-        // TODO: implement CreateOrgTemplateCollection
-        // HTTP: POST /api/orgs/{orgName}/templates/sources
-        // Should produce: TemplateSource
-        throw new NotImplementedException("Endpoint CreateOrgTemplateCollection not implemented.");
+        var body = req.Body;
+        if (body is null || string.IsNullOrWhiteSpace(body.Name) || string.IsNullOrWhiteSpace(body.SourceUrl))
+        {
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+
+        var source = new StoredTemplateSource { Id = Guid.NewGuid().ToString(), Org = req.OrgName };
+        TemplateSourceMapper.ApplyInput(source, body);
+        sources.Create(source);
+        await Send.OkAsync(TemplateSourceMapper.ToContract(source), ct);
     }
 }

@@ -6,15 +6,18 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// GetOrgTemplateCollections
 /// </summary>
-public sealed class GetOrgTemplateCollectionsEndpoint : Endpoint<GetOrgTemplateCollectionsRequest, GetOrgTemplateSourcesResponse>
+public sealed class GetOrgTemplateCollectionsEndpoint(ITemplateSourceStore sources)
+    : Endpoint<GetOrgTemplateCollectionsRequest, GetOrgTemplateSourcesResponse>
 {
     public override void Configure()
     {
@@ -28,11 +31,12 @@ public sealed class GetOrgTemplateCollectionsEndpoint : Endpoint<GetOrgTemplateC
         );
     }
 
-    public override Task HandleAsync(GetOrgTemplateCollectionsRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetOrgTemplateCollectionsRequest req, CancellationToken ct)
     {
-        // TODO: implement GetOrgTemplateCollections
-        // HTTP: GET /api/orgs/{orgName}/templates/sources
-        // Should produce: GetOrgTemplateSourcesResponse
-        throw new NotImplementedException("Endpoint GetOrgTemplateCollections not implemented.");
+        var response = new GetOrgTemplateSourcesResponse
+        {
+            Sources = sources.List(req.OrgName).Select(TemplateSourceMapper.ToContract).ToList(),
+        };
+        await Send.OkAsync(response, ct);
     }
 }

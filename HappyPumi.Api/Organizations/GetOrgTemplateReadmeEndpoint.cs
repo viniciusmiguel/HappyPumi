@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// GetOrgTemplateReadme
 /// </summary>
-public sealed class GetOrgTemplateReadmeEndpoint : Endpoint<GetOrgTemplateReadmeRequest, string>
+public sealed class GetOrgTemplateReadmeEndpoint(ITemplateRegistry registry)
+    : Endpoint<GetOrgTemplateReadmeRequest, string>
 {
     public override void Configure()
     {
@@ -28,11 +30,10 @@ public sealed class GetOrgTemplateReadmeEndpoint : Endpoint<GetOrgTemplateReadme
         );
     }
 
-    public override Task HandleAsync(GetOrgTemplateReadmeRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetOrgTemplateReadmeRequest req, CancellationToken ct)
     {
-        // TODO: implement GetOrgTemplateReadme
-        // HTTP: GET /api/orgs/{orgName}/template/readme
-        // Should produce: string
-        throw new NotImplementedException("Endpoint GetOrgTemplateReadme not implemented.");
+        var selector = Query<string>("name", isRequired: false) ?? Query<string>("url", isRequired: false);
+        var version = ProjectTemplateResolver.Resolve(registry, selector);
+        await Send.StringAsync(version?.Description ?? string.Empty, cancellation: ct);
     }
 }

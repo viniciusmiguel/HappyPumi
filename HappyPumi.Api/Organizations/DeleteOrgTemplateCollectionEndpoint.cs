@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// DeleteOrgTemplateCollection
 /// </summary>
-public sealed class DeleteOrgTemplateCollectionEndpoint : Endpoint<DeleteOrgTemplateCollectionRequest>
+public sealed class DeleteOrgTemplateCollectionEndpoint(ITemplateSourceStore sources)
+    : Endpoint<DeleteOrgTemplateCollectionRequest>
 {
     public override void Configure()
     {
@@ -28,10 +30,14 @@ public sealed class DeleteOrgTemplateCollectionEndpoint : Endpoint<DeleteOrgTemp
         );
     }
 
-    public override Task HandleAsync(DeleteOrgTemplateCollectionRequest req, CancellationToken ct)
+    public override async Task HandleAsync(DeleteOrgTemplateCollectionRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteOrgTemplateCollection
-        // HTTP: DELETE /api/orgs/{orgName}/templates/sources/{templateID}
-        throw new NotImplementedException("Endpoint DeleteOrgTemplateCollection not implemented.");
+        if (!sources.Delete(req.OrgName, req.TemplateId))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.NoContentAsync(ct);
     }
 }
