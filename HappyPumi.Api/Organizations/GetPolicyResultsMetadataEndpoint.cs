@@ -14,7 +14,7 @@ namespace HappyPumi.Api.Endpoints.Organizations;
 /// <summary>
 /// GetPolicyResultsMetadata
 /// </summary>
-public sealed class GetPolicyResultsMetadataEndpoint : Endpoint<GetPolicyResultsMetadataRequest, PolicyResultsMetadata>
+public sealed class GetPolicyResultsMetadataEndpoint(PolicyResultsAggregator aggregator) : Endpoint<GetPolicyResultsMetadataRequest, PolicyResultsMetadata>
 {
     public override void Configure()
     {
@@ -29,10 +29,5 @@ public sealed class GetPolicyResultsMetadataEndpoint : Endpoint<GetPolicyResults
     }
 
     public override Task HandleAsync(GetPolicyResultsMetadataRequest req, CancellationToken ct)
-    {
-        // TODO: implement GetPolicyResultsMetadata
-        // HTTP: GET /api/orgs/{orgName}/policyresults/metadata
-        // Should produce: PolicyResultsMetadata
-        throw new NotImplementedException("Endpoint GetPolicyResultsMetadata not implemented.");
-    }
+        => Send.OkAsync(aggregator.Metadata(req.OrgName), ct);
 }

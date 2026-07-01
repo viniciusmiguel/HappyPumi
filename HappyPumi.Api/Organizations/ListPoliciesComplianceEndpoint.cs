@@ -14,7 +14,7 @@ namespace HappyPumi.Api.Endpoints.Organizations;
 /// <summary>
 /// ListPoliciesCompliance
 /// </summary>
-public sealed class ListPoliciesComplianceEndpoint : Endpoint<ListPoliciesComplianceRequest, ListPoliciesComplianceResponse>
+public sealed class ListPoliciesComplianceEndpoint(PolicyResultsAggregator aggregator) : Endpoint<ListPoliciesComplianceRequest, ListPoliciesComplianceResponse>
 {
     public override void Configure()
     {
@@ -29,10 +29,5 @@ public sealed class ListPoliciesComplianceEndpoint : Endpoint<ListPoliciesCompli
     }
 
     public override Task HandleAsync(ListPoliciesComplianceRequest req, CancellationToken ct)
-    {
-        // TODO: implement ListPoliciesCompliance
-        // HTTP: POST /api/orgs/{orgName}/policyresults/policies
-        // Should produce: ListPoliciesComplianceResponse
-        throw new NotImplementedException("Endpoint ListPoliciesCompliance not implemented.");
-    }
+        => Send.OkAsync(aggregator.Compliance(req.OrgName, req.Body?.StartRow, req.Body?.EndRow), ct);
 }
