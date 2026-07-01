@@ -8,13 +8,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
-/// UpdateAuditLogExportConfiguration
+/// UpdateAuditLogExportConfiguration — POST /api/orgs/{org}/auditlogs/export/config. Creates or updates the
+/// org's S3 export configuration (ADR-0010) and records an audit event. Replies 204.
 /// </summary>
-public sealed class UpdateAuditLogExportConfigurationEndpoint : Endpoint<UpdateAuditLogExportConfigurationRequest>
+public sealed class UpdateAuditLogExportConfigurationEndpoint(IAuditExportConfigStore configs, IAuditLog audit)
+    : Endpoint<UpdateAuditLogExportConfigurationRequest>
 {
     public override void Configure()
     {
@@ -28,10 +31,17 @@ public sealed class UpdateAuditLogExportConfigurationEndpoint : Endpoint<UpdateA
         );
     }
 
-    public override Task HandleAsync(UpdateAuditLogExportConfigurationRequest req, CancellationToken ct)
+    public override async Task HandleAsync(UpdateAuditLogExportConfigurationRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateAuditLogExportConfiguration
-        // HTTP: POST /api/orgs/{orgName}/auditlogs/export/config
-        throw new NotImplementedException("Endpoint UpdateAuditLogExportConfiguration not implemented.");
+        var s3 = req.Body.NewS3Configuration;
+        configs.Upsert(req.OrgName, c =>
+        {
+            c.Enabled = req.Body.NewEnabled;
+            c.IamRoleArn = s3?.IamRoleArn;
+            c.S3BucketName = s3?.S3BucketName;
+            c.S3PathPrefix = s3?.S3PathPrefix;
+        });
+        audit.Record(req.OrgName, "auditLog.exportConfig.update", "Updated audit log export configuration", Actor.Of(HttpContext));
+        await Send.NoContentAsync(ct);
     }
 }

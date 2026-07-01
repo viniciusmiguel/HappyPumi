@@ -8,13 +8,17 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
-/// TestAuditLogExportConfiguration
+/// TestAuditLogExportConfiguration — POST /api/orgs/{org}/auditlogs/export/config/test. Validates the S3
+/// configuration shape (no external call): prefers the posted config, falling back to the stored one.
+/// Returns a valid/descriptive result (always 200).
 /// </summary>
-public sealed class TestAuditLogExportConfigurationEndpoint : Endpoint<TestAuditLogExportConfigurationRequest, AuditLogExportResult>
+public sealed class TestAuditLogExportConfigurationEndpoint(IAuditExportConfigStore configs)
+    : Endpoint<TestAuditLogExportConfigurationRequest, AuditLogExportResult>
 {
     public override void Configure()
     {
@@ -28,11 +32,21 @@ public sealed class TestAuditLogExportConfigurationEndpoint : Endpoint<TestAudit
         );
     }
 
-    public override Task HandleAsync(TestAuditLogExportConfigurationRequest req, CancellationToken ct)
+    public override async Task HandleAsync(TestAuditLogExportConfigurationRequest req, CancellationToken ct)
     {
-        // TODO: implement TestAuditLogExportConfiguration
-        // HTTP: POST /api/orgs/{orgName}/auditlogs/export/config/test
-        // Should produce: AuditLogExportResult
-        throw new NotImplementedException("Endpoint TestAuditLogExportConfiguration not implemented.");
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var bucket = req.Body?.S3BucketName ?? configs.Get(req.OrgName).S3BucketName;
+        var role = req.Body?.IamRoleArn ?? configs.Get(req.OrgName).IamRoleArn;
+        var error = Validate(bucket, role);
+        await Send.OkAsync(new AuditLogExportResult { Message = error ?? "Configuration valid", Timestamp = now }, ct);
+    }
+
+    private static string? Validate(string? bucket, string? role)
+    {
+        if (string.IsNullOrWhiteSpace(bucket))
+            return "S3 bucket name is required";
+        if (string.IsNullOrWhiteSpace(role))
+            return "IAM role ARN is required";
+        return null;
     }
 }

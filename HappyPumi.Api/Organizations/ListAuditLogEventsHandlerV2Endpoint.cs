@@ -8,13 +8,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
-/// ListAuditLogEventsHandlerV2
+/// ListAuditLogEventsHandlerV2 — GET /api/orgs/{org}/auditlogs/v2. Returns recorded audit events (ADR-0010),
+/// newest-first, optionally narrowed by eventFilter (event substring) and the startTime/endTime window.
 /// </summary>
-public sealed class ListAuditLogEventsHandlerV2Endpoint : Endpoint<ListAuditLogEventsHandlerV2Request, ResponseAuditLogs>
+public sealed class ListAuditLogEventsHandlerV2Endpoint(IAuditLog audit)
+    : Endpoint<ListAuditLogEventsHandlerV2Request, ResponseAuditLogs>
 {
     public override void Configure()
     {
@@ -28,11 +31,10 @@ public sealed class ListAuditLogEventsHandlerV2Endpoint : Endpoint<ListAuditLogE
         );
     }
 
-    public override Task HandleAsync(ListAuditLogEventsHandlerV2Request req, CancellationToken ct)
+    public override async Task HandleAsync(ListAuditLogEventsHandlerV2Request req, CancellationToken ct)
     {
-        // TODO: implement ListAuditLogEventsHandlerV2
-        // HTTP: GET /api/orgs/{orgName}/auditlogs/v2
-        // Should produce: ResponseAuditLogs
-        throw new NotImplementedException("Endpoint ListAuditLogEventsHandlerV2 not implemented.");
+        var events = AuditLogMapper.Filter(audit.List(req.OrgName), req.EventFilter, req.StartTime, req.EndTime);
+        // Single-page result for now (ADR-0010): the whole window fits in one response, no continuation.
+        await Send.OkAsync(new ResponseAuditLogs { AuditLogEvents = events, ContinuationToken = null }, ct);
     }
 }

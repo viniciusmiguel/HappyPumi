@@ -28,11 +28,10 @@ public sealed class GetAuditLogsReaderKindEndpoint : Endpoint<GetAuditLogsReader
         );
     }
 
-    public override Task HandleAsync(GetAuditLogsReaderKindRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetAuditLogsReaderKindRequest req, CancellationToken ct)
     {
-        // TODO: implement GetAuditLogsReaderKind
-        // HTTP: GET /api/orgs/{orgName}/auditlogs/reader-kind
-        // Should produce: string
-        throw new NotImplementedException("Endpoint GetAuditLogsReaderKind not implemented.");
+        // HappyPumi reads audit events from its single relational store (ADR-0005), so the reader kind is
+        // deterministic — the front end uses this to pick the event-filtering UI.
+        await Send.StringAsync("default", cancellation: ct);
     }
 }

@@ -195,6 +195,10 @@ export interface RegistryTemplate { name: string; publisher?: string; source?: s
 export interface PolicyPack { name: string; displayName?: string; versions?: unknown[]; }
 export interface Service { name: string; description?: string; organizationName?: string; created?: string; }
 export interface AuditEvent { event: string; description: string; actorName?: string; sourceIP?: string; timestamp?: number; }
+export interface AuditExportS3Config { iamRoleArn?: string; s3BucketName?: string; s3PathPrefix?: string; }
+export interface AuditExportResult { message: string; timestamp: number; }
+export interface AuditExportSettings { enabled: boolean; lastResult: AuditExportResult; s3Config: AuditExportS3Config; }
+export interface UpdateAuditExportBody { newEnabled: boolean; newS3Configuration: AuditExportS3Config; }
 export interface CloudAccount { name: string; provider: string; description?: string; created?: string; }
 export interface VcsIntegrationSummary {
   id: string;
@@ -652,6 +656,18 @@ export const api = {
   createService: (org: string, name: string, description: string) =>
     postJson<Service>(`/orgs/${org}/services`, { name, description }),
   auditLogs: (org: string) => get<{ auditLogEvents?: AuditEvent[] }>(`/orgs/${org}/auditlogs`, { auditLogEvents: [] }),
+  // Audit-log query & export (org-admin PR2): the v2 event list plus the S3 export-config lifecycle.
+  auditLogEvents: (org: string) =>
+    get<{ auditLogEvents?: AuditEvent[] }>(`/orgs/${org}/auditlogs/v2`, { auditLogEvents: [] }),
+  auditExportConfig: (org: string) =>
+    get<AuditExportSettings>(`/orgs/${org}/auditlogs/export/config`,
+      { enabled: false, lastResult: { message: "", timestamp: 0 }, s3Config: {} }),
+  updateAuditExportConfig: (org: string, body: UpdateAuditExportBody) =>
+    postVoid(`/orgs/${org}/auditlogs/export/config`, body),
+  deleteAuditExportConfig: (org: string) => del(`/orgs/${org}/auditlogs/export/config`),
+  forceAuditExport: (org: string) => postJson<AuditExportResult>(`/orgs/${org}/auditlogs/export/config/force`, {}),
+  testAuditExport: (org: string, body: AuditExportS3Config) =>
+    postJson<AuditExportResult>(`/orgs/${org}/auditlogs/export/config/test`, body),
   cloudAccounts: (org: string) => get<{ accounts?: CloudAccount[] }>(`/orgs/${org}/cloud-accounts`, { accounts: [] }),
   createCloudAccount: (org: string, name: string, provider: string, description: string) =>
     postJson<unknown>(`/orgs/${org}/cloud-accounts`, { name, provider, description }),

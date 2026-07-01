@@ -8,13 +8,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
-/// ExportAuditLogEventsHandlerV2
+/// ExportAuditLogEventsHandlerV2 — GET /api/orgs/{org}/auditlogs/v2/export. Same CSV shape as V1 with the v2
+/// startTime(lower)/endTime(upper) window semantics.
 /// </summary>
-public sealed class ExportAuditLogEventsHandlerV2Endpoint : Endpoint<ExportAuditLogEventsHandlerV2Request, string>
+public sealed class ExportAuditLogEventsHandlerV2Endpoint(IAuditLog audit)
+    : Endpoint<ExportAuditLogEventsHandlerV2Request, string>
 {
     public override void Configure()
     {
@@ -28,11 +31,9 @@ public sealed class ExportAuditLogEventsHandlerV2Endpoint : Endpoint<ExportAudit
         );
     }
 
-    public override Task HandleAsync(ExportAuditLogEventsHandlerV2Request req, CancellationToken ct)
+    public override async Task HandleAsync(ExportAuditLogEventsHandlerV2Request req, CancellationToken ct)
     {
-        // TODO: implement ExportAuditLogEventsHandlerV2
-        // HTTP: GET /api/orgs/{orgName}/auditlogs/v2/export
-        // Should produce: string
-        throw new NotImplementedException("Endpoint ExportAuditLogEventsHandlerV2 not implemented.");
+        var events = AuditLogMapper.Filter(audit.List(req.OrgName), req.EventFilter, req.StartTime, req.EndTime);
+        await Send.StringAsync(AuditLogMapper.ToCsv(events), contentType: "text/csv; charset=utf-8", cancellation: ct);
     }
 }
