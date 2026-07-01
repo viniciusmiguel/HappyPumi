@@ -6,15 +6,18 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// GetProjectTemplateConfiguration
 /// </summary>
-public sealed class GetProjectTemplateConfigurationEndpoint : Endpoint<GetProjectTemplateConfigurationRequest, GetTemplateConfigurationResponse>
+public sealed class GetProjectTemplateConfigurationEndpoint(ITemplateSourceStore sources)
+    : Endpoint<GetProjectTemplateConfigurationRequest, GetTemplateConfigurationResponse>
 {
     public override void Configure()
     {
@@ -28,11 +31,19 @@ public sealed class GetProjectTemplateConfigurationEndpoint : Endpoint<GetProjec
         );
     }
 
-    public override Task HandleAsync(GetProjectTemplateConfigurationRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetProjectTemplateConfigurationRequest req, CancellationToken ct)
     {
-        // TODO: implement GetProjectTemplateConfiguration
-        // HTTP: GET /api/orgs/{orgName}/template/configuration
-        // Should produce: GetTemplateConfigurationResponse
-        throw new NotImplementedException("Endpoint GetProjectTemplateConfiguration not implemented.");
+        var key = Query<string>("name", isRequired: false) ?? Query<string>("url", isRequired: false);
+        var destination = DestinationFor(req.OrgName, key);
+        await Send.OkAsync(new GetTemplateConfigurationResponse { Destination = destination }, ct);
+    }
+
+    /// <summary>The template query value is a key into the org's sources; return the matched source's destination.</summary>
+    private TemplateDestination? DestinationFor(string org, string? key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            return null;
+        var match = sources.List(org).FirstOrDefault(s => s.Name == key || s.SourceUrl == key);
+        return match?.DestinationUrl is null ? null : new TemplateDestination { Url = match.DestinationUrl };
     }
 }

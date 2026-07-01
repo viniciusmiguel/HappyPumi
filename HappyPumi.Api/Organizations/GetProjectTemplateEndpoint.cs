@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// GetProjectTemplate
 /// </summary>
-public sealed class GetProjectTemplateEndpoint : Endpoint<GetProjectTemplateRequest, object>
+public sealed class GetProjectTemplateEndpoint(ITemplateRegistry registry)
+    : Endpoint<GetProjectTemplateRequest, object>
 {
     public override void Configure()
     {
@@ -28,11 +30,16 @@ public sealed class GetProjectTemplateEndpoint : Endpoint<GetProjectTemplateRequ
         );
     }
 
-    public override Task HandleAsync(GetProjectTemplateRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetProjectTemplateRequest req, CancellationToken ct)
     {
-        // TODO: implement GetProjectTemplate
-        // HTTP: GET /api/orgs/{orgName}/template
-        // Should produce: object
-        throw new NotImplementedException("Endpoint GetProjectTemplate not implemented.");
+        var selector = Query<string>("name", isRequired: false) ?? Query<string>("url", isRequired: false);
+        var version = ProjectTemplateResolver.Resolve(registry, selector);
+        if (version is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(RegistryMapper.ToTemplate(version), ct);
     }
 }
