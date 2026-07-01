@@ -6,15 +6,18 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// ListDeletedStacks
 /// </summary>
-public sealed class ListDeletedStacksEndpoint : Endpoint<ListDeletedStacksRequest, ListDeletedStacksResponse>
+public sealed class ListDeletedStacksEndpoint(IDeletedStackStore deletedStacks)
+    : Endpoint<ListDeletedStacksRequest, ListDeletedStacksResponse>
 {
     public override void Configure()
     {
@@ -30,9 +33,11 @@ public sealed class ListDeletedStacksEndpoint : Endpoint<ListDeletedStacksReques
 
     public override Task HandleAsync(ListDeletedStacksRequest req, CancellationToken ct)
     {
-        // TODO: implement ListDeletedStacks
-        // HTTP: GET /api/orgs/{orgName}/restore-stack
-        // Should produce: ListDeletedStacksResponse
-        throw new NotImplementedException("Endpoint ListDeletedStacks not implemented.");
+        var tombstones = deletedStacks.List(req.OrgName);
+        var response = new ListDeletedStacksResponse
+        {
+            DeletedStacks = tombstones.Select(DeletedStackMapper.ToContract).ToList(),
+        };
+        return Send.OkAsync(response, ct);
     }
 }
