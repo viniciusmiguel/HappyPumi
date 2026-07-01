@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// UpdateOrgTemplateCollection
 /// </summary>
-public sealed class UpdateOrgTemplateCollectionEndpoint : Endpoint<UpdateOrgTemplateCollectionRequest, TemplateSource>
+public sealed class UpdateOrgTemplateCollectionEndpoint(ITemplateSourceStore sources)
+    : Endpoint<UpdateOrgTemplateCollectionRequest, TemplateSource>
 {
     public override void Configure()
     {
@@ -28,11 +30,23 @@ public sealed class UpdateOrgTemplateCollectionEndpoint : Endpoint<UpdateOrgTemp
         );
     }
 
-    public override Task HandleAsync(UpdateOrgTemplateCollectionRequest req, CancellationToken ct)
+    public override async Task HandleAsync(UpdateOrgTemplateCollectionRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateOrgTemplateCollection
-        // HTTP: PATCH /api/orgs/{orgName}/templates/sources/{templateID}
-        // Should produce: TemplateSource
-        throw new NotImplementedException("Endpoint UpdateOrgTemplateCollection not implemented.");
+        var body = req.Body;
+        if (body is null || string.IsNullOrWhiteSpace(body.Name) || string.IsNullOrWhiteSpace(body.SourceUrl))
+        {
+            await Send.ErrorsAsync(400, ct);
+            return;
+        }
+
+        var updated = sources.Update(req.OrgName, req.TemplateId,
+            source => TemplateSourceMapper.ApplyInput(source, body));
+        if (updated is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(TemplateSourceMapper.ToContract(updated), ct);
     }
 }
