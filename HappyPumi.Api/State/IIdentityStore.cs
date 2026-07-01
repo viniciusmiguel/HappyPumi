@@ -21,6 +21,13 @@ public interface IIdentityStore
     /// <summary>Updates a member's role. Returns the member, or null when not a member.</summary>
     StoredMember? UpdateMemberRole(string org, string userLogin, string role);
 
+    /// <summary>
+    /// Members holding <paramref name="roleId"/>. A member's <see cref="StoredMember.Role"/> string may carry
+    /// either a role's opaque Id or its Name, so this resolves the role and matches both. Empty when the role
+    /// is missing or unassigned.
+    /// </summary>
+    IReadOnlyList<StoredMember> ListMembersWithRole(string org, string roleId);
+
     /// <summary>Removes a member. Returns false when not a member.</summary>
     bool RemoveMember(string org, string userLogin);
 
@@ -30,6 +37,12 @@ public interface IIdentityStore
     StoredRole? GetRole(string org, string roleId);
     StoredRole? UpdateRole(string org, string roleId, PermissionDescriptorBase descriptor);
     bool DeleteRole(string org, string roleId);
+
+    /// <summary>
+    /// Marks <paramref name="roleId"/> as the org's default role (new members inherit it), clearing the flag on
+    /// every other role in the org. Returns false when the role is missing.
+    /// </summary>
+    bool SetDefaultRole(string org, string roleId);
 
     // Teams -----------------------------------------------------------------
     IReadOnlyCollection<StoredTeam> ListTeams(string org);

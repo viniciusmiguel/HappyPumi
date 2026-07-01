@@ -42,6 +42,16 @@ public sealed class InMemoryIdentityStore : IIdentityStore
 
     public bool RemoveMember(string org, string userLogin) => Org(org).Members.TryRemove(userLogin, out _);
 
+    public IReadOnlyList<StoredMember> ListMembersWithRole(string org, string roleId)
+    {
+        var role = GetRole(org, roleId);
+        if (role is null)
+            return Array.Empty<StoredMember>();
+        return Org(org).Members.Values
+            .Where(m => m.Role == role.Id || m.Role == role.Name)
+            .ToArray();
+    }
+
     public IReadOnlyCollection<StoredRole> ListRoles(string org) => Org(org).Roles.Values.ToArray();
 
     public StoredRole CreateRole(string org, PermissionDescriptorBase descriptor)
@@ -71,6 +81,16 @@ public sealed class InMemoryIdentityStore : IIdentityStore
             return false;
         foreach (var roles in Org(org).TeamRoles.Values)
             lock (roles) roles.Remove(roleId); // drop dangling team grants
+        return true;
+    }
+
+    public bool SetDefaultRole(string org, string roleId)
+    {
+        var roles = Org(org).Roles;
+        if (!roles.ContainsKey(roleId))
+            return false;
+        foreach (var role in roles.Values)
+            role.IsOrgDefault = role.Id == roleId;
         return true;
     }
 
