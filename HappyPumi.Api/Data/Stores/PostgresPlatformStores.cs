@@ -33,6 +33,37 @@ public sealed class PostgresServiceStore(HappyPumiDbContext db) : IServiceStore
         db.SaveChanges();
         return true;
     }
+
+    public ServiceRow? Get(string org, string name)
+        => db.Services.AsNoTracking().FirstOrDefault(s => s.Org == org && s.Name == name);
+
+    public ServiceRow? Update(string org, string name, string? displayName, string? description)
+    {
+        var row = db.Services.FirstOrDefault(s => s.Org == org && s.Name == name);
+        if (row is null) return null;
+        if (displayName is not null) row.DisplayName = displayName;
+        if (description is not null) row.Description = description;
+        db.SaveChanges();
+        return row;
+    }
+
+    public ServiceRow? AddItems(string org, string name, IEnumerable<string> items)
+    {
+        var row = db.Services.FirstOrDefault(s => s.Org == org && s.Name == name);
+        if (row is null) return null;
+        row.Items = row.Items.Union(items).ToList(); // dedupe: adding an existing item is idempotent
+        db.SaveChanges();
+        return row;
+    }
+
+    public ServiceRow? RemoveItem(string org, string name, string item)
+    {
+        var row = db.Services.FirstOrDefault(s => s.Org == org && s.Name == name);
+        if (row is null || !row.Items.Contains(item)) return null;
+        row.Items = row.Items.Where(i => i != item).ToList();
+        db.SaveChanges();
+        return row;
+    }
 }
 
 /// <summary>PostgreSQL-backed <see cref="ICloudAccountStore"/>.</summary>

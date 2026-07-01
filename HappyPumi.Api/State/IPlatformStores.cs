@@ -11,6 +11,18 @@ public interface IServiceStore
     IReadOnlyList<ServiceRow> List(string org);
     ServiceRow? Create(string org, string name, string displayName, string description);
     bool Delete(string org, string name);
+
+    /// <summary>The service keyed by (org, name); null when it does not exist.</summary>
+    ServiceRow? Get(string org, string name);
+
+    /// <summary>Patches the supplied (non-null) metadata fields; null when the service is missing.</summary>
+    ServiceRow? Update(string org, string name, string? displayName, string? description);
+
+    /// <summary>Adds items (each encoded as <c>"itemType:itemName"</c>, deduplicated); null when the service is missing.</summary>
+    ServiceRow? AddItems(string org, string name, IEnumerable<string> items);
+
+    /// <summary>Removes one <c>"itemType:itemName"</c> item; null when the service or that item is missing.</summary>
+    ServiceRow? RemoveItem(string org, string name, string item);
 }
 
 /// <summary>Connected cloud accounts (Insights resource scanning) per org.</summary>

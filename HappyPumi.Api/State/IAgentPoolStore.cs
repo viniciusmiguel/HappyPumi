@@ -21,4 +21,10 @@ public interface IAgentPoolStore
 
     /// <summary>The pool a presented token belongs to, or null if the token is unknown.</summary>
     AgentPoolRow? FindByToken(string token);
+
+    /// <summary>Deletes a pool by id within the org; false when no such pool exists.</summary>
+    bool DeletePool(string org, string poolId);
+
+    /// <summary>Patches the supplied (non-null) fields by id; null when the pool is missing.</summary>
+    AgentPoolRow? UpdatePool(string org, string poolId, string? name, string? description);
 }
