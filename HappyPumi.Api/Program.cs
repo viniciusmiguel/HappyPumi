@@ -136,6 +136,7 @@ bld.Services.AddScoped<HappyPumi.Api.Endpoints.Organizations.PolicyResultsAggreg
 bld.Services.AddScoped<IAuthPolicyStore, PostgresAuthPolicyStore>(); // OIDC auth policies (policy-results PR2)
 bld.Services.AddScoped<IOrgSettingsStore, PostgresOrgSettingsStore>(); // per-org settings (org-admin PR1)
 bld.Services.AddScoped<IAuditExportConfigStore, PostgresAuditExportConfigStore>(); // per-org audit-log export config (org-admin PR2)
+bld.Services.AddScoped<IDeletedStackStore, PostgresDeletedStackStore>(); // deleted-stack tombstones (org-admin PR5)
 
 // ESC engine: dynamic-value providers (fn::open) + the open-session lifecycle. Providers and their
 // registry are singletons (stateless wrappers over cloud SDKs); EscOpener is scoped because it reads
