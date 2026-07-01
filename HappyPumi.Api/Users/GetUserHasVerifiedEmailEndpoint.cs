@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Users;
 
 /// <summary>
 /// GetUserHasVerifiedEmail
 /// </summary>
-public sealed class GetUserHasVerifiedEmailEndpoint : EndpointWithoutRequest<bool>
+public sealed class GetUserHasVerifiedEmailEndpoint(IUserAccountStore store) : EndpointWithoutRequest<bool>
 {
     public override void Configure()
     {
@@ -28,11 +29,9 @@ public sealed class GetUserHasVerifiedEmailEndpoint : EndpointWithoutRequest<boo
         );
     }
 
-    public override Task HandleAsync(CancellationToken ct)
+    public async override Task HandleAsync(CancellationToken ct)
     {
-        // TODO: implement GetUserHasVerifiedEmail
-        // HTTP: GET /api/user/verified-email
-        // Should produce: bool
-        throw new NotImplementedException("Endpoint GetUserHasVerifiedEmail not implemented.");
+        var login = User.Identity?.Name ?? "happypumi";
+        await Send.OkAsync(store.Get(login).VerifiedEmail, ct);
     }
 }

@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Users;
 
 /// <summary>
 /// DeletePendingEmailChange
 /// </summary>
-public sealed class DeletePendingEmailChangeEndpoint : EndpointWithoutRequest
+public sealed class DeletePendingEmailChangeEndpoint(IUserAccountStore store) : EndpointWithoutRequest
 {
     public override void Configure()
     {
@@ -28,10 +29,10 @@ public sealed class DeletePendingEmailChangeEndpoint : EndpointWithoutRequest
         );
     }
 
-    public override Task HandleAsync(CancellationToken ct)
+    public async override Task HandleAsync(CancellationToken ct)
     {
-        // TODO: implement DeletePendingEmailChange
-        // HTTP: DELETE /api/user/pending-emails
-        throw new NotImplementedException("Endpoint DeletePendingEmailChange not implemented.");
+        var login = User.Identity?.Name ?? "happypumi";
+        store.Update(login, a => a.PendingEmail = null);
+        await Send.NoContentAsync(ct);
     }
 }

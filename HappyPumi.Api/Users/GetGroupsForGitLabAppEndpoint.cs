@@ -28,11 +28,9 @@ public sealed class GetGroupsForGitLabAppEndpoint : EndpointWithoutRequest<List<
         );
     }
 
-    public override Task HandleAsync(CancellationToken ct)
+    public async override Task HandleAsync(CancellationToken ct)
     {
-        // TODO: implement GetGroupsForGitLabApp
-        // HTTP: GET /api/user/gitlab-app/organizations
-        // Should produce: List<GitLabAppOrganization>
-        throw new NotImplementedException("Endpoint GetGroupsForGitLabApp not implemented.");
+        // The Pulumi GitLab app integration is not modeled: no GitLab groups are available.
+        await Send.OkAsync(new List<GitLabAppOrganization>(), ct);
     }
 }

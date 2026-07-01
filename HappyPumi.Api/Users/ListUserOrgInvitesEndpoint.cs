@@ -28,11 +28,9 @@ public sealed class ListUserOrgInvitesEndpoint : EndpointWithoutRequest<ListOrga
         );
     }
 
-    public override Task HandleAsync(CancellationToken ct)
+    public async override Task HandleAsync(CancellationToken ct)
     {
-        // TODO: implement ListUserOrgInvites
-        // HTTP: GET /api/user/pending-invites
-        // Should produce: ListOrganizationInvitesResponse
-        throw new NotImplementedException("Endpoint ListUserOrgInvites not implemented.");
+        // No invite store exists (invites aren't modeled): a user has no pending org invites.
+        await Send.OkAsync(new ListOrganizationInvitesResponse { Invites = new() }, ct);
     }
 }

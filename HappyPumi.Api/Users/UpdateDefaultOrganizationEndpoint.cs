@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Users;
 
 /// <summary>
 /// UpdateDefaultOrganization
 /// </summary>
-public sealed class UpdateDefaultOrganizationEndpoint : Endpoint<UpdateDefaultOrganizationRequest>
+public sealed class UpdateDefaultOrganizationEndpoint(IUserAccountStore store)
+    : Endpoint<UpdateDefaultOrganizationRequest>
 {
     public override void Configure()
     {
@@ -28,10 +30,10 @@ public sealed class UpdateDefaultOrganizationEndpoint : Endpoint<UpdateDefaultOr
         );
     }
 
-    public override Task HandleAsync(UpdateDefaultOrganizationRequest req, CancellationToken ct)
+    public async override Task HandleAsync(UpdateDefaultOrganizationRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateDefaultOrganization
-        // HTTP: POST /api/user/organizations/{orgName}/default
-        throw new NotImplementedException("Endpoint UpdateDefaultOrganization not implemented.");
+        var login = User.Identity?.Name ?? "happypumi";
+        store.Update(login, a => a.DefaultOrg = req.OrgName);
+        await Send.NoContentAsync(ct);
     }
 }

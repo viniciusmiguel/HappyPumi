@@ -28,11 +28,10 @@ public sealed class ListIdentityProviderOrganizationsEndpoint : EndpointWithoutR
         );
     }
 
-    public override Task HandleAsync(CancellationToken ct)
+    public async override Task HandleAsync(CancellationToken ct)
     {
-        // TODO: implement ListIdentityProviderOrganizations
-        // HTTP: GET /api/user/vcs/organizations
-        // Should produce: ListGitHubOrganizationsResponse
-        throw new NotImplementedException("Endpoint ListIdentityProviderOrganizations not implemented.");
+        // No backing VCS identity is configured (config-gated over IVcsProvider, ADR-0009): the user sees
+        // no VCS organizations. The endpoint intentionally ignores a missing identity rather than erroring.
+        await Send.OkAsync(new ListGitHubOrganizationsResponse { Organizations = new() }, ct);
     }
 }
