@@ -59,6 +59,7 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
     public DbSet<ChangeRequestRow> ChangeRequests => Set<ChangeRequestRow>();
     public DbSet<ChangeRequestEventRow> ChangeRequestEvents => Set<ChangeRequestEventRow>();
     public DbSet<TemplateSourceRow> TemplateSources => Set<TemplateSourceRow>();
+    public DbSet<AuthPolicyRow> AuthPolicies => Set<AuthPolicyRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -367,6 +368,12 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
         b.Entity<TemplateSourceRow>(e =>
         {
             e.HasKey(x => new { x.Org, x.Id }); // sources are listed/looked up per org
+        });
+
+        b.Entity<AuthPolicyRow>(e =>
+        {
+            e.HasKey(x => new { x.Org, x.PolicyId }); // one auth policy per (org, OIDC-issuer id)
+            e.Property(x => x.Policies).AsJsonb();
         });
     }
 }

@@ -14,7 +14,7 @@ namespace HappyPumi.Api.Endpoints.Organizations;
 /// <summary>
 /// GetPolicyIssuesFilters
 /// </summary>
-public sealed class GetPolicyIssuesFiltersEndpoint : Endpoint<GetPolicyIssuesFiltersRequest, PolicyIssueFiltersResponse>
+public sealed class GetPolicyIssuesFiltersEndpoint(PolicyResultsAggregator aggregator) : Endpoint<GetPolicyIssuesFiltersRequest, PolicyIssueFiltersResponse>
 {
     public override void Configure()
     {
@@ -29,10 +29,5 @@ public sealed class GetPolicyIssuesFiltersEndpoint : Endpoint<GetPolicyIssuesFil
     }
 
     public override Task HandleAsync(GetPolicyIssuesFiltersRequest req, CancellationToken ct)
-    {
-        // TODO: implement GetPolicyIssuesFilters
-        // HTTP: POST /api/orgs/{orgName}/policyresults/issues/filters
-        // Should produce: PolicyIssueFiltersResponse
-        throw new NotImplementedException("Endpoint GetPolicyIssuesFilters not implemented.");
-    }
+        => Send.OkAsync(aggregator.FilterValues(req.OrgName, req.Body.Field), ct);
 }

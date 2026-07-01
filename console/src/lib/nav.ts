@@ -19,6 +19,7 @@ export const homeItems: NavItem[] = [
   { label: "Environments", to: "/environments", icon: KeyRound },
   { label: "Deployments", to: "/deployments", icon: Rocket },
   { label: "Policy findings", to: "/policy-findings", icon: ShieldCheck },
+  { label: "Policy results", to: "/policy-results", icon: ShieldCheck },
 ];
 
 export const sections: NavSection[] = [

@@ -14,7 +14,7 @@ namespace HappyPumi.Api.Endpoints.Organizations;
 /// <summary>
 /// ExportPolicyIssues
 /// </summary>
-public sealed class ExportPolicyIssuesEndpoint : Endpoint<ExportPolicyIssuesRequest, string>
+public sealed class ExportPolicyIssuesEndpoint(PolicyResultsAggregator aggregator) : Endpoint<ExportPolicyIssuesRequest, string>
 {
     public override void Configure()
     {
@@ -30,9 +30,7 @@ public sealed class ExportPolicyIssuesEndpoint : Endpoint<ExportPolicyIssuesRequ
 
     public override Task HandleAsync(ExportPolicyIssuesRequest req, CancellationToken ct)
     {
-        // TODO: implement ExportPolicyIssues
-        // HTTP: POST /api/orgs/{orgName}/policyresults/issues/export
-        // Should produce: string
-        throw new NotImplementedException("Endpoint ExportPolicyIssues not implemented.");
+        var csv = aggregator.Csv(req.OrgName, req.Body?.StartRow, req.Body?.EndRow);
+        return Send.StringAsync(csv, contentType: "text/csv; charset=utf-8", cancellation: ct);
     }
 }

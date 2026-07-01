@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// UpdateAuthPolicy
 /// </summary>
-public sealed class UpdateAuthPolicyEndpoint : Endpoint<UpdateAuthPolicyRequest, AuthPolicy>
+public sealed class UpdateAuthPolicyEndpoint(IAuthPolicyStore store) : Endpoint<UpdateAuthPolicyRequest, AuthPolicy>
 {
     public override void Configure()
     {
@@ -28,11 +29,11 @@ public sealed class UpdateAuthPolicyEndpoint : Endpoint<UpdateAuthPolicyRequest,
         );
     }
 
+    // Persists the rule set independently of any OIDC-issuer registration; GetAuthPolicy reads it back.
     public override Task HandleAsync(UpdateAuthPolicyRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateAuthPolicy
-        // HTTP: PATCH /api/orgs/{orgName}/auth/policies/{policyId}
-        // Should produce: AuthPolicy
-        throw new NotImplementedException("Endpoint UpdateAuthPolicy not implemented.");
+        var policies = req.Body.Policies ?? new List<AuthPolicyDefinition>();
+        var updated = store.Upsert(req.OrgName, req.PolicyId, policies);
+        return Send.OkAsync(AuthPolicyMapper.ToWire(updated), ct);
     }
 }

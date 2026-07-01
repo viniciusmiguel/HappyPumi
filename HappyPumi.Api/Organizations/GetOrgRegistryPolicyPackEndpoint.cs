@@ -4,17 +4,19 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// GetOrgRegistryPolicyPack
 /// </summary>
-public sealed class GetOrgRegistryPolicyPackEndpoint : Endpoint<GetOrgRegistryPolicyPackRequest, GetRegistryPolicyPackVersionResponse>
+public sealed class GetOrgRegistryPolicyPackEndpoint(IPolicyStore policies) : Endpoint<GetOrgRegistryPolicyPackRequest, GetRegistryPolicyPackVersionResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,20 @@ public sealed class GetOrgRegistryPolicyPackEndpoint : Endpoint<GetOrgRegistryPo
         );
     }
 
-    public override Task HandleAsync(GetOrgRegistryPolicyPackRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetOrgRegistryPolicyPackRequest req, CancellationToken ct)
     {
-        // TODO: implement GetOrgRegistryPolicyPack
-        // HTTP: GET /api/orgs/{orgName}/registry/policypacks/{policyPackName}
-        // Should produce: GetRegistryPolicyPackVersionResponse
-        throw new NotImplementedException("Endpoint GetOrgRegistryPolicyPack not implemented.");
+        var pack = policies.GetPack(req.OrgName, req.PolicyPackName);
+        if (pack is null || pack.Versions.Count == 0)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+        var version = Resolve(pack, req.Tag);
+        await Send.OkAsync(PolicyMapper.ToRegistryResponse(req.OrgName, pack, version), ct);
     }
+
+    // Resolve the requested version tag to its version, falling back to the newest version.
+    private static StoredPolicyPackVersion Resolve(StoredPolicyPack pack, string? tag)
+        => (tag is { Length: > 0 } ? pack.Versions.Values.FirstOrDefault(v => v.VersionTag == tag) : null)
+           ?? pack.Versions[pack.Versions.Keys.Max()];
 }

@@ -15,7 +15,7 @@ namespace HappyPumi.Api.Endpoints.Organizations;
 /// <summary>
 /// GetAuthPolicy
 /// </summary>
-public sealed class GetAuthPolicyEndpoint(IOidcIssuerStore issuers) : Endpoint<GetAuthPolicyRequest, AuthPolicy>
+public sealed class GetAuthPolicyEndpoint(IOidcIssuerStore issuers, IAuthPolicyStore authPolicies) : Endpoint<GetAuthPolicyRequest, AuthPolicy>
 {
     public override void Configure()
     {
@@ -33,7 +33,10 @@ public sealed class GetAuthPolicyEndpoint(IOidcIssuerStore issuers) : Endpoint<G
     {
         var issuer = issuers.Get(req.OrgName, req.IssuerId);
         if (issuer is null) { await Send.NotFoundAsync(ct); return; }
-        // No auth-policy store yet: synthesize a deterministic default (empty rule set) keyed to the issuer.
+        // Return the persisted policy when UpdateAuthPolicy has run; otherwise synthesize a deterministic
+        // default (empty rule set) keyed to the issuer's creation time.
+        var stored = authPolicies.Get(req.OrgName, req.IssuerId);
+        if (stored is not null) { await Send.OkAsync(AuthPolicyMapper.ToWire(stored), ct); return; }
         var created = issuer.Created.ToString("o");
         await Send.OkAsync(new AuthPolicy
         {

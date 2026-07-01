@@ -55,4 +55,23 @@ public static class PolicyMapper
         Policies = version.Policies ?? new List<AppPolicy>(),
         Applied = false,
     };
+
+    /// <summary>Maps a stored pack version to the registry-metadata response (GetOrgRegistryPolicyPack). The
+    /// publisher is the owning org; only "private" packs are modelled (there is no public registry here).</summary>
+    public static GetRegistryPolicyPackVersionResponse ToRegistryResponse(
+        string org, StoredPolicyPack pack, StoredPolicyPackVersion version) => new()
+    {
+        Policies = version.Policies ?? new List<AppPolicy>(),
+        PolicyPack = new RegistryPolicyPack
+        {
+            Id = pack.Name,
+            Name = pack.Name,
+            DisplayName = string.IsNullOrEmpty(pack.DisplayName) ? pack.Name : pack.DisplayName,
+            Publisher = org,
+            Source = "private",
+            AccessLevel = "admin",
+            Version = version.VersionTag ?? version.Version.ToString(),
+            EnforcementLevels = new List<string>(),
+        },
+    };
 }
