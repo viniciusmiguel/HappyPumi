@@ -1,9 +1,15 @@
 # HappyPumi endpoint audit — implementation status
 
-> Regenerated 2026-07-01 from the live codebase (`NotImplementedException` stubs). **207 endpoints remain unimplemented** (was 355 at the first audit, 318 after Stack Detail, 292 after VCS, 224 after settings+webhooks). These are console / other-product surfaces (ENDPOINTS.md Tier 8); the CLI + Automation API IaC core is fully implemented.
+> Regenerated 2026-07-01 from the live codebase (`NotImplementedException` stubs). **191 endpoints remain unimplemented** (was 355 at the first audit, 318 after Stack Detail, 292 after VCS, 224 after settings+webhooks, 207 after change-requests). These are console / other-product surfaces (ENDPOINTS.md Tier 8); the CLI + Automation API IaC core is fully implemented.
 
 ## Implemented since the first audit
 
+- **Templates + Policy results — COMPLETE** (PRs #64–#65, 16 endpoints): org template **sources** CRUD
+  (`ITemplateSourceStore`) + project-template resolution over the existing registry; CrossGuard
+  **policy results** (`PolicyResultsAggregator` computes metadata / issue filters / compliance /
+  CSV export over the existing `IPolicyFindingStore`) + **policy groups** (metadata, batch pack
+  assignment, per-stack groups) over `IPolicyStore` + `GetOrgRegistryPolicyPack`; plus `UpdateAuthPolicy`
+  (new `IAuthPolicyStore`, `GetAuthPolicy` rewired to read it). Console templates + policy-results pages.
 - **Change requests, gates & approvals — COMPLETE** (PRs #60–#62, 17 endpoints): a full-real PR-like
   workflow for ESC environments — a change request wraps an env draft, moves through a status
   lifecycle with an event timeline, and `apply` commits the draft as a new revision once **change
@@ -23,32 +29,27 @@ Confidence: **A** = under `/api/console/*` (console-only API). Sorted by size.
 
 | Feature / console page | Remaining | of which `/api/console/*` |
 |---|---:|---:|
-| ESC environments (preview/v2 extras) | 42 | 0 |
 | Insights (cloud scanning) | 46 | 0 |
-| Registry (preview + packages) | 23 | 0 |
-| VCS integrations (GitLab/BitBucket/custom — out of scope) | 20 | 19 |
+| ESC environments (preview/v2 extras) | 43 | 0 |
+| Org admin (audit-log, services, search, roles/members, restore/secrets/bulk, misc) | 32 | 1 |
+| Registry (preview + packages) | 21 | 0 |
+| VCS integrations (GitLab/BitBucket/custom — out of scope) | 19 | 19 |
 | Deployments (schedules/controls/usage) | 19 | 0 |
-| Audit log + export | 9 | 0 |
 | User account (tokens/email/invites) | 9 | 0 |
-| Templates (org collections) | 7 | 0 |
-| Policy (CrossGuard results / groups) | 6 | 0 |
-| Services catalog | 5 | 0 |
-| Resource search / dashboard | 4 | 1 |
-| Org settings / members / roles | 4 | 0 |
 | Deployments · agent pools | 2 | 0 |
-| Misc (restore-stack, secrets, bulk-transfer, auth, …) | 11 | 0 |
 
-**Total remaining: 207.**
+**Total remaining: 191.**
 
 ## Suggested next feature group
 
-The settings cluster, webhooks, first-class VCS, and change requests/gates are now complete. The
-remaining work is the large self-contained subsystems and a handful of smaller org-admin surfaces.
+The settings cluster, webhooks, first-class VCS, change requests/gates, and templates + policy results
+are now complete. What remains is mostly the large self-contained subsystems plus the smaller
+org-admin long-tail (audit-log query/export, services catalog, resource search, roles/members).
 Candidates by value/size:
 
-- **Audit log + export** — 9 endpoints; the store already exists (ADR-0010), this is the query/export surface.
-- **Templates (org collections)** — 7 endpoints; pairs with the existing template registry.
-- **Policy (CrossGuard results / groups)** — 6 endpoints; pairs with the existing policy findings.
-- **Large separate products (explicit go/no-go):** Insights (cloud scanning, 46), ESC preview/v2 duplicates (~42), Registry preview (23). Each is its own subsystem and warrants its own brainstorm.
+- **Org admin long-tail** — ~32 endpoints under `/api/orgs/*`; cohesive smaller surfaces (audit-log
+  query/export — store exists per ADR-0010; services catalog; resource search; roles/members).
+- **Large separate products (explicit go/no-go):** Insights (cloud scanning, 46), ESC preview/v2
+  duplicates (~43), Registry preview (21). Each is its own subsystem and warrants its own brainstorm.
 
 > This table is the maintained summary; the full per-endpoint listing can be regenerated from the stubs at any time.
