@@ -28,11 +28,9 @@ public sealed class GetResourceColumnFilterSetEndpoint : Endpoint<GetResourceCol
         );
     }
 
-    public override Task HandleAsync(GetResourceColumnFilterSetRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetResourceColumnFilterSetRequest req, CancellationToken ct)
     {
-        // TODO: implement GetResourceColumnFilterSet
-        // HTTP: GET /api/orgs/{orgName}/search/column-set
-        // Should produce: Dictionary<string, Aggregation>
-        throw new NotImplementedException("Endpoint GetResourceColumnFilterSet not implemented.");
+        // No resource-search index exists to aggregate over, so there are no filter facets to return.
+        await Send.OkAsync(new Dictionary<string, Aggregation>(), ct);
     }
 }
