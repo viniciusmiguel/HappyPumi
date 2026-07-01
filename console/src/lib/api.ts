@@ -79,6 +79,17 @@ async function patchJson(path: string, body: unknown): Promise<void> {
   if (!res.ok) throw new Error(`PATCH ${path} failed: ${res.status} ${res.statusText}`);
 }
 
+// PATCH returning the updated resource (mirrors putJson for endpoints that reply with the entity).
+async function patchJsonResult<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`/api${path}`, {
+    method: "PATCH",
+    headers: { Authorization: authHeader(), "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`PATCH ${path} failed: ${res.status} ${res.statusText}`);
+  return (await res.json()) as T;
+}
+
 async function putJson<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`/api${path}`, {
     method: "PUT",
@@ -198,6 +209,13 @@ export interface OidcIssuer {
   thumbprints?: string[]; maxExpiration?: number; created?: string; modified?: string; lastUsed?: string;
 }
 export interface RegisterOidcIssuerBody { name: string; url: string; maxExpiration?: number; }
+// Org template sources (templates PR1): records of where project templates are fetched from, with a
+// deterministic http(s) URL validation reflected by isValid/error.
+export interface TemplateSource {
+  id: string; name: string; sourceURL: string; destinationURL?: string;
+  destination?: { url: string }; isValid: boolean; error?: string;
+}
+export interface UpsertTemplateSourceBody { name: string; sourceURL: string; destinationURL?: string; }
 // Change gates (change-requests PR1): approval gates that require staged changes to a target entity (today
 // only ESC environments) to collect N approvals before they can be applied.
 export interface ChangeGateRule {
@@ -652,6 +670,16 @@ export const api = {
     postJson<unknown>(`/orgs/${org}/approval-rules`, { name, stackPattern, requiredApprovals }),
   policyViolations: (org: string) =>
     get<{ policyViolations?: PolicyViolation[] }>(`/orgs/${org}/policyresults/violationsv2`, { policyViolations: [] }),
+
+  // Org template sources (templates PR1): list/create/update/delete the org's template sources. The list
+  // falls back to an empty set so the page renders its empty state; writes surface failures to the user.
+  templateSources: (org: string) =>
+    get<{ sources?: TemplateSource[] }>(`/orgs/${org}/templates/sources`, { sources: [] }),
+  createTemplateSource: (org: string, body: UpsertTemplateSourceBody) =>
+    postJson<TemplateSource>(`/orgs/${org}/templates/sources`, body),
+  updateTemplateSource: (org: string, id: string, body: UpsertTemplateSourceBody) =>
+    patchJsonResult<TemplateSource>(`/orgs/${org}/templates/sources/${id}`, body),
+  deleteTemplateSource: (org: string, id: string) => del(`/orgs/${org}/templates/sources/${id}`),
 };
 
 // Relative-time formatting matching the console's "Updated 2 days ago" style. Accepts unix seconds or ISO.

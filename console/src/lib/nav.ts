@@ -50,6 +50,7 @@ export const sections: NavSection[] = [
       { label: "Roles", to: "/settings/roles", icon: KeyRound },
       { label: "Identity providers", to: "/settings/identity", icon: Fingerprint },
       { label: "OIDC issuers", to: "/settings/oidc-issuers", icon: ShieldCheck },
+      { label: "Template sources", to: "/settings/template-sources", icon: LayoutTemplate },
       { label: "Cloud accounts", to: "/settings/cloud-accounts", icon: Cloud },
       { label: "SAML / SSO", to: "/settings/saml", icon: Fingerprint },
       { label: "Integrations", to: "/settings/integrations", icon: Plug },
