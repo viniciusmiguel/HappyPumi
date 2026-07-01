@@ -1,18 +1,19 @@
-import { useEffect, useState } from "react";
-import { Server, Plus } from "lucide-react";
-import { api, timeAgo, type Service } from "../lib/api";
+import { useCallback, useEffect, useState } from "react";
+import { Server, Plus, ArrowLeft, Trash2 } from "lucide-react";
+import { api, timeAgo, type Service, type ServiceItem } from "../lib/api";
 import { useOrg } from "../lib/useOrg";
-import { PageHeader, Table, EmptyState, PrimaryButton, SecondaryButton, Modal, Field } from "../components/ui";
+import { Badge, Card, EmptyState, Field, Modal, PageHeader, PrimaryButton, SecondaryButton, Table } from "../components/ui";
 
 export default function Services() {
   const org = useOrg();
   const [services, setServices] = useState<Service[]>([]);
+  const [selected, setSelected] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [form, setForm] = useState({ name: "", description: "" });
   const [error, setError] = useState<string | null>(null);
 
-  function load() { api.services(org).then((r) => setServices(r.services ?? [])); }
-  useEffect(() => { load(); }, [org]);
+  const load = useCallback(() => { api.services(org).then((r) => setServices(r.services ?? [])); }, [org]);
+  useEffect(() => { load(); }, [load]);
 
   async function create() {
     if (!form.name) return;
@@ -21,12 +22,19 @@ export default function Services() {
     catch (e) { setError(e instanceof Error ? e.message : String(e)); }
   }
 
+  if (selected) {
+    return <ServiceDetail org={org} name={selected}
+      onBack={() => setSelected(null)}
+      onDeleted={() => { setSelected(null); load(); }} />;
+  }
+
   return (
     <div>
       <PageHeader icon={Server} title="Services"
         actions={<PrimaryButton icon={Plus} onClick={() => setShowNew(true)}>New service</PrimaryButton>} />
       <Table
         rows={services}
+        onRowClick={(s) => setSelected(s.name)}
         columns={[
           { header: "Service", cell: (s) => <span className="font-medium">{s.name}</span> },
           { header: "Description", cell: (s) => <span className="text-ink-dim">{s.description || "—"}</span> },
@@ -45,5 +53,109 @@ export default function Services() {
         </Modal>
       )}
     </div>
+  );
+}
+
+function ServiceDetail({ org, name, onBack, onDeleted }: {
+  org: string; name: string; onBack: () => void; onDeleted: () => void;
+}) {
+  const [description, setDescription] = useState("");
+  const [items, setItems] = useState<ServiceItem[]>([]);
+  const [editing, setEditing] = useState(false);
+  const [adding, setAdding] = useState(false);
+
+  const reload = useCallback(() => {
+    api.getService(org, name).then((r) => { setDescription(r.service.description ?? ""); setItems(r.items ?? []); });
+  }, [org, name]);
+  useEffect(() => { reload(); }, [reload]);
+
+  const remove = async (item: ServiceItem) => { await api.removeServiceItem(org, name, item.type, item.name); reload(); };
+  const removeService = async () => { await api.deleteService(org, name); onDeleted(); };
+
+  return (
+    <div>
+      <PageHeader icon={Server} title={name}
+        actions={<SecondaryButton icon={ArrowLeft} onClick={onBack}>Back to services</SecondaryButton>} />
+      <div className="mt-4 space-y-4">
+        <Card title="Metadata" actions={<SecondaryButton onClick={() => setEditing(true)}>Edit description</SecondaryButton>}>
+          <p className="px-6 py-4 text-sm text-ink-dim">{description || "No description."}</p>
+        </Card>
+        <Card title="Items" actions={<PrimaryButton icon={Plus} onClick={() => setAdding(true)}>Add item</PrimaryButton>}>
+          <Table<ServiceItem>
+            rows={items}
+            empty={<p className="px-6 py-4 text-sm text-ink-dim">No items yet. Add stacks, environments or other resources.</p>}
+            columns={[
+              { header: "Type", cell: (i) => <Badge tone="brand">{i.type}</Badge> },
+              { header: "Name", cell: (i) => <span className="font-medium">{i.name}</span> },
+              { header: "Added", cell: (i) => <span className="text-ink-faint">{timeAgo(i.created)}</span> },
+              {
+                header: "", className: "text-right",
+                cell: (i) => (
+                  <button onClick={() => remove(i)} className="text-red-400 hover:text-red-300">Remove</button>
+                ),
+              },
+            ]}
+          />
+        </Card>
+        <button onClick={removeService} className="inline-flex items-center gap-2 text-sm text-red-400 hover:text-red-300">
+          <Trash2 className="h-4 w-4" /> Delete this service
+        </button>
+      </div>
+      {editing && (
+        <EditDescriptionModal org={org} name={name} current={description}
+          onClose={() => setEditing(false)}
+          onSaved={() => { setEditing(false); reload(); }} />
+      )}
+      {adding && (
+        <AddItemModal org={org} name={name}
+          onClose={() => setAdding(false)}
+          onAdded={() => { setAdding(false); reload(); }} />
+      )}
+    </div>
+  );
+}
+
+function EditDescriptionModal({ org, name, current, onClose, onSaved }: {
+  org: string; name: string; current: string; onClose: () => void; onSaved: () => void;
+}) {
+  const [description, setDescription] = useState(current);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async () => {
+    setError(null);
+    try { await api.updateService(org, name, description); onSaved(); }
+    catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+  };
+
+  return (
+    <Modal title="Edit description" onClose={onClose}
+      footer={<><SecondaryButton onClick={onClose}>Cancel</SecondaryButton><PrimaryButton onClick={save}>Save</PrimaryButton></>}>
+      <Field label="Description" value={description} onChange={setDescription} placeholder="What this service groups" />
+      {error && <p className="text-xs text-red-400">{error}</p>}
+    </Modal>
+  );
+}
+
+function AddItemModal({ org, name, onClose, onAdded }: {
+  org: string; name: string; onClose: () => void; onAdded: () => void;
+}) {
+  const [type, setType] = useState("stack");
+  const [itemName, setItemName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async () => {
+    if (!itemName.trim()) return;
+    setError(null);
+    try { await api.addServiceItems(org, name, [{ type, name: itemName }]); onAdded(); }
+    catch (e) { setError(e instanceof Error ? e.message : String(e)); }
+  };
+
+  return (
+    <Modal title="Add item" onClose={onClose}
+      footer={<><SecondaryButton onClick={onClose}>Cancel</SecondaryButton><PrimaryButton onClick={save}>Add</PrimaryButton></>}>
+      <Field label="Type" value={type} onChange={setType} options={["stack", "environment", "template"]} />
+      <Field label="Name" value={itemName} onChange={setItemName} placeholder="checkout-prod" />
+      {error && <p className="text-xs text-red-400">{error}</p>}
+    </Modal>
   );
 }
