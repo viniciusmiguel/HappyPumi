@@ -130,6 +130,7 @@ bld.Services.AddScoped<IConnectedCloudAccountStore, PostgresConnectedCloudAccoun
 bld.Services.AddScoped<IChangeGateStore, PostgresChangeGateStore>(); // change gates (change-requests PR1)
 bld.Services.AddScoped<IChangeRequestStore, PostgresChangeRequestStore>(); // change requests (change-requests PR2)
 bld.Services.AddScoped<IChangeRequestEventStore, PostgresChangeRequestEventStore>(); // CR timeline (change-requests PR2)
+bld.Services.AddScoped<ITemplateSourceStore, PostgresTemplateSourceStore>(); // org template sources (templates PR1)
 bld.Services.AddScoped<HappyPumi.Api.Endpoints.Organizations.ChangeGateEvaluator>(); // gate enforcement (change-requests PR3)
 
 // ESC engine: dynamic-value providers (fn::open) + the open-session lifecycle. Providers and their

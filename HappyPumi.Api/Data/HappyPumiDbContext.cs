@@ -58,6 +58,7 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
     public DbSet<ChangeGateRow> ChangeGates => Set<ChangeGateRow>();
     public DbSet<ChangeRequestRow> ChangeRequests => Set<ChangeRequestRow>();
     public DbSet<ChangeRequestEventRow> ChangeRequestEvents => Set<ChangeRequestEventRow>();
+    public DbSet<TemplateSourceRow> TemplateSources => Set<TemplateSourceRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -361,6 +362,11 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
         {
             e.HasKey(x => x.Id);
             e.HasIndex(x => new { x.Org, x.ChangeRequestId }); // the events endpoint lists one CR's timeline
+        });
+
+        b.Entity<TemplateSourceRow>(e =>
+        {
+            e.HasKey(x => new { x.Org, x.Id }); // sources are listed/looked up per org
         });
     }
 }
