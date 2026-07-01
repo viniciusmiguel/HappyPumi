@@ -63,6 +63,7 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
     public DbSet<OrgSettingsRow> OrgSettings => Set<OrgSettingsRow>();
     public DbSet<AuditExportConfigRow> AuditExportConfigs => Set<AuditExportConfigRow>();
     public DbSet<DeletedStackRow> DeletedStacks => Set<DeletedStackRow>();
+    public DbSet<UserAccountRow> UserAccounts => Set<UserAccountRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -381,6 +382,7 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
 
         b.Entity<OrgSettingsRow>(e => e.HasKey(x => x.Org)); // one settings row per org
         b.Entity<AuditExportConfigRow>(e => e.HasKey(x => x.Org)); // one audit-export config row per org
+        b.Entity<UserAccountRow>(e => e.HasKey(x => x.Login)); // one account row per user login
 
         b.Entity<DeletedStackRow>(e =>
         {
