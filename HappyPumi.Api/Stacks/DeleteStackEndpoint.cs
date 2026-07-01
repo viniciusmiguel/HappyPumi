@@ -15,7 +15,7 @@ namespace HappyPumi.Api.Endpoints.Stacks;
 /// <summary>
 /// DeleteStack
 /// </summary>
-public sealed class DeleteStackEndpoint(IStackStore stacks) : Endpoint<DeleteStackRequest>
+public sealed class DeleteStackEndpoint(IStackStore stacks, IDeletedStackStore deletedStacks) : Endpoint<DeleteStackRequest>
 {
     public override void Configure()
     {
@@ -34,11 +34,25 @@ public sealed class DeleteStackEndpoint(IStackStore stacks) : Endpoint<DeleteSta
         // The `force` flag guards deletion of a stack that still manages resources. Resource counts
         // arrive with the checkpoint endpoints (ENDPOINTS.md 1b/1c); until then every stack is empty,
         // so deletion always succeeds. 404 when there is nothing to delete.
-        if (!stacks.Delete(new StackCoordinates(req.OrgName, req.ProjectName, req.StackName)))
+        var coords = new StackCoordinates(req.OrgName, req.ProjectName, req.StackName);
+        var stack = stacks.Find(coords); // read the version before it is gone, for the tombstone
+        if (!stacks.Delete(coords))
         {
             await Send.NotFoundAsync(ct);
             return;
         }
+
+        // Record a soft-delete tombstone so the stack can be restored (org-admin PR5).
+        deletedStacks.Record(new StoredDeletedStack
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Org = coords.Org,
+            ProjectName = coords.Project,
+            StackName = coords.Stack,
+            ProgramId = Guid.NewGuid().ToString("N"),
+            Version = stack?.Version ?? 0,
+            DeletedAtUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+        });
 
         await Send.NoContentAsync(ct);
     }

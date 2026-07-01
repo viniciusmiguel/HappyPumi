@@ -62,6 +62,7 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
     public DbSet<AuthPolicyRow> AuthPolicies => Set<AuthPolicyRow>();
     public DbSet<OrgSettingsRow> OrgSettings => Set<OrgSettingsRow>();
     public DbSet<AuditExportConfigRow> AuditExportConfigs => Set<AuditExportConfigRow>();
+    public DbSet<DeletedStackRow> DeletedStacks => Set<DeletedStackRow>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -380,5 +381,11 @@ public sealed class HappyPumiDbContext(DbContextOptions<HappyPumiDbContext> opti
 
         b.Entity<OrgSettingsRow>(e => e.HasKey(x => x.Org)); // one settings row per org
         b.Entity<AuditExportConfigRow>(e => e.HasKey(x => x.Org)); // one audit-export config row per org
+
+        b.Entity<DeletedStackRow>(e =>
+        {
+            e.HasKey(x => new { x.Org, x.ProgramId }); // tombstones are listed/restored per org by program id
+            e.HasIndex(x => new { x.Org, x.DeletedAtUnix }); // restore list is newest-deletion-first
+        });
     }
 }
