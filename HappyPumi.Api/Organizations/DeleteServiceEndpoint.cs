@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
-/// DeleteService
+/// DeleteService — removes a service (204) and audits <c>service.delete</c> (ADR-0010); 404 when absent.
 /// </summary>
-public sealed class DeleteServiceEndpoint : Endpoint<DeleteServiceRequest>
+public sealed class DeleteServiceEndpoint(IServiceStore services, IAuditLog audit) : Endpoint<DeleteServiceRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,15 @@ public sealed class DeleteServiceEndpoint : Endpoint<DeleteServiceRequest>
         );
     }
 
-    public override Task HandleAsync(DeleteServiceRequest req, CancellationToken ct)
+    public override async Task HandleAsync(DeleteServiceRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteService
-        // HTTP: DELETE /api/orgs/{orgName}/services/{ownerType}/{ownerName}/{serviceName}
-        throw new NotImplementedException("Endpoint DeleteService not implemented.");
+        if (!services.Delete(req.OrgName, req.ServiceName))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        audit.Record(req.OrgName, "service.delete", $"Deleted service '{req.ServiceName}'", Actor.Of(HttpContext));
+        await Send.NoContentAsync(ct);
     }
 }

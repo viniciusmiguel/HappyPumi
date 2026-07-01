@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
-/// UpdateService
+/// UpdateService — patches a service's display name (from <c>name</c>) and description; 404 when absent.
 /// </summary>
-public sealed class UpdateServiceEndpoint : Endpoint<UpdateServiceRequest, Service>
+public sealed class UpdateServiceEndpoint(IServiceStore services) : Endpoint<UpdateServiceRequest, Service>
 {
     public override void Configure()
     {
@@ -28,11 +29,15 @@ public sealed class UpdateServiceEndpoint : Endpoint<UpdateServiceRequest, Servi
         );
     }
 
-    public override Task HandleAsync(UpdateServiceRequest req, CancellationToken ct)
+    public override async Task HandleAsync(UpdateServiceRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateService
-        // HTTP: PATCH /api/orgs/{orgName}/services/{ownerType}/{ownerName}/{serviceName}
-        // Should produce: Service
-        throw new NotImplementedException("Endpoint UpdateService not implemented.");
+        var row = services.Update(req.OrgName, req.ServiceName, req.Body?.Name, req.Body?.Description);
+        if (row is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(ServiceMapper.ToService(row), ct);
     }
 }

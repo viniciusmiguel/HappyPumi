@@ -193,7 +193,9 @@ export interface PackageNav { name: string; publisher: string; version: string; 
 
 export interface RegistryTemplate { name: string; publisher?: string; source?: string; language?: string; description?: string; version?: string; }
 export interface PolicyPack { name: string; displayName?: string; versions?: unknown[]; }
-export interface Service { name: string; description?: string; organizationName?: string; created?: string; }
+export interface Service { name: string; description?: string; organizationName?: string; created?: string; itemCountSummary?: Record<string, number>; }
+export interface ServiceItem { type: string; name: string; version?: string; organizationName?: string; created?: string; }
+export interface ServiceDetail { service: Service; items: ServiceItem[]; continuationToken?: string; }
 export interface AuditEvent { event: string; description: string; actorName?: string; sourceIP?: string; timestamp?: number; }
 export interface AuditExportS3Config { iamRoleArn?: string; s3BucketName?: string; s3PathPrefix?: string; }
 export interface AuditExportResult { message: string; timestamp: number; }
@@ -655,6 +657,19 @@ export const api = {
   services: (org: string) => get<{ services?: Service[] }>(`/orgs/${org}/services`, { services: [] }),
   createService: (org: string, name: string, description: string) =>
     postJson<Service>(`/orgs/${org}/services`, { name, description }),
+  // Service detail + items (org-admin PR3). The {ownerType}/{ownerName} route segments identify the owner;
+  // the service itself is keyed by (org, name), so we address it under the organization owner.
+  getService: (org: string, name: string) =>
+    get<ServiceDetail>(`/orgs/${org}/services/organization/${org}/${name}`,
+      { service: { name }, items: [] }),
+  updateService: (org: string, name: string, description: string) =>
+    patchJsonResult<Service>(`/orgs/${org}/services/organization/${org}/${name}`, { description }),
+  deleteService: (org: string, name: string) =>
+    del(`/orgs/${org}/services/organization/${org}/${name}`),
+  addServiceItems: (org: string, name: string, items: { type: string; name: string }[]) =>
+    postJson<ServiceDetail>(`/orgs/${org}/services/organization/${org}/${name}/items`, { items }),
+  removeServiceItem: (org: string, name: string, itemType: string, itemName: string) =>
+    del(`/orgs/${org}/services/organization/${org}/${name}/items/${itemType}/${itemName}`),
   auditLogs: (org: string) => get<{ auditLogEvents?: AuditEvent[] }>(`/orgs/${org}/auditlogs`, { auditLogEvents: [] }),
   // Audit-log query & export (org-admin PR2): the v2 event list plus the S3 export-config lifecycle.
   auditLogEvents: (org: string) =>

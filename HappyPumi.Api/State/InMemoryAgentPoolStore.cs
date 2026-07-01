@@ -1,17 +1,18 @@
 #nullable enable
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using HappyPumi.Api.Data.Entities;
-using HappyPumi.Api.State;
-using Microsoft.EntityFrameworkCore;
 
-namespace HappyPumi.Api.Data.Stores;
+namespace HappyPumi.Api.State;
 
-/// <summary>PostgreSQL-backed <see cref="IAgentPoolStore"/> (ADR-0005).</summary>
-public sealed class PostgresAgentPoolStore(HappyPumiDbContext db) : IAgentPoolStore
+/// <summary>In-memory <see cref="IAgentPoolStore"/> (ADR-0005), keyed by pool id. Used by unit tests.</summary>
+public sealed class InMemoryAgentPoolStore : IAgentPoolStore
 {
+    private readonly ConcurrentDictionary<string, AgentPoolRow> _byId = new();
+
     public AgentPoolRow CreatePool(string org, string name, string description)
     {
         var row = new AgentPoolRow
@@ -20,40 +21,31 @@ public sealed class PostgresAgentPoolStore(HappyPumiDbContext db) : IAgentPoolSt
             Org = org,
             Name = name,
             Description = description,
-            // The agent presents this verbatim; "pul-" mirrors Pulumi's token shape (opaque to us).
             Token = "pul-" + Guid.NewGuid().ToString("N") + Guid.NewGuid().ToString("N"),
             Created = DateTime.UtcNow,
         };
-        db.AgentPools.Add(row);
-        db.SaveChanges();
+        _byId[row.Id] = row;
         return row;
     }
 
     public IReadOnlyList<AgentPoolRow> ListPools(string org)
-        => db.AgentPools.AsNoTracking().Where(p => p.Org == org).OrderBy(p => p.Created).ToList();
+        => _byId.Values.Where(p => p.Org == org).OrderBy(p => p.Created).ToList();
 
     public AgentPoolRow? GetPool(string org, string poolId)
-        => db.AgentPools.AsNoTracking().FirstOrDefault(p => p.Org == org && p.Id == poolId);
+        => _byId.TryGetValue(poolId, out var row) && row.Org == org ? row : null;
 
     public AgentPoolRow? FindByToken(string token)
-        => db.AgentPools.AsNoTracking().FirstOrDefault(p => p.Token == token);
+        => _byId.Values.FirstOrDefault(p => p.Token == token);
 
     public bool DeletePool(string org, string poolId)
-    {
-        var row = db.AgentPools.FirstOrDefault(p => p.Org == org && p.Id == poolId);
-        if (row is null) return false;
-        db.AgentPools.Remove(row);
-        db.SaveChanges();
-        return true;
-    }
+        => GetPool(org, poolId) is not null && _byId.TryRemove(poolId, out _);
 
     public AgentPoolRow? UpdatePool(string org, string poolId, string? name, string? description)
     {
-        var row = db.AgentPools.FirstOrDefault(p => p.Org == org && p.Id == poolId);
+        var row = GetPool(org, poolId);
         if (row is null) return null;
         if (name is not null) row.Name = name;
         if (description is not null) row.Description = description;
-        db.SaveChanges();
         return row;
     }
 }

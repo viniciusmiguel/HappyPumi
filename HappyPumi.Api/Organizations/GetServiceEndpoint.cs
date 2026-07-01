@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
-/// GetService
+/// GetService — returns the service (keyed by <c>serviceName</c>) and its parsed items; 404 when absent.
 /// </summary>
-public sealed class GetServiceEndpoint : Endpoint<GetServiceRequest, GetServiceResponse>
+public sealed class GetServiceEndpoint(IServiceStore services) : Endpoint<GetServiceRequest, GetServiceResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,15 @@ public sealed class GetServiceEndpoint : Endpoint<GetServiceRequest, GetServiceR
         );
     }
 
-    public override Task HandleAsync(GetServiceRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetServiceRequest req, CancellationToken ct)
     {
-        // TODO: implement GetService
-        // HTTP: GET /api/orgs/{orgName}/services/{ownerType}/{ownerName}/{serviceName}
-        // Should produce: GetServiceResponse
-        throw new NotImplementedException("Endpoint GetService not implemented.");
+        var row = services.Get(req.OrgName, req.ServiceName);
+        if (row is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(ServiceMapper.ToResponse(row), ct);
     }
 }
