@@ -110,4 +110,38 @@ public sealed class InMemoryIdentityStoreTests
         // The grant is gone, so removing it again reports "not held".
         Assert.False(store.RemoveTeamRole(Org, "platform", role.Id));
     }
+
+    [Fact]
+    public void ListMembersWithRoleMatchesRoleIdOrName()
+    {
+        var store = new InMemoryIdentityStore();
+        var role = store.CreateRole(Org, new PermissionDescriptorBase { Name = "deployer" });
+        store.AddMember(Org, "alice", role.Id);   // member stores the role's Id
+        store.AddMember(Org, "bob", "deployer");  // member stores the role's Name
+        store.AddMember(Org, "carol", "admin");   // unrelated role
+
+        var logins = store.ListMembersWithRole(Org, role.Id).Select(m => m.UserLogin).ToArray();
+
+        Assert.Equal(2, logins.Length);
+        Assert.Contains("alice", logins);
+        Assert.Contains("bob", logins);
+        Assert.Empty(store.ListMembersWithRole(Org, "no-such-role")); // missing role → empty
+    }
+
+    [Fact]
+    public void SetDefaultRoleSetsOneAndClearsOthers()
+    {
+        var store = new InMemoryIdentityStore();
+        var first = store.CreateRole(Org, new PermissionDescriptorBase { Name = "first" });
+        var second = store.CreateRole(Org, new PermissionDescriptorBase { Name = "second" });
+
+        Assert.True(store.SetDefaultRole(Org, first.Id));
+        Assert.True(store.GetRole(Org, first.Id)!.IsOrgDefault);
+
+        Assert.True(store.SetDefaultRole(Org, second.Id));
+        Assert.False(store.GetRole(Org, first.Id)!.IsOrgDefault); // previous default cleared
+        Assert.True(store.GetRole(Org, second.Id)!.IsOrgDefault);
+
+        Assert.False(store.SetDefaultRole(Org, "ghost")); // missing role
+    }
 }
