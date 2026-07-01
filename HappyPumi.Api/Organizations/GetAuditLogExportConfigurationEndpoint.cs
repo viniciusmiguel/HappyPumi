@@ -8,13 +8,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
-/// GetAuditLogExportConfiguration
+/// GetAuditLogExportConfiguration — GET /api/orgs/{org}/auditlogs/export/config. Returns the org's export
+/// settings, or a disabled default when none is configured (200, never 404).
 /// </summary>
-public sealed class GetAuditLogExportConfigurationEndpoint : Endpoint<GetAuditLogExportConfigurationRequest, OrganizationAuditLogExportSettings>
+public sealed class GetAuditLogExportConfigurationEndpoint(IAuditExportConfigStore configs)
+    : Endpoint<GetAuditLogExportConfigurationRequest, OrganizationAuditLogExportSettings>
 {
     public override void Configure()
     {
@@ -28,11 +31,8 @@ public sealed class GetAuditLogExportConfigurationEndpoint : Endpoint<GetAuditLo
         );
     }
 
-    public override Task HandleAsync(GetAuditLogExportConfigurationRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetAuditLogExportConfigurationRequest req, CancellationToken ct)
     {
-        // TODO: implement GetAuditLogExportConfiguration
-        // HTTP: GET /api/orgs/{orgName}/auditlogs/export/config
-        // Should produce: OrganizationAuditLogExportSettings
-        throw new NotImplementedException("Endpoint GetAuditLogExportConfiguration not implemented.");
+        await Send.OkAsync(AuditLogMapper.ToSettings(configs.Get(req.OrgName)), ct);
     }
 }

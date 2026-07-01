@@ -8,13 +8,17 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
-/// ForceAuditLogExport
+/// ForceAuditLogExport — POST /api/orgs/{org}/auditlogs/export/config/force. Records a forced-export marker
+/// on the org's config and returns the result. When export isn't enabled, returns a descriptive result
+/// (still 200, never 500).
 /// </summary>
-public sealed class ForceAuditLogExportEndpoint : Endpoint<ForceAuditLogExportRequest, AuditLogExportResult>
+public sealed class ForceAuditLogExportEndpoint(IAuditExportConfigStore configs, IAuditLog audit)
+    : Endpoint<ForceAuditLogExportRequest, AuditLogExportResult>
 {
     public override void Configure()
     {
@@ -28,11 +32,21 @@ public sealed class ForceAuditLogExportEndpoint : Endpoint<ForceAuditLogExportRe
         );
     }
 
-    public override Task HandleAsync(ForceAuditLogExportRequest req, CancellationToken ct)
+    public override async Task HandleAsync(ForceAuditLogExportRequest req, CancellationToken ct)
     {
-        // TODO: implement ForceAuditLogExport
-        // HTTP: POST /api/orgs/{orgName}/auditlogs/export/config/force
-        // Should produce: AuditLogExportResult
-        throw new NotImplementedException("Endpoint ForceAuditLogExport not implemented.");
+        var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        if (!configs.Get(req.OrgName).Enabled)
+        {
+            await Send.OkAsync(new AuditLogExportResult
+            {
+                Message = $"Audit log export is not enabled for organization '{req.OrgName}'", Timestamp = now,
+            }, ct);
+            return;
+        }
+
+        var message = $"Exported {audit.List(req.OrgName).Count} events";
+        configs.Upsert(req.OrgName, c => { c.LastResultMessage = message; c.LastResultTimestamp = now; });
+        audit.Record(req.OrgName, "auditLog.export.force", "Forced an audit log export", Actor.Of(HttpContext));
+        await Send.OkAsync(new AuditLogExportResult { Message = message, Timestamp = now }, ct);
     }
 }

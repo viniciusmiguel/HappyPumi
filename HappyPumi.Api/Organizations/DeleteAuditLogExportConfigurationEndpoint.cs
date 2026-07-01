@@ -8,13 +8,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
-/// DeleteAuditLogExportConfiguration
+/// DeleteAuditLogExportConfiguration — DELETE /api/orgs/{org}/auditlogs/export/config. Removes the org's
+/// export configuration (back to a disabled default). Replies 204 whether or not one existed.
 /// </summary>
-public sealed class DeleteAuditLogExportConfigurationEndpoint : Endpoint<DeleteAuditLogExportConfigurationRequest>
+public sealed class DeleteAuditLogExportConfigurationEndpoint(IAuditExportConfigStore configs)
+    : Endpoint<DeleteAuditLogExportConfigurationRequest>
 {
     public override void Configure()
     {
@@ -28,10 +31,9 @@ public sealed class DeleteAuditLogExportConfigurationEndpoint : Endpoint<DeleteA
         );
     }
 
-    public override Task HandleAsync(DeleteAuditLogExportConfigurationRequest req, CancellationToken ct)
+    public override async Task HandleAsync(DeleteAuditLogExportConfigurationRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteAuditLogExportConfiguration
-        // HTTP: DELETE /api/orgs/{orgName}/auditlogs/export/config
-        throw new NotImplementedException("Endpoint DeleteAuditLogExportConfiguration not implemented.");
+        configs.Delete(req.OrgName);
+        await Send.NoContentAsync(ct);
     }
 }
