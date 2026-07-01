@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.Endpoints.Organizations;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Workflows;
 
 /// <summary>
-/// DeleteOrgAgentPool
+/// DeleteOrgAgentPool — deletes a pool (204) and audits <c>agentPool.delete</c> (ADR-0010); 404 when absent.
 /// </summary>
-public sealed class DeleteOrgAgentPoolEndpoint : Endpoint<DeleteOrgAgentPoolRequest>
+public sealed class DeleteOrgAgentPoolEndpoint(IAgentPoolStore pools, IAuditLog audit) : Endpoint<DeleteOrgAgentPoolRequest>
 {
     public override void Configure()
     {
@@ -28,10 +30,15 @@ public sealed class DeleteOrgAgentPoolEndpoint : Endpoint<DeleteOrgAgentPoolRequ
         );
     }
 
-    public override Task HandleAsync(DeleteOrgAgentPoolRequest req, CancellationToken ct)
+    public override async Task HandleAsync(DeleteOrgAgentPoolRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteOrgAgentPool
-        // HTTP: DELETE /api/orgs/{orgName}/agent-pools/{poolId}
-        throw new NotImplementedException("Endpoint DeleteOrgAgentPool not implemented.");
+        if (!pools.DeletePool(req.OrgName, req.PoolId))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        audit.Record(req.OrgName, "agentPool.delete", $"Deleted agent pool '{req.PoolId}'", Actor.Of(HttpContext));
+        await Send.NoContentAsync(ct);
     }
 }
