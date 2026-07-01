@@ -52,6 +52,16 @@ public sealed class PostgresIdentityStore(HappyPumiDbContext db) : IIdentityStor
         return true;
     }
 
+    public IReadOnlyList<StoredMember> ListMembersWithRole(string org, string roleId)
+    {
+        var role = db.Roles.AsNoTracking().FirstOrDefault(r => r.Org == org && r.Id == roleId);
+        if (role is null)
+            return Array.Empty<StoredMember>();
+        return db.Members.AsNoTracking()
+            .Where(m => m.Org == org && (m.Role == role.Id || m.Role == role.Name))
+            .ToList().Select(ToMember).ToList();
+    }
+
     public IReadOnlyCollection<StoredRole> ListRoles(string org)
         => db.Roles.AsNoTracking().Where(r => r.Org == org).ToList().Select(ToRole).ToList();
 
@@ -93,6 +103,17 @@ public sealed class PostgresIdentityStore(HappyPumiDbContext db) : IIdentityStor
             return false;
         db.Roles.Remove(row);
         db.TeamRoles.RemoveRange(db.TeamRoles.Where(t => t.Org == org && t.RoleId == roleId));
+        db.SaveChanges();
+        return true;
+    }
+
+    public bool SetDefaultRole(string org, string roleId)
+    {
+        var roles = db.Roles.Where(r => r.Org == org).ToList();
+        if (roles.All(r => r.Id != roleId))
+            return false;
+        foreach (var role in roles)
+            role.IsOrgDefault = role.Id == roleId;
         db.SaveChanges();
         return true;
     }

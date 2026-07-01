@@ -32,6 +32,7 @@ import Billing from "./pages/Billing";
 import Webhooks from "./pages/Webhooks";
 import AccessTokens from "./pages/AccessTokens";
 import OidcIssuers from "./pages/OidcIssuers";
+import OrgSettings from "./pages/OrgSettings";
 import TemplateSources from "./pages/TemplateSources";
 import CloudAccounts from "./pages/CloudAccounts";
 import SamlSso from "./pages/SamlSso";
@@ -82,6 +83,7 @@ export default function App() {
         <Route path="/management/policies" element={<Policies />} />
         <Route path="/management/audit-logs" element={<AuditLogs />} />
 
+        <Route path="/settings/organization" element={<OrgSettings />} />
         <Route path="/settings/members" element={<Members />} />
         <Route path="/settings/teams" element={<Teams />} />
         <Route path="/settings/roles" element={<Roles />} />

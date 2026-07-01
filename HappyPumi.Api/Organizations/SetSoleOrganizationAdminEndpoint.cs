@@ -7,14 +7,17 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using HappyPumi.Api.Auth;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// SetSoleOrganizationAdmin
 /// </summary>
-public sealed class SetSoleOrganizationAdminEndpoint : Endpoint<SetSoleOrganizationAdminRequest>
+public sealed class SetSoleOrganizationAdminEndpoint(IIdentityStore identity, IAuditLog audit)
+    : Endpoint<SetSoleOrganizationAdminRequest>
 {
     public override void Configure()
     {
@@ -28,10 +31,16 @@ public sealed class SetSoleOrganizationAdminEndpoint : Endpoint<SetSoleOrganizat
         );
     }
 
-    public override Task HandleAsync(SetSoleOrganizationAdminRequest req, CancellationToken ct)
+    public async override Task HandleAsync(SetSoleOrganizationAdminRequest req, CancellationToken ct)
     {
-        // TODO: implement SetSoleOrganizationAdmin
-        // HTTP: POST /api/orgs/{orgName}/members/{userLogin}/set-admin
-        throw new NotImplementedException("Endpoint SetSoleOrganizationAdmin not implemented.");
+        if (identity.UpdateMemberRole(req.OrgName, req.UserLogin, "admin") is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        audit.Record(req.OrgName, "organization.setAdmin", $"Promoted '{req.UserLogin}' to sole org admin",
+            RequestActor.From(User)?.Name ?? "happypumi");
+        await Send.NoContentAsync(ct);
     }
 }

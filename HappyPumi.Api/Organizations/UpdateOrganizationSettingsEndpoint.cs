@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// UpdateOrganizationSettings
 /// </summary>
-public sealed class UpdateOrganizationSettingsEndpoint : Endpoint<UpdateOrganizationSettingsRequest, OrganizationMetadata>
+public sealed class UpdateOrganizationSettingsEndpoint(IOrgSettingsStore settings, IIdentityStore identity)
+    : Endpoint<UpdateOrganizationSettingsRequest, OrganizationMetadata>
 {
     public override void Configure()
     {
@@ -28,11 +30,28 @@ public sealed class UpdateOrganizationSettingsEndpoint : Endpoint<UpdateOrganiza
         );
     }
 
-    public override Task HandleAsync(UpdateOrganizationSettingsRequest req, CancellationToken ct)
+    public async override Task HandleAsync(UpdateOrganizationSettingsRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateOrganizationSettings
-        // HTTP: PATCH /api/orgs/{orgName}
-        // Should produce: OrganizationMetadata
-        throw new NotImplementedException("Endpoint UpdateOrganizationSettings not implemented.");
+        var stored = settings.Update(req.OrgName, s => ApplySets(req.Body, s));
+        var memberCount = identity.ListMembers(req.OrgName).Count;
+        await Send.OkAsync(OrganizationMetadataMapper.ToMetadata(stored, memberCount), ct);
+    }
+
+    // Only the supplied (non-null) set* fields overwrite the stored settings; the rest are left intact.
+    private static void ApplySets(UpdateOrganizationRequest body, StoredOrgSettings s)
+    {
+        if (body.SetMembersCanCreateStacks is { } createStacks) s.MembersCanCreateStacks = createStacks;
+        if (body.SetMembersCanDeleteStacks is { } deleteStacks) s.MembersCanDeleteStacks = deleteStacks;
+        if (body.SetMembersCanCreateTeams is { } createTeams) s.MembersCanCreateTeams = createTeams;
+        if (body.SetMembersCanTransferStacks is { } transferStacks) s.MembersCanTransferStacks = transferStacks;
+        if (body.SetMembersCanCreateAccounts is { } createAccounts) s.MembersCanCreateAccounts = createAccounts;
+        if (body.SetDefaultStackPermission is { } stackPerm) s.DefaultStackPermission = stackPerm;
+        if (body.SetDefaultAccountPermission is { } accountPerm) s.DefaultAccountPermission = accountPerm;
+        if (body.SetDefaultEnvironmentPermission is { } envPerm) s.DefaultEnvironmentPermission = envPerm;
+        if (body.SetDefaultDeploymentRoleId is { } deployRole) s.DefaultDeploymentRoleId = deployRole;
+        if (body.SetDefaultAgentPoolId is { } agentPool) s.DefaultAgentPoolId = agentPool;
+        if (body.SetPreferredVcs is { } vcs) s.PreferredVcs = vcs;
+        if (body.SetAiEnablement is { } ai) s.AiEnablement = ai;
+        if (body.SetNeoEnabled is { } neo) s.NeoEnabled = neo;
     }
 }

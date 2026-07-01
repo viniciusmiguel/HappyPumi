@@ -7,14 +7,17 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
+using HappyPumi.Api.Auth;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// UpdateOrganizationDefaultRole
 /// </summary>
-public sealed class UpdateOrganizationDefaultRoleEndpoint : Endpoint<UpdateOrganizationDefaultRoleRequest>
+public sealed class UpdateOrganizationDefaultRoleEndpoint(IIdentityStore identity, IAuditLog audit)
+    : Endpoint<UpdateOrganizationDefaultRoleRequest>
 {
     public override void Configure()
     {
@@ -28,10 +31,16 @@ public sealed class UpdateOrganizationDefaultRoleEndpoint : Endpoint<UpdateOrgan
         );
     }
 
-    public override Task HandleAsync(UpdateOrganizationDefaultRoleRequest req, CancellationToken ct)
+    public async override Task HandleAsync(UpdateOrganizationDefaultRoleRequest req, CancellationToken ct)
     {
-        // TODO: implement UpdateOrganizationDefaultRole
-        // HTTP: PATCH /api/orgs/{orgName}/roles/{roleID}/default
-        throw new NotImplementedException("Endpoint UpdateOrganizationDefaultRole not implemented.");
+        if (!identity.SetDefaultRole(req.OrgName, req.RoleId))
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        audit.Record(req.OrgName, "organization.setDefaultRole", $"Set default role to '{req.RoleId}'",
+            RequestActor.From(User)?.Name ?? "happypumi");
+        await Send.NoContentAsync(ct);
     }
 }

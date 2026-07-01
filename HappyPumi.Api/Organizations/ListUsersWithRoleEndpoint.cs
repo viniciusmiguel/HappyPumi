@@ -6,15 +6,18 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// ListUsersWithRole
 /// </summary>
-public sealed class ListUsersWithRoleEndpoint : Endpoint<ListUsersWithRoleRequest, ListUsersWithRoleResponse>
+public sealed class ListUsersWithRoleEndpoint(IIdentityStore identity)
+    : Endpoint<ListUsersWithRoleRequest, ListUsersWithRoleResponse>
 {
     public override void Configure()
     {
@@ -27,11 +30,11 @@ public sealed class ListUsersWithRoleEndpoint : Endpoint<ListUsersWithRoleReques
         );
     }
 
-    public override Task HandleAsync(ListUsersWithRoleRequest req, CancellationToken ct)
+    public async override Task HandleAsync(ListUsersWithRoleRequest req, CancellationToken ct)
     {
-        // TODO: implement ListUsersWithRole
-        // HTTP: GET /api/orgs/{orgName}/roles/{roleID}/users
-        // Should produce: ListUsersWithRoleResponse
-        throw new NotImplementedException("Endpoint ListUsersWithRole not implemented.");
+        var users = identity.ListMembersWithRole(req.OrgName, req.RoleId)
+            .Select(m => new UserInfo { GithubLogin = m.UserLogin, Name = m.UserLogin, AvatarUrl = "" })
+            .ToList();
+        await Send.OkAsync(new ListUsersWithRoleResponse { Users = users }, ct);
     }
 }

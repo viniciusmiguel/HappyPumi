@@ -46,6 +46,7 @@ export const sections: NavSection[] = [
   {
     id: "settings", title: "Access management", icon: Settings,
     items: [
+      { label: "Organization", to: "/settings/organization", icon: Settings },
       { label: "Members", to: "/settings/members", icon: Users },
       { label: "Teams", to: "/settings/teams", icon: UsersRound },
       { label: "Roles", to: "/settings/roles", icon: KeyRound },

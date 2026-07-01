@@ -331,7 +331,35 @@ export interface EscSchema { type?: string; description?: string; secret?: boole
 export interface ProviderSchema { name: string; description?: string; inputs?: EscSchema; outputs?: EscSchema; }
 
 export interface Member { role?: string; user?: Actor; name?: string; githubLogin?: string; }
-export interface Role { id: string; name: string; description?: string; }
+export interface Role { id: string; name: string; description?: string; isOrgDefault?: boolean; }
+// Org core/members/roles (org-admin PR1): the persisted org-wide settings (subset the Settings page edits)
+// plus the RBAC scope catalogue and the members-by-role view.
+export interface OrganizationMetadata {
+  id: string;
+  membersCanCreateStacks: boolean;
+  membersCanDeleteStacks: boolean;
+  membersCanCreateTeams: boolean;
+  membersCanTransferStacks: boolean;
+  membersCanCreateAccounts: boolean;
+  preferredVCS: string;
+  aiEnablement: string;
+  neoEnabled: boolean;
+  defaultRoleId?: string;
+  memberCount: number;
+}
+export interface UpdateOrgSettingsBody {
+  setMembersCanCreateStacks?: boolean;
+  setMembersCanDeleteStacks?: boolean;
+  setMembersCanCreateTeams?: boolean;
+  setMembersCanTransferStacks?: boolean;
+  setMembersCanCreateAccounts?: boolean;
+  setPreferredVCS?: string;
+  setAiEnablement?: string;
+  setNeoEnabled?: boolean;
+}
+export interface RbacUserInfo { githubLogin: string; name: string; avatarUrl?: string; }
+export interface RbacScope { name: string; metadata?: { description?: string }; }
+export interface RbacScopeGroup { name: string; scopes: RbacScope[]; }
 export interface TeamMember { githubLogin?: string; name?: string; role?: string; }
 export interface Team {
   name: string; displayName?: string; description?: string; kind?: string;
@@ -591,6 +619,21 @@ export const api = {
   roles: (org: string) => get<{ roles?: Role[] }>(`/orgs/${org}/roles`, { roles: [] }),
   createRole: (org: string, name: string, description: string) =>
     postJson<Role>(`/orgs/${org}/roles`, { name, description, uxPurpose: "organization" }),
+  // Org core/members/roles (org-admin PR1): the org Settings page reads the synthesized org + its settings,
+  // patches the member-can-* / VCS / AI toggles, lists members holding a role, and sets the sole admin /
+  // default role. Reads fall back to safe empties; writes surface failures to the user.
+  organization: (org: string) =>
+    get<Organization>(`/orgs/${org}`, { githubLogin: org, name: org }),
+  updateOrgSettings: (org: string, body: UpdateOrgSettingsBody) =>
+    patchJsonResult<OrganizationMetadata>(`/orgs/${org}`, body),
+  usersWithRole: (org: string, roleId: string) =>
+    get<{ users?: RbacUserInfo[] }>(`/orgs/${org}/roles/${roleId}/users`, { users: [] }),
+  availableScopes: (org: string) =>
+    get<Record<string, RbacScopeGroup[]>>(`/orgs/${org}/roles/scopes`, {}),
+  setDefaultRole: (org: string, roleId: string) =>
+    patchJson(`/orgs/${org}/roles/${roleId}/default`, {}),
+  setSoleAdmin: (org: string, login: string) =>
+    postVoid(`/orgs/${org}/members/${login}/set-admin`, {}),
   teams: (org: string) => get<{ teams?: Team[] }>(`/orgs/${org}/teams`, { teams: [] }),
   createTeam: (org: string, name: string, displayName: string, description: string) =>
     postJson<Team>(`/orgs/${org}/teams/pulumi`, { name, displayName, description }),

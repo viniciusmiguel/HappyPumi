@@ -30,9 +30,14 @@ public sealed class GetOrganizationEndpoint : Endpoint<GetOrganizationRequest, O
 
     public override Task HandleAsync(GetOrganizationRequest req, CancellationToken ct)
     {
-        // TODO: implement GetOrganization
-        // HTTP: GET /api/orgs/{orgName}
-        // Should produce: Organization
-        throw new NotImplementedException("Endpoint GetOrganization not implemented.");
+        // The org name is both the name and the (synthetic) GitHub login; we have no VCS repo binding yet.
+        var org = new Organization
+        {
+            Name = req.OrgName,
+            GithubLogin = req.OrgName,
+            AvatarUrl = "",
+            Repos = new List<PulumiRepository>(),
+        };
+        return Send.OkAsync(org, ct);
     }
 }
