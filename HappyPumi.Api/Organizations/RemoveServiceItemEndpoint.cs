@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
-/// RemoveServiceItem
+/// RemoveServiceItem — removes one <c>"itemType:itemName"</c> item; 404 when the service or item is absent.
 /// </summary>
-public sealed class RemoveServiceItemEndpoint : Endpoint<RemoveServiceItemRequest, GetServiceResponse>
+public sealed class RemoveServiceItemEndpoint(IServiceStore services) : Endpoint<RemoveServiceItemRequest, GetServiceResponse>
 {
     public override void Configure()
     {
@@ -28,11 +29,15 @@ public sealed class RemoveServiceItemEndpoint : Endpoint<RemoveServiceItemReques
         );
     }
 
-    public override Task HandleAsync(RemoveServiceItemRequest req, CancellationToken ct)
+    public override async Task HandleAsync(RemoveServiceItemRequest req, CancellationToken ct)
     {
-        // TODO: implement RemoveServiceItem
-        // HTTP: DELETE /api/orgs/{orgName}/services/{ownerType}/{ownerName}/{serviceName}/items/{itemType}/{itemName}
-        // Should produce: GetServiceResponse
-        throw new NotImplementedException("Endpoint RemoveServiceItem not implemented.");
+        var row = services.RemoveItem(req.OrgName, req.ServiceName, $"{req.ItemType}:{req.ItemName}");
+        if (row is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.OkAsync(ServiceMapper.ToResponse(row), ct);
     }
 }

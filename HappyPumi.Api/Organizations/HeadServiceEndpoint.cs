@@ -8,13 +8,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
-/// HeadService
+/// HeadService — lightweight existence probe: empty 200 when the service exists, 404 otherwise.
 /// </summary>
-public sealed class HeadServiceEndpoint : Endpoint<HeadServiceRequest>
+public sealed class HeadServiceEndpoint(IServiceStore services) : Endpoint<HeadServiceRequest>
 {
     public override void Configure()
     {
@@ -28,10 +29,14 @@ public sealed class HeadServiceEndpoint : Endpoint<HeadServiceRequest>
         );
     }
 
-    public override Task HandleAsync(HeadServiceRequest req, CancellationToken ct)
+    public override async Task HandleAsync(HeadServiceRequest req, CancellationToken ct)
     {
-        // TODO: implement HeadService
-        // HTTP: HEAD /api/orgs/{orgName}/services/{ownerType}/{ownerName}/{serviceName}
-        throw new NotImplementedException("Endpoint HeadService not implemented.");
+        if (services.Get(req.OrgName, req.ServiceName) is null)
+        {
+            await Send.NotFoundAsync(ct);
+            return;
+        }
+
+        await Send.ResultAsync(Microsoft.AspNetCore.Http.Results.Ok());
     }
 }
