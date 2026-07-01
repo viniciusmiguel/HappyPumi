@@ -105,6 +105,17 @@ async function del(path: string): Promise<void> {
   if (!res.ok) throw new Error(`DELETE ${path} failed: ${res.status} ${res.statusText}`);
 }
 
+// JSON POST whose endpoint replies with a text/plain-ish body (e.g. a CSV export). Surfaces failures.
+async function postText(path: string, body: unknown): Promise<string> {
+  const res = await fetch(`/api${path}`, {
+    method: "POST",
+    headers: { Authorization: authHeader(), "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`POST ${path} failed: ${res.status} ${res.statusText}`);
+  return await res.text();
+}
+
 // JSON POST whose endpoint replies 204/empty (no body to parse). Surfaces failures like the write helpers.
 async function postVoid(path: string, body: unknown): Promise<void> {
   const res = await fetch(`/api${path}`, {
@@ -273,6 +284,24 @@ export interface PolicyViolation {
   message: string; observedAt?: string; projectName?: string; stackName?: string;
   resourceName?: string; resourceType?: string; resourceURN?: string;
 }
+
+// Policy results (policy-results PR2): compliance rollups aggregated from the recorded policy findings.
+export interface PolicyResultsMetadata {
+  policyTotalCount: number; policyWithIssuesCount: number;
+  resourcesTotalCount: number; resourcesWithIssuesCount: number;
+}
+export interface PolicyComplianceRow {
+  policyName: string; policyPack: string; severity: string;
+  failingResources: number; governedResources: number; percentCompliant: number;
+  policyGroupName?: string; policyGroupType?: string;
+}
+export interface ListPoliciesComplianceResponse {
+  policies?: PolicyComplianceRow[]; totalCount?: number; continuationToken?: string;
+}
+export interface PolicyIssueFilterValue { name: string; count: number; }
+export interface PolicyIssueFiltersResponse { field: string; values?: PolicyIssueFilterValue[]; }
+// ag-grid getRows request; we only use the paging window here.
+export interface GridRowsRequest { startRow?: number; endRow?: number; }
 
 export interface OrgEnvironment {
   id: string; organization: string; project?: string; name: string;
@@ -670,6 +699,18 @@ export const api = {
     postJson<unknown>(`/orgs/${org}/approval-rules`, { name, stackPattern, requiredApprovals }),
   policyViolations: (org: string) =>
     get<{ policyViolations?: PolicyViolation[] }>(`/orgs/${org}/policyresults/violationsv2`, { policyViolations: [] }),
+
+  // Policy results (policy-results PR2): metadata cards + per-policy compliance table + issue filters + CSV
+  // export, all aggregated server-side from the recorded policy findings.
+  policyResultsMetadata: (org: string) =>
+    get<PolicyResultsMetadata>(`/orgs/${org}/policyresults/metadata`,
+      { policyTotalCount: 0, policyWithIssuesCount: 0, resourcesTotalCount: 0, resourcesWithIssuesCount: 0 }),
+  policiesCompliance: (org: string, body: GridRowsRequest) =>
+    postJson<ListPoliciesComplianceResponse>(`/orgs/${org}/policyresults/policies`, body),
+  policyIssueFilters: (org: string, body: { field: string }) =>
+    postJson<PolicyIssueFiltersResponse>(`/orgs/${org}/policyresults/issues/filters`, body),
+  exportPolicyIssues: (org: string, body: GridRowsRequest) =>
+    postText(`/orgs/${org}/policyresults/issues/export`, body),
 
   // Org template sources (templates PR1): list/create/update/delete the org's template sources. The list
   // falls back to an empty set so the page renders its empty state; writes surface failures to the user.

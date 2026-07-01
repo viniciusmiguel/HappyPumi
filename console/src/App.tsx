@@ -20,6 +20,7 @@ import Roles from "./pages/Roles";
 import Teams from "./pages/Teams";
 import Policies from "./pages/Policies";
 import PolicyFindings from "./pages/PolicyFindings";
+import PolicyResults from "./pages/PolicyResults";
 import Integrations from "./pages/Integrations";
 import Services from "./pages/Services";
 import Approvals from "./pages/Approvals";
@@ -66,6 +67,7 @@ export default function App() {
         <Route path="/deployments/:project/:stack/:version" element={<DeploymentDetail />} />
 
         <Route path="/policy-findings" element={<PolicyFindings />} />
+        <Route path="/policy-results" element={<PolicyResults />} />
 
         <Route path="/platform/services" element={<Services />} />
         <Route path="/platform/components" element={<Components />} />
