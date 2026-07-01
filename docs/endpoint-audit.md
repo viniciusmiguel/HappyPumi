@@ -1,9 +1,16 @@
 # HappyPumi endpoint audit — implementation status
 
-> Regenerated 2026-07-01 from the live codebase (`NotImplementedException` stubs). **191 endpoints remain unimplemented** (was 355 at the first audit, 318 after Stack Detail, 292 after VCS, 224 after settings+webhooks, 207 after change-requests). These are console / other-product surfaces (ENDPOINTS.md Tier 8); the CLI + Automation API IaC core is fully implemented.
+> Regenerated 2026-07-01 from the live codebase (`NotImplementedException` stubs). **148 endpoints remain unimplemented** (was 355 at the first audit, 318 after Stack Detail, 292 after VCS, 224 after settings+webhooks, 207 after change-requests, 191 after templates+policy). What remains is entirely the large self-contained products (Insights, ESC preview/v2, Registry preview) plus Deployments extras and the intentionally-out-of-scope VCS providers; the CLI + Automation API IaC core and the whole org-admin surface are fully implemented.
 
 ## Implemented since the first audit
 
+- **Org-admin long-tail — COMPLETE** (PRs #67–#72, 43 endpoints): org core/settings/members/roles
+  (`IOrgSettingsStore` + `IIdentityStore` extensions); audit-log query & export over `IAuditLog` +
+  `IAuditExportConfigStore`; services catalog (`IServiceStore` items) + the remaining agent-pool
+  delete/patch; resource search/dashboard + usage summaries (deterministic empties/zeros where no
+  resource store, env-count from `IEnvironmentStore`); stack restore & bulk transfer
+  (`IDeletedStackStore` tombstones hooked into `DeleteStack` + `IStackStore.Transfer`); and the
+  `/api/user/*` account surface (`IUserAccountStore` + `CurrentUserFactory`).
 - **Templates + Policy results — COMPLETE** (PRs #64–#65, 16 endpoints): org template **sources** CRUD
   (`ITemplateSourceStore`) + project-template resolution over the existing registry; CrossGuard
   **policy results** (`PolicyResultsAggregator` computes metadata / issue filters / compliance /
@@ -31,25 +38,27 @@ Confidence: **A** = under `/api/console/*` (console-only API). Sorted by size.
 |---|---:|---:|
 | Insights (cloud scanning) | 46 | 0 |
 | ESC environments (preview/v2 extras) | 43 | 0 |
-| Org admin (audit-log, services, search, roles/members, restore/secrets/bulk, misc) | 32 | 1 |
 | Registry (preview + packages) | 21 | 0 |
 | VCS integrations (GitLab/BitBucket/custom — out of scope) | 19 | 19 |
 | Deployments (schedules/controls/usage) | 19 | 0 |
-| User account (tokens/email/invites) | 9 | 0 |
-| Deployments · agent pools | 2 | 0 |
 
-**Total remaining: 191.**
+**Total remaining: 148.**
 
 ## Suggested next feature group
 
-The settings cluster, webhooks, first-class VCS, change requests/gates, and templates + policy results
-are now complete. What remains is mostly the large self-contained subsystems plus the smaller
-org-admin long-tail (audit-log query/export, services catalog, resource search, roles/members).
-Candidates by value/size:
+All the small/cohesive surfaces are now done (settings, webhooks, first-class VCS, change
+requests/gates, templates + policy results, and the entire org-admin long-tail). What remains is
+**only the large self-contained products** plus the Deployments extras and the intentionally-excluded
+VCS providers — each its own subsystem warranting a dedicated brainstorm before implementation:
 
-- **Org admin long-tail** — ~32 endpoints under `/api/orgs/*`; cohesive smaller surfaces (audit-log
-  query/export — store exists per ADR-0010; services catalog; resource search; roles/members).
-- **Large separate products (explicit go/no-go):** Insights (cloud scanning, 46), ESC preview/v2
-  duplicates (~43), Registry preview (21). Each is its own subsystem and warrants its own brainstorm.
+- **Insights (cloud scanning)** — 46 endpoints (`/api/preview/insights/*`): account onboarding,
+  resource discovery/scanning, insight results. Its own product with its own data model.
+- **ESC preview/v2 extras** — 43 endpoints (`/api/preview/esc/*` + v2 duplicates): the preview-route
+  variants and extras beyond the core ESC surface already implemented.
+- **Registry preview** — 21 endpoints (`/api/preview/registry/*` + packages): the CrossGuard
+  policypack + template registry-preview publishing surface.
+- **Deployments extras** — 19 endpoints: schedules, controls, usage beyond the core deploy lifecycle.
+- **VCS GitLab/BitBucket/custom** — 19 endpoints, intentionally out of scope (ADR-0009 covers GitHub +
+  Azure DevOps only).
 
 > This table is the maintained summary; the full per-endpoint listing can be regenerated from the stubs at any time.
