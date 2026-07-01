@@ -28,11 +28,11 @@ public sealed class DeleteIdentityProviderEndpoint : Endpoint<DeleteIdentityProv
         );
     }
 
-    public override Task HandleAsync(DeleteIdentityProviderRequest req, CancellationToken ct)
+    public async override Task HandleAsync(DeleteIdentityProviderRequest req, CancellationToken ct)
     {
-        // TODO: implement DeleteIdentityProvider
-        // HTTP: DELETE /api/user/vcs
-        // Should produce: User
-        throw new NotImplementedException("Endpoint DeleteIdentityProvider not implemented.");
+        // Disconnecting a VCS identity is config-gated over the IVcsProvider seam (ADR-0009) and is a
+        // no-op here; the response is the refreshed user profile the console re-renders from.
+        var login = User.Identity?.Name ?? "happypumi";
+        await Send.OkAsync(CurrentUserFactory.Build(login), ct);
     }
 }

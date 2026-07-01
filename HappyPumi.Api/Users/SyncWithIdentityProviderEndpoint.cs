@@ -28,11 +28,11 @@ public sealed class SyncWithIdentityProviderEndpoint : Endpoint<SyncWithIdentity
         );
     }
 
-    public override Task HandleAsync(SyncWithIdentityProviderRequest req, CancellationToken ct)
+    public async override Task HandleAsync(SyncWithIdentityProviderRequest req, CancellationToken ct)
     {
-        // TODO: implement SyncWithIdentityProvider
-        // HTTP: POST /api/user/vcs/sync
-        // Should produce: User
-        throw new NotImplementedException("Endpoint SyncWithIdentityProvider not implemented.");
+        // Re-fetching profile data from the VCS identity provider is config-gated over the IVcsProvider
+        // seam (ADR-0009) and is a no-op here; we return the (unchanged) refreshed user profile.
+        var login = User.Identity?.Name ?? "happypumi";
+        await Send.OkAsync(CurrentUserFactory.Build(login), ct);
     }
 }

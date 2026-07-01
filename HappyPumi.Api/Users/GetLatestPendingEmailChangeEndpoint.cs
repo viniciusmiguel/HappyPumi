@@ -8,13 +8,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Users;
 
 /// <summary>
 /// GetLatestPendingEmailChange
 /// </summary>
-public sealed class GetLatestPendingEmailChangeEndpoint : EndpointWithoutRequest<GetPendingEmailVerificationResponse>
+public sealed class GetLatestPendingEmailChangeEndpoint(IUserAccountStore store)
+    : EndpointWithoutRequest<GetPendingEmailVerificationResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,10 @@ public sealed class GetLatestPendingEmailChangeEndpoint : EndpointWithoutRequest
         );
     }
 
-    public override Task HandleAsync(CancellationToken ct)
+    public async override Task HandleAsync(CancellationToken ct)
     {
-        // TODO: implement GetLatestPendingEmailChange
-        // HTTP: GET /api/user/pending-emails
-        // Should produce: GetPendingEmailVerificationResponse
-        throw new NotImplementedException("Endpoint GetLatestPendingEmailChange not implemented.");
+        var login = User.Identity?.Name ?? "happypumi";
+        var pending = store.Get(login).PendingEmail;
+        await Send.OkAsync(new GetPendingEmailVerificationResponse { Email = pending ?? string.Empty }, ct);
     }
 }
