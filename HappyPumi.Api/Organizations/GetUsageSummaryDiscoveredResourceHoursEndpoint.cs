@@ -28,11 +28,9 @@ public sealed class GetUsageSummaryDiscoveredResourceHoursEndpoint : Endpoint<Ge
         );
     }
 
-    public override Task HandleAsync(GetUsageSummaryDiscoveredResourceHoursRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetUsageSummaryDiscoveredResourceHoursRequest req, CancellationToken ct)
     {
-        // TODO: implement GetUsageSummaryDiscoveredResourceHours
-        // HTTP: GET /api/orgs/{orgName}/discovered-resources/summary
-        // Should produce: GetResourceCountSummaryResponse
-        throw new NotImplementedException("Endpoint GetUsageSummaryDiscoveredResourceHours not implemented.");
+        // No discovered-resource (Insights) data source exists, so the summary is deterministically empty.
+        await Send.OkAsync(UsageSummaryFactory.EmptySummary(), ct);
     }
 }

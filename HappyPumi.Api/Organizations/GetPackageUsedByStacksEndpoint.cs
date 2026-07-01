@@ -28,11 +28,12 @@ public sealed class GetPackageUsedByStacksEndpoint : Endpoint<GetPackageUsedBySt
         );
     }
 
-    public override Task HandleAsync(GetPackageUsedByStacksRequest req, CancellationToken ct)
+    public override async Task HandleAsync(GetPackageUsedByStacksRequest req, CancellationToken ct)
     {
-        // TODO: implement GetPackageUsedByStacks
-        // HTTP: GET /api/orgs/{orgName}/packages/usage
-        // Should produce: PackageUsageResponse
-        throw new NotImplementedException("Endpoint GetPackageUsedByStacks not implemented.");
+        // Per-stack package-usage tracking is not modeled (no resource index), so we echo the queried
+        // package name with an empty stack list. Accept either query alias the console/CLI may send.
+        var name = Query<string>("name", isRequired: false) ?? Query<string>("packageName", isRequired: false);
+        var response = new PackageUsageResponse { PackageName = name, Stacks = new(), TotalStacks = 0 };
+        await Send.OkAsync(response, ct);
     }
 }
