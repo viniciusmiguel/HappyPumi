@@ -6,15 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Organizations;
 
 /// <summary>
 /// GetPolicyGroupMetadata
 /// </summary>
-public sealed class GetPolicyGroupMetadataEndpoint : Endpoint<GetPolicyGroupMetadataRequest, PolicyGroupMetadata>
+public sealed class GetPolicyGroupMetadataEndpoint(IPolicyStore policies) : Endpoint<GetPolicyGroupMetadataRequest, PolicyGroupMetadata>
 {
     public override void Configure()
     {
@@ -28,11 +30,19 @@ public sealed class GetPolicyGroupMetadataEndpoint : Endpoint<GetPolicyGroupMeta
         );
     }
 
+    // Best-effort metrics over the modelled state: policy groups scope stacks, and a group with ≥1 applied
+    // pack is "protecting" its stacks. Accounts/resources are not modelled here, so those counts stay 0.
     public override Task HandleAsync(GetPolicyGroupMetadataRequest req, CancellationToken ct)
     {
-        // TODO: implement GetPolicyGroupMetadata
-        // HTTP: GET /api/orgs/{orgName}/policygroups/metadata
-        // Should produce: PolicyGroupMetadata
-        throw new NotImplementedException("Endpoint GetPolicyGroupMetadata not implemented.");
+        var groups = policies.ListGroups(req.OrgName);
+        var totalStacks = groups.SelectMany(g => g.Stacks).Distinct().Count();
+        var protectedStacks = groups.Where(g => g.AppliedPolicyPacks.Count > 0)
+            .SelectMany(g => g.Stacks).Distinct().Count();
+        return Send.OkAsync(new PolicyGroupMetadata
+        {
+            TotalStacks = totalStacks,
+            ProtectedStacks = protectedStacks,
+            PreventativeStacks = protectedStacks,
+        }, ct);
     }
 }

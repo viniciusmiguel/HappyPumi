@@ -6,15 +6,17 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using FastEndpoints;
 using HappyPumi.Api.Contracts;
+using HappyPumi.Api.State;
 
 namespace HappyPumi.Api.Endpoints.Stacks;
 
 /// <summary>
 /// GetStackPolicyGroups
 /// </summary>
-public sealed class GetStackPolicyGroupsEndpoint : Endpoint<GetStackPolicyGroupsRequest, AppListPolicyGroupsResponse>
+public sealed class GetStackPolicyGroupsEndpoint(IPolicyStore policies) : Endpoint<GetStackPolicyGroupsRequest, AppListPolicyGroupsResponse>
 {
     public override void Configure()
     {
@@ -28,11 +30,15 @@ public sealed class GetStackPolicyGroupsEndpoint : Endpoint<GetStackPolicyGroups
         );
     }
 
+    // A stack is covered by a group when it is listed (by "project/stack" or bare stack name) or when the
+    // group is the org default (which applies to every stack not otherwise assigned).
     public override Task HandleAsync(GetStackPolicyGroupsRequest req, CancellationToken ct)
     {
-        // TODO: implement GetStackPolicyGroups
-        // HTTP: GET /api/stacks/{orgName}/{projectName}/{stackName}/policygroups
-        // Should produce: AppListPolicyGroupsResponse
-        throw new NotImplementedException("Endpoint GetStackPolicyGroups not implemented.");
+        var qualified = $"{req.ProjectName}/{req.StackName}";
+        var matching = policies.ListGroups(req.OrgName)
+            .Where(g => g.IsOrgDefault || g.Stacks.Contains(qualified) || g.Stacks.Contains(req.StackName))
+            .Select(PolicyMapper.ToGroupSummary)
+            .ToList();
+        return Send.OkAsync(new AppListPolicyGroupsResponse { PolicyGroups = matching }, ct);
     }
 }
